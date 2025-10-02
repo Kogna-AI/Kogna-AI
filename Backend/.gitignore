@@ -1,0 +1,9 @@
+# Ignore environment file
+.env
+
+# Ignore Google key folder
+Keys/
+
+# Ignore Python cache
+__pycache__/
+*.pyc
