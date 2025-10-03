@@ -1,9 +1,17 @@
-from crewai import Agent, Task, Crew
+from crewai import Agent, Task, Crew, LLM
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 api_key = os.getenv("SERPAPI_API_KEY")
+
+#add LLM model
+
+llm = LLM(
+    model="gemini/gemini-2.0-flash-exp",  # or your preferred model
+    temperature=0.7,
+    api_key=os.getenv("GOOGLE_API_KEY")
+)
 
 # Create a custom research agent
 agent = Agent(
@@ -14,7 +22,8 @@ agent = Agent(
     gathering information from various sources, identifying patterns, and providing 
     actionable insights for executive decision-making.""",
     verbose=True,
-    allow_delegation=False
+    allow_delegation=False,
+    llm=llm
 )
 
 #Task 1: Find and summarize top product risks from Q3 reports
