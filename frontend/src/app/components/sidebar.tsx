@@ -1,0 +1,135 @@
+import { 
+  LayoutDashboard, 
+  Users, 
+  Calendar, 
+  Target, 
+  TrendingUp, 
+  MessageSquare, 
+  Bell, 
+  Settings,
+  Database,
+  LogOut,
+  Brain
+} from 'lucide-react';
+import logoImage from 'figma:asset/50beeccf5a3ff0b200a9985334cd82dcf3349a1d.png';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/badge';
+import { Separator } from '../ui/seperator';
+import { KogniiThinkingIcon } from '../../../public/KogniiThinkingIcon';
+import { useUser } from './auth/UserContext';
+
+interface SidebarProps {
+  activeView: string;
+  setActiveView: (view: string) => void;
+  onKogniiToggle: () => void;
+  onNotificationsToggle: () => void;
+}
+
+export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificationsToggle }: SidebarProps) {
+  const { user, logout } = useUser();
+  const navigationItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'team', label: 'Team Overview', icon: Users },
+    { id: 'strategy', label: 'Strategy Hub', icon: Target },
+    { id: 'connectors', label: 'Data Connectors', icon: Database },
+    { id: 'meetings', label: 'Meetings', icon: Calendar },
+    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+    { id: 'feedback', label: 'Feedback', icon: MessageSquare },
+  ];
+
+  return (
+    <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+      {/* Header */}
+      <div className="p-6 border-b border-sidebar-border">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+            <img 
+              src={logoImage} 
+              alt="KognaDash Logo" 
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-sidebar-foreground">KognaDash</h1>
+            <p className="text-xs text-sidebar-foreground/60">Strategic Intelligence</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="p-4 border-b border-sidebar-border">
+        <div className="space-y-2">
+          <Button 
+            onClick={onKogniiToggle}
+            variant="outline" 
+            size="sm" 
+            className="w-full justify-start gap-2 text-sidebar-foreground border-sidebar-border hover:bg-sidebar-accent"
+          >
+            <KogniiThinkingIcon className="w-4 h-4" />
+            Kognii Assistant
+            <Badge variant="secondary" className="ml-auto text-xs">AI</Badge>
+          </Button>
+          
+          <Button 
+            onClick={onNotificationsToggle}
+            variant="outline" 
+            size="sm" 
+            className="w-full justify-start gap-2 text-sidebar-foreground border-sidebar-border hover:bg-sidebar-accent"
+          >
+            <Bell className="w-4 h-4" />
+            Notifications
+            <Badge variant="destructive" className="ml-auto text-xs">3</Badge>
+          </Button>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex-1 p-4">
+        <nav className="space-y-2">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Button
+                key={item.id}
+                onClick={() => setActiveView(item.id)}
+                variant={activeView === item.id ? "secondary" : "ghost"}
+                className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
+              >
+                <Icon className="w-4 h-4" />
+                {item.label}
+                {item.badge && (
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {item.badge}
+                  </Badge>
+                )}
+              </Button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <Separator className="bg-sidebar-border" />
+      
+      {/* Footer */}
+      <div className="p-4 space-y-2">
+        <Button
+          onClick={() => setActiveView('settings')}
+          variant="ghost"
+          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
+        >
+          <Settings className="w-4 h-4" />
+          Settings
+        </Button>
+        
+        <Button
+          onClick={logout}
+          variant="ghost"
+          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out ({user?.name})
+        </Button>
+      </div>
+    </div>
+  );
+}
