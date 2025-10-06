@@ -2,7 +2,7 @@ from crewai import Agent, Task, Crew, LLM
 from crewai.tools import tool
 from crewai_tools import SerperDevTool, FileReadTool, DirectoryReadTool, ScrapeWebsiteTool
 import os
-from flask.cli import load_dotenv
+from dotenv import load_dotenv
 import requests  
 
 load_dotenv()
