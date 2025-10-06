@@ -156,8 +156,8 @@ def search_confluence(query: str) -> str:
 #add LLM config
 
 llm = LLM(
-    model="gemini/gemini-2.0-flash-exp",
-    temperature=0.7,
+    model="gemini/gemini-2.0-flash",
+    temperature=0.1,
     api_key=os.getenv("GOOGLE_API_KEY")
 )
 

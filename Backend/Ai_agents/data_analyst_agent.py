@@ -7,11 +7,11 @@ import pandas as pd
 
 load_dotenv()
 
-# Configure LLM - Claude Sonnet is excellent for SQL and data analysis
+# Configure LLM 
 llm = LLM(
-    model="claude-sonnet-4-5-20250929",  
+    model="gemini/gemini-2.0-flash",  
     temperature=0.1,  
-    api_key=os.getenv("ANTHROPIC_API_KEY")
+    api_key=os.getenv("GOOGLE_API_KEY")
 )
 
 
