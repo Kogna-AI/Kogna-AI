@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import Sidebar from './components/sidebar';
+import {Sidebar} from './components/sidebar';
 import { MainDashboard } from './components/MainDashboard';
 import { KogniiAssistant } from './components/KogniiAssistant';
 import { NotificationCenter } from './components/NotificationCenter';
