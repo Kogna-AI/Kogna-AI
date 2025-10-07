@@ -1,4 +1,17 @@
+# requirements.txt
+
+# Core AI Agent Framework
 crewai
+
+# For loading environment variables from a .env file
 python-dotenv
+
+# LangChain and Google Generative AI (Gemini) integrations
 langchain-google-genai
 google-generativeai
+
+# For making HTTP requests to APIs
+requests
+
+# For data analysis and manipulation
+pandas
