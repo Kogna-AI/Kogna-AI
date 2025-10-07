@@ -9,8 +9,12 @@ load_dotenv()
 edge case:
 no api key found
 '''
-if not os.getenv("ANTHROPIC_API_KEY"):
-    raise ValueError("ANTHROPIC_API_KEY not found in .env file.")
+
+# switched to Gemini due to limitation of Anthropic
+
+
+if not os.getenv("GEMINI_API_KEY"):
+    raise ValueError("GEMINI_API_KEY not found in .env file.")
 
 if not os.getenv("SERPER_API_KEY"):
     raise ValueError("SERPER_API_KEY not found in .env file.")
@@ -19,9 +23,9 @@ if not os.getenv("SERPER_API_KEY"):
 #config LLM
 
 llm = LLM(
-    model="claude/sonnet-4.5",
+    model="gemini/gemini-2.0-flash",
     temperature=0.6,
-    api_key=os.getenv("ANTHROPIC_API_KEY")  # set ANTHROPIC_API_KEY or other provider if further decision made
+    api_key=os.getenv("GEMINI_API_KEY")
 )
 
 #initialize built-in tools:
