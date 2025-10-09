@@ -1,140 +1,144 @@
-from crewai import Agent, Task, Crew, LLM
-from crewai.tools import tool
-from crewai_tools import  SerperDevTool, FileReadTool, DirectoryReadTool, ScrapeWebsiteTool
-import os
-from dotenv import load_dotenv
-import requests  
+# research_crew.py
 
-load_dotenv()
+from crewai import Agent, Task, Crew
+from crewai.tools import tool
+from crewai_tools import SerperDevTool
+import requests
+from langchain_litellm import ChatLiteLLM  # Correct import for Gemini
 
 #
 # This is the refactored script for the Research Agent.
 # It is designed to be imported and used by the main Orchestrator.py script.
 #
 
-# --- Custom Tools Definition ---
-
-@tool("Jira Search")
-def search_jira(query: str) -> str:
-    """Search Jira for project information, issues, and status updates using a JQL query."""
-    try:
-        jira_url = os.getenv("JIRA_URL")
-        jira_email = os.getenv("JIRA_EMAIL")
-        jira_api_token = os.getenv("JIRA_API_TOKEN")
-        
-        if not all([jira_url, jira_email, jira_api_token]):
-            return "Jira credentials not configured in .env file."
-        
-        search_url = f"{jira_url}/rest/api/3/search"
-        headers = {"Accept": "application/json"}
-        auth = (jira_email, jira_api_token)
-        params = {"jql": query, "maxResults": 50, "fields": "summary,status,priority,project"}
-        
-        response = requests.get(search_url, headers=headers, auth=auth, params=params)
-        response.raise_for_status() # Raise an exception for bad status codes
-        
-        data = response.json()
-        issues = data.get('issues', [])
-        if not issues:
-            return f"No Jira issues found for query: {query}"
-        
-        results = [f"- {i['key']}: {i['fields']['summary']} (Status: {i['fields']['status']['name']})" for i in issues]
-        return f"Found {len(issues)} Jira issues:\n" + "\n".join(results)
-            
-    except Exception as e:
-        return f"Error searching Jira: {str(e)}"
-
-@tool("CRM Query")
-def query_crm(parameters: str) -> str:
-    """Query CRM for customer data, deals, and revenue info."""
-    try:
-        sf_instance_url = os.getenv("SALESFORCE_INSTANCE_URL")
-        sf_access_token = os.getenv("SALESFORCE_ACCESS_TOKEN")
-        
-        if not all([sf_instance_url, sf_access_token]):
-            return "CRM credentials not configured in .env file."
-        
-        query_url = f"{sf_instance_url}/services/data/v58.0/query"
-        headers = {"Authorization": f"Bearer {sf_access_token}"}
-        # A more dynamic query based on a simplified input
-        soql = f"SELECT Name, Amount, StageName, CloseDate FROM Opportunity WHERE {parameters} LIMIT 20"
-        
-        response = requests.get(query_url, headers=headers, params={"q": soql})
-        response.raise_for_status()
-        
-        data = response.json()
-        records = data.get('records', [])
-        if not records:
-            return f"No CRM records found for: {parameters}"
-        
-        results = [f"- {r['Name']}: ${r.get('Amount', 0):,.0f} ({r['StageName']})" for r in records]
-        return f"Found {len(records)} CRM opportunities:\n" + "\n".join(results)
-            
-    except Exception as e:
-        return f"Error querying CRM: {str(e)}"
-
-@tool("Confluence Search")
-def search_confluence(query: str) -> str:
-    """Search Confluence for documentation, reports, and company knowledge."""
-    try:
-        confluence_url = os.getenv("CONFLUENCE_URL")
-        confluence_email = os.getenv("CONFLUENCE_EMAIL")
-        confluence_api_token = os.getenv("CONFLUENCE_API_TOKEN")
-        
-        if not all([confluence_url, confluence_email, confluence_api_token]):
-            return "Confluence credentials not configured."
-        
-        search_url = f"{confluence_url}/rest/api/content/search"
-        auth = (confluence_email, confluence_api_token)
-        params = {"cql": f'text ~ "{query}"', "limit": 10}
-        
-        response = requests.get(search_url, auth=auth, params=params)
-        response.raise_for_status()
-        
-        data = response.json()
-        results = data.get('results', [])
-        if not results:
-            return f"No Confluence pages found for: {query}"
-        
-        output = [f"- {r['title']}\n  URL: {confluence_url}{r['_links']['webui']}" for r in results]
-        return f"Found {len(results)} Confluence pages:\n" + "\n".join(output)
-            
-    except Exception as e:
-        return f"Error searching Confluence: {str(e)}"
-
-# --- Crew Creation Function ---
-
-def create_research_crew():
+def create_research_crew(
+    google_api_key: str,
+    serper_api_key: str,
+    # jira_creds: dict,
+    # crm_creds: dict,
+    # confluence_creds: dict
+) -> Crew:
     """
     Creates and configures the Business Research Crew.
+
+    This function is now fully self-contained and receives all necessary credentials
+    and API keys as arguments, making it modular and secure.
+
+    Args:
+        google_api_key (str): API key for the Google Gemini model.
+        serper_api_key (str): API key for the Serper search tool.
+        jira_creds (dict): Dictionary with 'url', 'email', and 'api_token' for Jira.
+        crm_creds (dict): Dictionary with 'instance_url' and 'access_token' for the CRM.
+        confluence_creds (dict): Dictionary with 'url', 'email', and 'api_token' for Confluence.
 
     Returns:
         Crew: The configured Research Crew object.
     """
-    # Configure the LLM
-    llm = LLM(
-        model="gemini/gemini-2.0-flash",
+
+    # --- Custom Tools Definition (defined inside to access credentials) ---
+
+    # @tool("Jira Search")
+    # def search_jira(query: str) -> str:
+    #     """Search Jira for project information, issues, and status updates using a JQL query."""
+    #     try:
+    #         if not all(k in jira_creds for k in ['url', 'email', 'api_token']):
+    #             return "Jira credentials dictionary is incomplete."
+            
+    #         search_url = f"{jira_creds['url']}/rest/api/3/search"
+    #         headers = {"Accept": "application/json"}
+    #         auth = (jira_creds['email'], jira_creds['api_token'])
+    #         params = {"jql": query, "maxResults": 50, "fields": "summary,status,priority,project"}
+            
+    #         response = requests.get(search_url, headers=headers, auth=auth, params=params)
+    #         response.raise_for_status()
+            
+    #         data = response.json()
+    #         issues = data.get('issues', [])
+    #         if not issues:
+    #             return f"No Jira issues found for query: {query}"
+            
+    #         results = [f"- {i['key']}: {i['fields']['summary']} (Status: {i['fields']['status']['name']})" for i in issues]
+    #         return f"Found {len(issues)} Jira issues:\n" + "\n".join(results)
+                
+    #     except Exception as e:
+    #         return f"Error searching Jira: {str(e)}"
+
+    # @tool("CRM Query")
+    # def query_crm(parameters: str) -> str:
+    #     """Query CRM for customer data, deals, and revenue info."""
+    #     try:
+    #         if not all(k in crm_creds for k in ['instance_url', 'access_token']):
+    #             return "CRM credentials dictionary is incomplete."
+            
+    #         query_url = f"{crm_creds['instance_url']}/services/data/v58.0/query"
+    #         headers = {"Authorization": f"Bearer {crm_creds['access_token']}"}
+    #         soql = f"SELECT Name, Amount, StageName, CloseDate FROM Opportunity WHERE {parameters} LIMIT 20"
+            
+    #         response = requests.get(query_url, headers=headers, params={"q": soql})
+    #         response.raise_for_status()
+            
+    #         data = response.json()
+    #         records = data.get('records', [])
+    #         if not records:
+    #             return f"No CRM records found for: {parameters}"
+            
+    #         results = [f"- {r['Name']}: ${r.get('Amount', 0):,.0f} ({r['StageName']})" for r in records]
+    #         return f"Found {len(records)} CRM opportunities:\n" + "\n".join(results)
+                
+    #     except Exception as e:
+    #         return f"Error querying CRM: {str(e)}"
+
+    # @tool("Confluence Search")
+    # def search_confluence(query: str) -> str:
+    #     """Search Confluence for documentation, reports, and company knowledge."""
+    #     try:
+    #         if not all(k in confluence_creds for k in ['url', 'email', 'api_token']):
+    #             return "Confluence credentials dictionary is incomplete."
+
+    #         search_url = f"{confluence_creds['url']}/rest/api/content/search"
+    #         auth = (confluence_creds['email'], confluence_creds['api_token'])
+    #         params = {"cql": f'text ~ "{query}"', "limit": 10}
+            
+    #         response = requests.get(search_url, auth=auth, params=params)
+    #         response.raise_for_status()
+            
+    #         data = response.json()
+    #         results = data.get('results', [])
+    #         if not results:
+    #             return f"No Confluence pages found for: {query}"
+            
+    #         output = [f"- {r['title']}\n  URL: {confluence_creds['url']}{r['_links']['webui']}" for r in results]
+    #         return f"Found {len(results)} Confluence pages:\n" + "\n".join(output)
+                
+    #     except Exception as e:
+    #         return f"Error searching Confluence: {str(e)}"
+
+    # --- Agent Configuration ---
+
+    # Configure the LLM using the provided API key
+    llm = ChatLiteLLM(
+        model="gemini/gemini-2.0-flash", # Using the latest Gemini 2.0 Flash model
         temperature=0.7,
-        api_key=os.getenv("GOOGLE_API_KEY")
+        api_key=google_api_key
     )
 
-    # Initialize built-in tools
-    search_tool = SerperDevTool(api_key=os.getenv("SERPER_API_KEY"))
+    # Initialize built-in tools with provided API key
+    search_tool = SerperDevTool(api_key=serper_api_key)
 
-    # Create the Research Agent
+    # Create the Research Agent with all tools
     research_agent = Agent(
         role='Senior Business Research Analyst',
         goal='Conduct thorough research using company data sources and external information to compile a comprehensive business intelligence report',
         backstory="""You are an expert business research analyst. You have access to internal
-        company systems like Jira, CRM, and Confluence, as well as web search capabilities.
+        company systems like web search capabilities.
         You methodically use these tools to answer complex business questions.""",
         verbose=True,
         allow_delegation=False,
         llm=llm,
-        tools=[search_jira, query_crm, search_confluence, search_tool]
+        tools=[ search_tool]
     )
 
-    # Create a single, comprehensive research task
+    # Create the research task
     comprehensive_research_task = Task(
         description="""Compile a comprehensive business intelligence report for the last quarter.
         You must use your available tools to gather information on the following topics:
@@ -161,6 +165,3 @@ def create_research_crew():
     )
     
     return research_crew
-
-# Note: The 'if __name__ == "__main__":' block and old code have been removed.
-# This script should be executed via Orchestrator.py.

@@ -15,3 +15,8 @@ requests
 
 # For data analysis and manipulation
 pandas
+
+langchain_anthropic
+langchain_litellm
+
+datetime

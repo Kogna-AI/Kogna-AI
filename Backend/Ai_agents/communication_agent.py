@@ -1,37 +1,45 @@
+# communications_crew.py
+
 from crewai import Agent, Task, Crew
 from crewai.project import CrewBase, agent, crew, task
-from crewai_tools import FileReadTool, DirectoryReadTool, SerperDevTool
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from crewai_tools import SerperDevTool
+from langchain_anthropic import ChatAnthropic # Correct import for Anthropic models
 
 #
 # This is the refactored script for the Communications Agent.
 # It is designed to be imported and used by the main Orchestrator.py script.
 #
 
-def create_communication_crew(synthesis_context: str):
+def create_communication_crew(
+    synthesis_context: str,
+    anthropic_api_key: str,
+    serper_api_key: str
+) -> Crew:
     """
     Creates and configures the Communications Crew.
+
+    This function now receives API keys directly from the caller (e.g., orchestrator.py),
+    making it more modular and secure.
 
     Args:
         synthesis_context (str): The final synthesis report from the previous agent,
                                  passed in-memory to be used as context.
+        anthropic_api_key (str): The API key for the Anthropic (Claude) model.
+        serper_api_key (str): The API key for the SerperDevTool.
 
     Returns:
         Crew: The configured Communications Crew object.
     """
 
-    # Define the LLM for this agent
-    llm = LLM(
-        model="claude/opus-4.1",  # Claude Opus is great for nuanced, high-quality writing
+    # Define the LLM for this agent, using the provided API key
+    llm = ChatAnthropic(
+        model="claude-3-opus-20240229", # A common model name for Opus
         temperature=0.5,
-        api_key=os.getenv("ANTHROPIC_API_KEY")
+        api_key=anthropic_api_key
     )
 
-    # Initialize tools
-    search_tool = SerperDevTool(api_key=os.getenv("SERPER_API_KEY"))
+    # Initialize tools with the provided API key
+    search_tool = SerperDevTool(api_key=serper_api_key)
 
     # Define the Communications Agent
     communications_agent = Agent(
@@ -46,7 +54,7 @@ def create_communication_crew(synthesis_context: str):
         tools=[search_tool]  # Only web search is needed for broader context or definitions
     )
 
-    # Define the tasks, now using the in-memory context
+    # Define the tasks, using the in-memory context
     task_executive_narrative = Task(
         description=f"""Using the provided synthesis report, create an executive-level narrative suitable for a leadership meeting.
         The report should be structured as:
@@ -91,6 +99,3 @@ def create_communication_crew(synthesis_context: str):
     )
 
     return communication_crew
-
-# Note: The 'if __name__ == "__main__":' block has been removed.
-# This script should be executed via Orchestrator.py.
