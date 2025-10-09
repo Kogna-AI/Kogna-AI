@@ -1,3 +1,4 @@
+"use client"
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Button } from '../../ui/Button';
@@ -46,7 +47,7 @@ export function LoginScreen() {
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-white shadow-lg flex items-center justify-center">
             <img 
-              src={logoImage} 
+              src={logoImage.src} 
               alt="KognaDash Logo" 
               className="w-10 h-10 object-contain"
             />
