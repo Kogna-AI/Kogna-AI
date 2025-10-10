@@ -1,10 +1,23 @@
-from crewai import Agent, Task, Crew, LLM
-from crewai_tools import FileReadTool, DirectoryReadTool, SerperDevTool
-import os
-from flask.cli import load_dotenv
+from crewai import Agent, Task, Crew, Process
+from crewai_tools import SerperDevTool
+# POLISH: Switched from Anthropic to the LiteLLM wrapper for Google
+from langchain_litellm import ChatLiteLLM
+from datetime import datetime
 
-load_dotenv()
+def create_synthesis_crew(
+    sql_analysis_report: str,
+    business_research_findings: str,
+    # POLISH: Changed the API key argument to be consistent
+    google_api_key: str,
+    serper_api_key: str
+) -> Crew:
+    """
+    Creates and configures the Strategic Synthesis Crew.
+    """
+    current_time = datetime.now().strftime("%I:%M %p %Z on %A, %B %d, %Y")
+    current_date = datetime.now().strftime("%Y-%m-%d")
 
+<<<<<<< HEAD
 '''
 edge case:
 no api key found
@@ -15,118 +28,68 @@ no api key found
 
 if not os.getenv("GEMINI_API_KEY"):
     raise ValueError("GEMINI_API_KEY not found in .env file.")
+=======
+    # POLISH: Configured the agent to use the Google Gemini model
+    llm = ChatLiteLLM(
+        model="gemini/gemini-2.0-flash",
+        temperature=0.6,
+        api_key=google_api_key
+    )
+    
+    search_tool = SerperDevTool(api_key=serper_api_key)
+>>>>>>> orch
 
-if not os.getenv("SERPER_API_KEY"):
-    raise ValueError("SERPER_API_KEY not found in .env file.")
+    synthesizer_agent = Agent(
+        role="Senior Strategic Synthesis Analyst",
+        goal="Integrate quantitative analysis and qualitative business intelligence to produce a single, coherent executive summary with actionable insights.",
+        backstory=(
+            "You are a master strategist, an expert at connecting dots that others miss. "
+            "You take detailed quantitative reports from data analysts and qualitative findings from "
+            "business researchers to weave a single, compelling narrative about the company's "
+            "performance, risks, and opportunities."
+        ),
+        verbose=True,
+        allow_delegation=False,
+        llm=llm,
+        tools=[search_tool]
+    )
 
+    synthesis_task = Task(
+        description=f"""Synthesize the following two reports into a single, unified executive summary.
+        Your goal is to identify cross-functional themes, contradictions, and strategic implications.
 
-#config LLM
+        **Report 1: Quantitative Data Analysis Report (Received at {current_time})**
+        ---
+        {sql_analysis_report}
+        ---
 
+<<<<<<< HEAD
 llm = LLM(
     model="gemini/gemini-2.0-flash",
     temperature=0.6,
     api_key=os.getenv("GEMINI_API_KEY")
 )
+=======
+        **Report 2: Qualitative Business Research Findings (Received at {current_time})**
+        ---
+        {business_research_findings}
+        ---
+>>>>>>> orch
 
-#initialize built-in tools:
-'''
-FileReadTool - to read text files other agents generated
-DirectoryReadTool - to read text files in a the work dir
-SerperDevTool - to search the web
-'''
-
-file_tool = FileReadTool()
-directory_tool = DirectoryReadTool()
-search_tool = SerperDevTool(api_key=os.getenv("SERPER_API_KEY"))
-
-# setup Synthesizer Agent
-
-synthesizer_agent = Agent(
-    role="Strategic Synthesis Analyst",
-    goal="Integrate findings from all agents to identify strategic patterns, risks, and opportunities.",
-    backstory="""You are the Synthesizer Agent, an expert at connecting dots across multiple analyses.
-    You combine research, analytics, and operational insights into coherent, executive-ready intelligence.
-    You excel at identifying hidden risks, emergent opportunities, and strategic implications.""",
-    verbose=True,
-    allow_delegation=False,
-    llm=llm,
-    tools=[file_tool, directory_tool, search_tool]
-)
-
-#set up the task 
-#TODO: adjust the file other agents generated
-task_integrate_findings = Task( 
-    description="""Review and consolidate findings from prior agents.
-    Look into: 
-    - research_output.txt
-    - analysis_output.txt
-    - kpi_output.txt
-    - churn_output.txt
-    Identify recurring topics, cross-departmental insights, and conflicting conclusions.""",
-    expected_output="""A unified synthesis of insights with:
-    - Top 5 cross-functional themes
-    - Key supporting evidence (with file references)
-    - Contradictions or data gaps""",
-    agent=synthesizer_agent
-)
-
-task_pattern_risk_analysis = Task(
-    description="""From the synthesized insights, identify strategic patterns, risks, and emerging opportunities.
-    Pay attention to:
-    - Market trends (use web search if needed)
-    - Operational bottlenecks
-    - Growth signals or innovation opportunities""",
-    expected_output="""A structured list of:
-    - Strategic patterns
-    - Emerging risks
-    - Market or internal opportunities
-    - Recommended areas for deeper exploration""",
-    agent=synthesizer_agent
-)
-
-task_executive_summary = Task(
-    description="""Compile an executive-level summary based on all findings.
-    Present insights as:
-    - Key takeaways
-    - Strategic implications
-    - Next quarter priorities""",
-    expected_output="""Executive summary including:
-    - 3 strategic highlights
-    - 3 critical risks
-    - 3 actionable recommendations
-    - Concise conclusion for executive review""",
-    agent=synthesizer_agent,
-    context=[task_integrate_findings, task_pattern_risk_analysis]
-)
-
-# crew setup 
-
-crew = Crew(
-    agents=[synthesizer_agent],
-    tasks=[
-        task_integrate_findings,
-        task_pattern_risk_analysis,
-        task_executive_summary
-    ],
-    verbose=True,
-    process="sequential"
-)
-
-#run 
-
-if __name__ == "__main__":
-    print("Starting Synthesizer Agent Crew...")
-    print("=" * 60)
-
-    result = crew.kickoff()
-
-    print("\n" + "=" * 60)
-    print("SYNTHESIZER AGENT FINAL REPORT")
-    print("=" * 60)
-    print(result)
-
-    with open("synthesis_output.txt", "w") as f:
-        f.write(str(result))
-
-    print("\nReport saved to synthesis_output.txt")
-##
+        **Your analysis for the current business context of {current_date} must:**
+        1.  Identify the top 3-5 cross-functional themes that appear in both reports.
+        2.  Highlight any contradictions or data gaps. If you identify a critical data gap, briefly use the search tool to find external context that might help explain it.
+        3.  Formulate a final executive summary that includes strategic highlights, critical risks, and actionable recommendations for the next quarter.""",
+        expected_output="""A comprehensive executive summary document that includes:
+        - An overview of the top 3-5 strategic themes.
+        - A section on identified data gaps or conflicting information.
+        - A final summary with 3 strategic highlights, 3 critical risks, and 3 actionable recommendations.""",
+        agent=synthesizer_agent
+    )
+    
+    return Crew(
+        agents=[synthesizer_agent],
+        tasks=[synthesis_task],
+        process=Process.sequential,
+        verbose=True
+    )

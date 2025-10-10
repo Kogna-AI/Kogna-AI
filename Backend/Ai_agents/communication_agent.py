@@ -1,20 +1,33 @@
-from crewai import Agent, Task, Crew, LLM
-from crewai_tools import FileReadTool, DirectoryReadTool, SerperDevTool
-import os
-from flask.cli import load_dotenv
+# communications_crew.py
 
-load_dotenv()
+from crewai import Agent, Task, Crew
+from crewai.project import CrewBase, agent, crew, task
+from crewai_tools import SerperDevTool
+from langchain_anthropic import ChatAnthropic # Correct import for Anthropic models
 
+<<<<<<< HEAD
 '''
 edge case:
 no api key found
 '''
 if not os.getenv("GEMINI_API_KEY"):
     raise ValueError("GEMINI_API_KEY not found in .env file.")
+=======
+#
+# This is the refactored script for the Communications Agent.
+# It is designed to be imported and used by the main Orchestrator.py script.
+#
+>>>>>>> orch
 
-if not os.getenv("SERPER_API_KEY"):
-    raise ValueError("SERPER_API_KEY not found in .env file.")
+def create_communication_crew(
+    synthesis_context: str,
+    anthropic_api_key: str,
+    serper_api_key: str
+) -> Crew:
+    """
+    Creates and configures the Communications Crew.
 
+<<<<<<< HEAD
 # model -- claude/opus-4.1. Switched to Gemini due to limitation of Anthropic
 
 llm = LLM(
@@ -22,100 +35,86 @@ llm = LLM(
     temperature=0.6,
     api_key=os.getenv("GEMINI_API_KEY")
 )
+=======
+    This function now receives API keys directly from the caller (e.g., orchestrator.py),
+    making it more modular and secure.
 
-#initialize built-in tools:
-'''
-FileReadTool - to read text files other agents generated
-DirectoryReadTool - to read text files in a the work dir
-SerperDevTool - to search the web
-'''
-file_tool = FileReadTool()
-directory_tool = DirectoryReadTool()
-search_tool = SerperDevTool(api_key=os.getenv("SERPER_API_KEY"))
+    Args:
+        synthesis_context (str): The final synthesis report from the previous agent,
+                                 passed in-memory to be used as context.
+        anthropic_api_key (str): The API key for the Anthropic (Claude) model.
+        serper_api_key (str): The API key for the SerperDevTool.
+>>>>>>> orch
 
-# setup Communication Agent
-communications_agent = Agent(
-    role="Executive Communications Strategist",
-    goal="Translate complex analyses and strategic advice into clear, concise, and executive-ready language.",
-    backstory="""You are the Communications Agent, an expert in transforming complex analytical reports
-    into compelling narratives that executives can easily understand and act on.
-    You focus on clarity, brevity, and strategic tone suitable for board meetings, investor updates, or QBRs.""",
-    verbose=True,
-    allow_delegation=False,
-    llm=llm,
-    tools=[file_tool, directory_tool, search_tool]  # web search optional but useful for context
-)
+    Returns:
+        Crew: The configured Communications Crew object.
+    """
 
-# setup tasks
-#TODO: adjust the file other agents generated
-task_summary_findings = Task(
-    description="""Review prior agents' outputs:
-    - research_output.txt
-    - synthesis_output.txt
-    Summarize their main findings and key insights.
-    Focus on high-level implications and omit technical details.""",
-    expected_output="""A concise synthesis summary with:
-    - 5 key insights
-    - Supporting context in plain language
-    - One-sentence implication per insight""",
-    agent=communications_agent
-)
+    # Define the LLM for this agent, using the provided API key
+    llm = ChatAnthropic(
+        model="claude-3-opus-20240229", # A common model name for Opus
+        temperature=0.5,
+        api_key=anthropic_api_key
+    )
 
-task_executive_narrative = Task(
-    description="""Using the summarized insights, create an executive-level narrative suitable for a leadership meeting.
-    It should be structured as:
-    - Executive Summary paragraph
-    - Three strategic sections (Performance, Risks, Opportunities)
-    - Final takeaway message.""",
-    expected_output="""Executive summary document including:
-    - 1 overview paragraph
-    - 3 concise thematic sections
-    - 1 closing recommendation paragraph""",
-    agent=communications_agent,
-    context=[task_summary_findings]
-)
+    # Initialize tools with the provided API key
+    search_tool = SerperDevTool(api_key=serper_api_key)
 
-task_communication_deliverables = Task(
-    description="""Convert the executive narrative into three communication deliverables:
-    1. A 3-paragraph email for executives
-    2. A slide outline for presentation
-    3. A short script draft for an executive presenter.""",
-    expected_output="""Three deliverables:
-    - Executive email draft
-    - Slide outline (5–7 slides)
-    - 2-minute script summary""",
-    agent=communications_agent,
-    context=[task_executive_narrative]
-)
+    # Define the Communications Agent
+    communications_agent = Agent(
+        role="Executive Communications Strategist",
+        goal="Translate complex analyses and strategic advice into clear, concise, and executive-ready language.",
+        backstory="""You are the Communications Agent, an expert in transforming complex analytical reports
+        into compelling narratives that executives can easily understand and act on.
+        You focus on clarity, brevity, and strategic tone suitable for board meetings, investor updates, or QBRs.""",
+        verbose=True,
+        allow_delegation=False,
+        llm=llm,
+        tools=[search_tool]  # Only web search is needed for broader context or definitions
+    )
 
-#crew setup
+    # Define the tasks, using the in-memory context
+    task_executive_narrative = Task(
+        description=f"""Using the provided synthesis report, create an executive-level narrative suitable for a leadership meeting.
+        The report should be structured as:
+        - Executive Summary (1-2 paragraphs)
+        - Three strategic sections (e.g., Performance Highlights, Key Risks, Strategic Opportunities)
+        - A final, actionable takeaway message.
 
-crew = Crew(
-    agents=[communications_agent],
-    tasks=[
-        task_summary_findings,
-        task_executive_narrative,
-        task_communication_deliverables
-    ],
-    verbose=True,
-    process="sequential"
-)
+        **Full Synthesis Report to Analyze:**
+        ---
+        {synthesis_context}
+        ---
+        """,
+        expected_output="""A polished, executive-ready summary document including:
+        - 1-2 compelling overview paragraphs.
+        - 3 concise thematic sections that tell a clear story.
+        - 1 closing paragraph with a strong call to action or recommendation.""",
+        agent=communications_agent
+    )
 
-#run
+    task_communication_deliverables = Task(
+        description="""Convert the executive narrative from the previous step into three distinct communication deliverables:
+        1. A 3-paragraph summary email for the executive team.
+        2. A concise 5-7 slide outline for a presentation (bullet points for each slide).
+        3. A short (approx. 2-minute) script draft for an executive to present the key findings.""",
+        expected_output="""Three separate, well-formatted deliverables:
+        - The complete text for the executive email.
+        - A slide-by-slide outline for a presentation.
+        - A polished script summary for a presenter.""",
+        agent=communications_agent,
+        context=[task_executive_narrative]
+    )
 
-if __name__ == "__main__":
-    print("Starting Communications Agent Crew...")
-    print("=" * 60)
+    # Assemble the crew
+    communication_crew = Crew(
+        agents=[communications_agent],
+        tasks=[
+            task_executive_narrative,
+            task_communication_deliverables
+        ],
+        verbose=True,
+        process="sequential"
+    )
 
-    result = crew.kickoff()
-
-    print("\n" + "=" * 60)
-    print("COMMUNICATIONS AGENT FINAL REPORT")
-    print("=" * 60)
-    print(result)
-
-    with open("communications_output.txt", "w") as f:
-        f.write(str(result))
-
-    print("\nReport saved to communications_output.txt")
-##
+    return communication_crew
