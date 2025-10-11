@@ -17,18 +17,6 @@ def create_synthesis_crew(
     current_time = datetime.now().strftime("%I:%M %p %Z on %A, %B %d, %Y")
     current_date = datetime.now().strftime("%Y-%m-%d")
 
-<<<<<<< HEAD
-'''
-edge case:
-no api key found
-'''
-
-# switched to Gemini due to limitation of Anthropic
-
-
-if not os.getenv("GEMINI_API_KEY"):
-    raise ValueError("GEMINI_API_KEY not found in .env file.")
-=======
     # POLISH: Configured the agent to use the Google Gemini model
     llm = ChatLiteLLM(
         model="gemini/gemini-2.0-flash",
@@ -37,7 +25,6 @@ if not os.getenv("GEMINI_API_KEY"):
     )
     
     search_tool = SerperDevTool(api_key=serper_api_key)
->>>>>>> orch
 
     synthesizer_agent = Agent(
         role="Senior Strategic Synthesis Analyst",
@@ -63,18 +50,10 @@ if not os.getenv("GEMINI_API_KEY"):
         {sql_analysis_report}
         ---
 
-<<<<<<< HEAD
-llm = LLM(
-    model="gemini/gemini-2.0-flash",
-    temperature=0.6,
-    api_key=os.getenv("GEMINI_API_KEY")
-)
-=======
         **Report 2: Qualitative Business Research Findings (Received at {current_time})**
         ---
         {business_research_findings}
         ---
->>>>>>> orch
 
         **Your analysis for the current business context of {current_date} must:**
         1.  Identify the top 3-5 cross-functional themes that appear in both reports.

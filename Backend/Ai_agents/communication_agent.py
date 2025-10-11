@@ -5,19 +5,10 @@ from crewai.project import CrewBase, agent, crew, task
 from crewai_tools import SerperDevTool
 from langchain_anthropic import ChatAnthropic # Correct import for Anthropic models
 
-<<<<<<< HEAD
-'''
-edge case:
-no api key found
-'''
-if not os.getenv("GEMINI_API_KEY"):
-    raise ValueError("GEMINI_API_KEY not found in .env file.")
-=======
 #
 # This is the refactored script for the Communications Agent.
 # It is designed to be imported and used by the main Orchestrator.py script.
 #
->>>>>>> orch
 
 def create_communication_crew(
     synthesis_context: str,
@@ -27,15 +18,6 @@ def create_communication_crew(
     """
     Creates and configures the Communications Crew.
 
-<<<<<<< HEAD
-# model -- claude/opus-4.1. Switched to Gemini due to limitation of Anthropic
-
-llm = LLM(
-    model="gemini/gemini-2.0-flash",
-    temperature=0.6,
-    api_key=os.getenv("GEMINI_API_KEY")
-)
-=======
     This function now receives API keys directly from the caller (e.g., orchestrator.py),
     making it more modular and secure.
 
@@ -44,7 +26,6 @@ llm = LLM(
                                  passed in-memory to be used as context.
         anthropic_api_key (str): The API key for the Anthropic (Claude) model.
         serper_api_key (str): The API key for the SerperDevTool.
->>>>>>> orch
 
     Returns:
         Crew: The configured Communications Crew object.

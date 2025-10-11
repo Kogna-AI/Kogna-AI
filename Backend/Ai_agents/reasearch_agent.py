@@ -2,16 +2,9 @@
 
 from crewai import Agent, Task, Crew
 from crewai.tools import tool
-<<<<<<< HEAD
-from crewai_tools import SerperDevTool, FileReadTool, DirectoryReadTool, ScrapeWebsiteTool
-import os
-from dotenv import load_dotenv
-import requests  
-=======
 from crewai_tools import SerperDevTool
 import requests
 from langchain_litellm import ChatLiteLLM  # Correct import for Gemini
->>>>>>> orch
 
 #
 # This is the refactored script for the Research Agent.
@@ -132,13 +125,6 @@ def create_research_crew(
     # Initialize built-in tools with provided API key
     search_tool = SerperDevTool(api_key=serper_api_key)
 
-<<<<<<< HEAD
-llm = LLM(
-    model="gemini/gemini-2.0-flash",
-    temperature=0.1,
-    api_key=os.getenv("GOOGLE_API_KEY")
-)
-=======
     # Create the Research Agent with all tools
     research_agent = Agent(
         role='Senior Business Research Analyst',
@@ -151,7 +137,6 @@ llm = LLM(
         llm=llm,
         tools=[ search_tool]
     )
->>>>>>> orch
 
     # Create the research task
     comprehensive_research_task = Task(

@@ -7,27 +7,11 @@ from crewai import Agent, Task, Crew
 from crewai.tools import tool
 from langchain_litellm import ChatLiteLLM
 
-<<<<<<< HEAD
-load_dotenv()
-
-# Configure LLM 
-llm = LLM(
-    model="gemini/gemini-2.0-flash",  
-    temperature=0.1,  
-    api_key=os.getenv("GOOGLE_API_KEY")
-)
-
-
-# Custom tool for SQL query execution
-@tool("SQL Query Executor")
-def execute_sql_query(query: str) -> str:
-=======
 def create_data_analyst_crew(
     gemini_api_key: str,
     # REVERTED: Now accepts a simple file path again
     db_path: str 
 ) -> Crew:
->>>>>>> orch
     """
     Creates the Data Analyst Crew using a direct SQLite database path.
 
