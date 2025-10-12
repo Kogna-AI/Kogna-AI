@@ -2,7 +2,7 @@
 
 # Core AI Agent Framework
 crewai
-
+crewai_tools
 # For loading environment variables from a .env file
 python-dotenv
 

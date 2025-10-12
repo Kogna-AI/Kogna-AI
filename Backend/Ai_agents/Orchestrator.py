@@ -68,6 +68,7 @@ def run_full_pipeline():
     print("\n[Phase 5/5] Kicking off Communications Crew...")
     communications_crew = create_communication_crew(
         synthesis_context=synthesis_result.raw,
+        google_api_key=google_key,
         serper_api_key=serper_key
     )
     final_report_result = communications_crew.kickoff()

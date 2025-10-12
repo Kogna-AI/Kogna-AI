@@ -3,7 +3,7 @@
 from crewai import Agent, Task, Crew
 from crewai.project import CrewBase, agent, crew, task
 from crewai_tools import SerperDevTool
-from langchain_anthropic import ChatAnthropic # Correct import for Anthropic models
+from langchain_litellm import ChatLiteLLM # Correct, more robust import
 
 #
 # This is the refactored script for the Communications Agent.
@@ -12,7 +12,7 @@ from langchain_anthropic import ChatAnthropic # Correct import for Anthropic mod
 
 def create_communication_crew(
     synthesis_context: str,
-    anthropic_api_key: str,
+    google_api_key: str,
     serper_api_key: str
 ) -> Crew:
     """
@@ -32,10 +32,10 @@ def create_communication_crew(
     """
 
     # Define the LLM for this agent, using the provided API key
-    llm = ChatAnthropic(
-        model="claude-3-opus-20240229", # A common model name for Opus
-        temperature=0.5,
-        api_key=anthropic_api_key
+    llm = ChatLiteLLM(
+        model="gemini/gemini-2.0-flash", # Using the latest Gemini 2.0 Flash model
+        temperature=0.2,
+        api_key=google_api_key
     )
 
     # Initialize tools with the provided API key
