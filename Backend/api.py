@@ -860,10 +860,6 @@ def archive_insight(insight_id: int):
 # RECOMMENDATIONS ENDPOINTS
 # ============================================================================
 
-# ============================================================================
-# RECOMMENDATIONS ENDPOINTS
-# ============================================================================
-
 @app.post("/api/recommendations", status_code=status.HTTP_201_CREATED)
 def create_recommendation(rec: RecommendationCreate):
     """Create a new recommendation"""
