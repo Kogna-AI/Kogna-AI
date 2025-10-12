@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/Button';
+import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Progress } from '../../ui/progress';
 import { Target, Plus, Calendar, TrendingUp, AlertCircle, Users } from 'lucide-react';

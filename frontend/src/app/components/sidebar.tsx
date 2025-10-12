@@ -11,8 +11,8 @@ import {
   LogOut,
   Brain
 } from 'lucide-react';
-import logoImage from 'figma:asset/50beeccf5a3ff0b200a9985334cd82dcf3349a1d.png';
-import { Button } from '../ui/Button';
+import logoImage from '../../../public/logoImage.svg';
+import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/seperator';
 import { KogniiThinkingIcon } from '../../../public/KogniiThinkingIcon';
@@ -97,7 +97,7 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
               >
                 <Icon className="w-4 h-4" />
                 {item.label}
-                {item.badge && (
+                {item.badge && ( // 
                   <Badge variant="secondary" className="ml-auto text-xs">
                     {item.badge}
                   </Badge>
