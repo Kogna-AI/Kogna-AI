@@ -2,7 +2,7 @@
 
 from crewai import Agent, Task, Crew
 from crewai.project import CrewBase, agent, crew, task
-from crewai_tools import SerperDevTool
+from crewai_tools import SerpApiGoogleSearchTool
 from langchain_litellm import ChatLiteLLM # Correct, more robust import
 
 #
@@ -39,7 +39,7 @@ def create_communication_crew(
     )
 
     # Initialize tools with the provided API key
-    search_tool = SerperDevTool(api_key=serper_api_key)
+    search_tool = SerpApiGoogleSearchTool(api_key=serper_api_key)
 
     # Define the Communications Agent
     communications_agent = Agent(

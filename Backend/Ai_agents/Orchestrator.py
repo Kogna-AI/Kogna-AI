@@ -15,7 +15,7 @@ def run_full_pipeline():
     load_dotenv()
 
     google_key = os.getenv("GOOGLE_API_KEY")
-    serper_key = os.getenv("SERPER_API_KEY")
+    serper_key = os.getenv("SERPAPI_API_KEY")
     
     # REVERTED: Define a simple database file path.
     db_file_path = "pipeline_data.db"

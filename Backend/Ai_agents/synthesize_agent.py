@@ -1,5 +1,5 @@
 from crewai import Agent, Task, Crew, Process
-from crewai_tools import SerperDevTool
+from crewai_tools import SerpApiGoogleSearchTool
 # POLISH: Switched from Anthropic to the LiteLLM wrapper for Google
 from langchain_litellm import ChatLiteLLM
 from datetime import datetime
@@ -24,7 +24,7 @@ def create_synthesis_crew(
         api_key=google_api_key
     )
     
-    search_tool = SerperDevTool(api_key=serper_api_key)
+    search_tool = SerpApiGoogleSearchTool(api_key=serper_api_key)
 
     synthesizer_agent = Agent(
         role="Senior Strategic Synthesis Analyst",
