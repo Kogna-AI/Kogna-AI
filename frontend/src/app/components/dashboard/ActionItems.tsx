@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader } from '@mui/material';
-import Badge from '@mui/material/Badge';
+import { Card, CardContent, CardHeader } from '../../ui/card';
+import {Badge} from '../../ui/badge';
 import { CheckCircle, Clock } from 'lucide-react';
 
 export default function ActionItems({ actions }: { actions: any[] }) {

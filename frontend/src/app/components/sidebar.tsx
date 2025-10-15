@@ -25,9 +25,16 @@ interface SidebarProps {
   onNotificationsToggle: () => void;
 }
 
+interface NavItem {
+  id: string;
+  label: string;
+  icon: any;
+  badge?: string | number;
+}
+
 export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificationsToggle }: SidebarProps) {
   const { user, logout } = useUser();
-  const navigationItems = [
+  const navigationItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'team', label: 'Team Overview', icon: Users },
     { id: 'strategy', label: 'Strategy Hub', icon: Target },
@@ -35,6 +42,7 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'feedback', label: 'Feedback', icon: MessageSquare },
+    { id : 'insights', label: 'Insights', icon: Brain}
   ];
 
   return (
@@ -97,7 +105,7 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
               >
                 <Icon className="w-4 h-4" />
                 {item.label}
-                {item.badge && ( // 
+                {item.badge && (
                   <Badge variant="secondary" className="ml-auto text-xs">
                     {item.badge}
                   </Badge>

@@ -1,3 +1,22 @@
+// BE connect data
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Target,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  ArrowRight,
+  BarChart3,
+  DollarSign,
+  Calendar,
+  Lightbulb,
+  Shield,
+  Zap,
+  X,
+} from "lucide-react";
+
 export const performanceData = [
   { month: 'Jan', value: 65 },
   { month: 'Feb', value: 72 },
@@ -11,9 +30,9 @@ export const strategicMetrics = [
   {
     title: 'Strategic Alignment',
     value: '87%',
-    change: '+5%',
+    change: '+5%',  
     trend: 'up',
-    icon: undefined,
+    icon: Target,
     color: 'text-green-600'
   },
   {
@@ -21,7 +40,7 @@ export const strategicMetrics = [
     value: '92%',
     change: '+12%',
     trend: 'up',
-    icon: undefined,
+    icon: Users,
     color: 'text-blue-600'
   },
   {
@@ -29,7 +48,7 @@ export const strategicMetrics = [
     value: '3.2 days',
     change: '-1.1 days',
     trend: 'up',
-    icon: undefined,
+    icon: Clock,
     color: 'text-purple-600'
   },
   {
@@ -37,7 +56,7 @@ export const strategicMetrics = [
     value: '95%',
     change: '+8%',
     trend: 'up',
-    icon: undefined,
+    icon: AlertTriangle,
     color: 'text-orange-600'
   }
 ];

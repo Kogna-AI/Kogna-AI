@@ -1,10 +1,11 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../ui/dialog';
 import { Lightbulb, Shield } from 'lucide-react';
 import { KogniiThinkingIcon } from '../../../../public/KogniiThinkingIcon';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts';
 import { marketingROIData, capacityData, collaborationData } from './dashboardData';
-
+import { Badge } from "../../ui/badge";
+import { Tabs } from "../../ui/tabs";
 export default function InsightDetailsModal({ insight, isOpen, onClose }: { insight: any; isOpen: boolean; onClose: () => void }) {
   if (!insight) return null;
 
@@ -69,10 +70,29 @@ export default function InsightDetailsModal({ insight, isOpen, onClose }: { insi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className='max-w-4xl max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>{insight.title}</DialogTitle>
+          <DialogDescription className='flex items-center gap-4 mt-2'>
+            <Badge
+                  variant={
+                    insight.type === "risk"
+                      ? "destructive"
+                      : insight.type === "opportunity"
+                        ? "default"
+                        : "secondary"
+                  }
+                />
+                <span className="text-sm">
+                  {insight.confidence} confidence
+                </span>
+                <Badge variant="outline">
+                  {insight.impact} impact
+                </Badge>
+                </DialogDescription>
         </DialogHeader>
+        
+        <Tabs defaultValue = "overview" className="space-y-4">
         <div className="space-y-3">
           <div className="flex items-center gap-2">{getIcon()}<span className="text-sm text-muted-foreground">{insight.description}</span></div>
           {renderChart()}
@@ -81,6 +101,7 @@ export default function InsightDetailsModal({ insight, isOpen, onClose }: { insi
             <p className="text-sm text-muted-foreground">{insight.detailedAnalysis?.recommendation}</p>
           </div>
         </div>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

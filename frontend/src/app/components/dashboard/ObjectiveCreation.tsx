@@ -5,7 +5,6 @@ import { Input } from '../../ui/input';
 import { Textarea } from '../../ui/textarea';
 import { Label } from '../../ui/label';
 import { Badge } from '../../ui/badge';
-//import { Progress } from '../ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Checkbox } from '../../ui/checkbox';
 
@@ -158,8 +157,10 @@ export function ObjectiveCreation({
     setObjectiveData(prev => ({ ...prev, [field]: value }));
   };
 
-  const addToArray = (field: string, value: string) => {
-    if (value.trim()) {
+  const arrayFields = ['metrics', 'assignedTeam', 'dependencies', 'risks'] as const;
+
+  const addToArray = (field: keyof typeof objectiveData, value: string) => {
+    if (value.trim() && arrayFields.includes(field as any)) {
       setObjectiveData(prev => ({
         ...prev,
         [field]: [...(prev[field] as string[]), value.trim()]
@@ -167,7 +168,7 @@ export function ObjectiveCreation({
     }
   };
 
-  const removeFromArray = (field: string, index: number) => {
+  const removeFromArray = (field: keyof typeof objectiveData, index: number) => {
     setObjectiveData(prev => ({
       ...prev,
       [field]: (prev[field] as string[]).filter((_, i) => i !== index)
