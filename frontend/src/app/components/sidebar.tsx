@@ -12,6 +12,7 @@ import {
   Brain
 } from 'lucide-react';
 import logoImage from '../../../public/logoImage.svg';
+import KognaKLetterLogo from "../../../public/KognaKLetterLogo.png"
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/seperator';
@@ -46,14 +47,16 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
   ];
 
   return (
-    <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+    <div className="w-64 relative bg-gradient-to-br from-slate-50/95 via-white/95 to-gray-50/95 backdrop-blur-xl border-r border-white/20 shadow-lg flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-sidebar-border">
+    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-transparent pointer-events-none"></div>
+      <div className="p-6 border-b border-white/20">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden  bg-gradient-to-br from-purple-500/10 to-blue-500/10 backdrop-blur-sm border border-white/20 shadow-sm">
             <img 
-              src={logoImage} 
+              src={KognaKLetterLogo.src}  //burruhhhhh
               alt="KognaDash Logo" 
+              height = {KognaKLetterLogo.height}
               className="w-full h-full object-contain"
             />
           </div>
