@@ -12,11 +12,13 @@ google-generativeai
 
 # For making HTTP requests to APIs
 requests
+serpapi
+
 
 # For data analysis and manipulation
 pandas
 
 langchain_anthropic
 langchain_litellm
-
 datetime
+langgraph

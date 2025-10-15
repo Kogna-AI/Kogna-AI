@@ -14,6 +14,7 @@ env/
 .venv/
 .env/
 ENV/
+.myenv/
 
 # Ignore IDE files
 .vscode/
