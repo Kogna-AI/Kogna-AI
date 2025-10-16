@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from typing import TypedDict, Optional
-
+import json
 from langgraph.graph import StateGraph, END
 
 # Import your existing crew creation functions
@@ -165,11 +165,22 @@ def run_full_pipeline(execution_mode: str):
     workflow.add_edge("error_handler_node", END)
 
     app = workflow.compile()
-    
-    raw_data_to_process = ("record_id=A1, transaction_date=2025-10-15T14:30:00Z, product_id=P001, amount=250.00, status=success\n"
-                           "record_id=A2, transaction_date=2025-10-15T14:31:10Z, product_id=P002, amount=, status=failed\n")
-    
-    initial_state = {"raw_data": raw_data_to_process, "execution_mode": execution_mode}
+
+    data_dir = os.path.join(os.path.dirname(__file__), "mock_data_large")
+    with open(os.path.join(data_dir, "employees.json")) as f:
+        employees = json.load(f)
+    with open(os.path.join(data_dir, "projects_and_tasks.json")) as f:
+        projects = json.load(f)
+    with open(os.path.join(data_dir, "emails.json")) as f:
+        emails = json.load(f)
+    with open(os.path.join(data_dir, "meetings.json")) as f:
+        meetings = json.load(f)
+
+
+
+    raw_data_to_process = employees + projects + emails + meetings
+    raw_data_json_str = json.dumps({"records": raw_data_to_process}, indent=2)
+    initial_state = {"raw_data": raw_data_json_str, "execution_mode": execution_mode}
     
     print("\n--- STARTING LANGGRAPH WORKFLOW ---")
     for s in app.stream(initial_state, {"recursion_limit": 25}):
