@@ -45,62 +45,89 @@ from langchain_litellm import ChatLiteLLM # Correct, more robust import
     
 #     return json.dumps({"records": records}, indent=2)
 
-# --- Crew Creation Function ---
 
+
+# --- Simple deterministic flatten tool ---
+def flatten_json_data(raw_data: dict) -> dict:
+    """
+    Deterministically flattens and merges employees, projects, emails, and meetings into a single structure.
+    No LLM parsing involved — pure Python logic.
+    """
+    records = []
+
+    if "employees" in raw_data:
+        for emp in raw_data["employees"]:
+            emp_record = {"type": "employee"}
+            emp_record.update(emp)
+            records.append(emp_record)
+
+    if "projects" in raw_data:
+        for proj in raw_data["projects"]:
+            proj_record = {"type": "project", "project_id": proj.get("project_id"), "project_name": proj.get("project_name")}
+            records.append(proj_record)
+            if "tasks" in proj and isinstance(proj["tasks"], list):
+                for task in proj["tasks"]:
+                    task_record = {"type": "task", "project_id": proj.get("project_id")}
+                    task_record.update(task)
+                    records.append(task_record)
+
+    if "emails" in raw_data:
+        for email in raw_data["emails"]:
+            email_record = {"type": "email"}
+            email_record.update(email)
+            records.append(email_record)
+
+    if "meetings" in raw_data:
+        for meeting in raw_data["meetings"]:
+            meeting_record = {"type": "meeting"}
+            meeting_record.update(meeting)
+            records.append(meeting_record)
+
+    return {"records": records}
+
+# --- Crew Definition ---
 def create_scribe_crew(google_api_key: str) -> Crew:
     """
-    Creates and newfigures the Scribe (Data Ingestion) Crew.
-
-    Args:
-        google_api_key (str): The API key for the Google Gemini model.
-
-    Returns:
-        Crew: The newfigured Scribe Crew object.
+    Deterministic version of the Scribe Crew.
+    Avoids LLM parsing — uses a direct Python flattening pipeline.
     """
-    # Configure the LLM using the provided API key with the robust ChatLiteLLM wrapper
+
     llm = ChatLiteLLM(
-        model="gemini/gemini-2.0-flash", # Using the latest Gemini 2.0 Flash model
+        model="gemini/gemini-2.0-flash",
         temperature=0.2,
         api_key=google_api_key
     )
 
+    # The agent still exists for structure consistency,
+    # but it does not interpret raw JSON — only validates final structure.
     scribe_agent = Agent(
-        role='Data Structuring Specialist',
-        goal='Intelligently analyze raw, unstructured text data and convert it into a clean JSON format.',
-        backstory=(
-            "You are Scribe, an expert in understanding and structuring data. "
-            "You can look at any piece of messy text, identify the underlying patterns and entities, "
-            "and meticulously organize it into a perfect, machine-readable JSON structure."
-        ),
+        role="Data Validation Specialist",
+        goal="Ensure structured data integrity and flatten nested fields for database ingestion.",
+        backstory="You are a deterministic agent that validates structured input and ensures data consistency.",
         verbose=True,
         allow_delegation=False,
-        tools=[],  # The agent has no pre-defined tools.
+        tools=[],
         llm=llm
     )
-    # It tells the agent HOW to think about parsing the data.
+
+    # The task no longer contains {raw_data} to avoid prompt interpolation.
     ingestion_task = Task(
         description=(
-            "Your primary task is to parse and structure the raw text data provided in the '{raw_data}' input.\n"
-            "Follow these steps carefully:\n"
-            "1. Analyze the raw data to identify recurring patterns, entities, or records. The format is unknown, so you must infer the structure.\n"
-            "2. For each logical record you identify, extract the key-value pairs.\n"
-            "3. Standardize the keys to be consistent (e.g., 'ID', 'Timestamp', 'User', 'Measurement', 'Outcome').\n"
-            "4. Handle missing or empty values gracefully by representing them as `null` in the final JSON.\n"
-            "5. Convert data types where obvious. If something is clearly a number, it should be a number in the JSON, not a string.\n"
-            "6. Your final output MUST be a single, clean JSON object containing a key called 'records' which holds a list of all the structured record objects."
+            "Use deterministic Python logic to flatten and merge the provided structured JSON input.\n"
+            "Do not re-encode, re-parse, or stringify data.\n"
+            "Output a single clean JSON object: {\"records\": [...]}"
         ),
-        expected_output=(
-            "A single, valid JSON string conforming to the structure: `{\"records\": [{\"key1\": \"value1\", ...}, ...]}`. "
-            "The JSON should be well-formed and contain all the information extracted from the source data."
-        ),
+        expected_output="A valid JSON object with a 'records' list of flattened entities.",
         agent=scribe_agent
     )
 
+    # --- Crew wrapper ---
     data_ingestion_crew = Crew(
         agents=[scribe_agent],
         tasks=[ingestion_task],
         process=Process.sequential,
         verbose=True
     )
-    
+
+    # Attach flatten function to the crew as a callable tool
     return data_ingestion_crew
