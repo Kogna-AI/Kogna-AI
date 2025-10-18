@@ -111,12 +111,27 @@ def node_human_approval(state: WorkflowState) -> dict:
 # --- 3. Define the Decision Functions ---
 
 def decide_next_step_after_analysis(state: WorkflowState) -> str:
+    """
+    Decision 1: Checks if the internal analysis was successful.
+    This is now smarter and looks for specific error *messages*,
+    not just the word "error" (which could be in the data).
+    """
     print("\n--- [Decision] Evaluating Internal Analysis Report ---")
-    # --- UPDATE THIS ---
-    report = state.get("internal_analysis_report", "").lower()
-    # -----------------
-    if "error" in report or "no results" in report or "no documents" in report:
+    
+    # Get the raw report string
+    report = state.get("internal_analysis_report", "")
+    
+    # Check for our *specific* error messages
+    if (
+        report.startswith("Error:") 
+        or report.startswith("No relevant internal documents were found")
+        or "Error during router LLM call" in report
+        or "Router failed" in report
+    ):
+        print(f"--- [Decision] Genuine error detected. Routing to error handler. ---")
         return "handle_error"
+        
+    print("--- [Decision] Analysis successful (data may contain 'error_rate', but this is not a system error). Proceeding to research. ---")
     return "proceed_to_research"
 
 def decide_if_human_approval_is_needed(state: WorkflowState) -> str:
