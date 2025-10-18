@@ -4,9 +4,9 @@ import random
 from datetime import datetime, timedelta
 
 # === CONFIG ===
-OUTPUT_DIR = "Backend/Ai_agents/mock_data_enterprise"
+OUTPUT_DIR = "Backend/Ai_agents/mock_data_large"
 COMPANY_NAME = "AstraNova Technologies"
-random.seed(42)
+random.seed(45)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # === 1. ORGANIZATION ===
@@ -176,7 +176,7 @@ for i, (name, unit) in enumerate(metric_names, 1):
     })
 json.dump(metrics, open(f"{OUTPUT_DIR}/metrics.json", "w"), indent=2)
 
-# === 10. OBJECTIVES / MILESTONES ===
+# === 10. OBJECTIVES ===
 objectives = [
     {
         "id": 1,
@@ -268,4 +268,181 @@ feedback_metrics = {
 }
 json.dump(feedback_metrics, open(f"{OUTPUT_DIR}/feedback_metrics.json", "w"), indent=2)
 
-print(f"✅ Mock data successfully generated in {OUTPUT_DIR}")
+# === 15. EXTERNAL MARKET DATA ===
+# (Improved Section with deeper realism)
+
+# --- Market Trends ---
+market_trends = [
+    {
+        "id": 1,
+        "industry": "AI & Data Analytics",
+        "trend": "Enterprise-wide adoption of AI-assisted decision-making and predictive modeling is accelerating across industries.",
+        "growth_projection": round(random.uniform(14, 18), 2),
+        "investment_volume_billion": round(random.uniform(280, 350), 1),
+        "regional_leaders": ["North America", "Western Europe"],
+        "emerging_markets": ["Southeast Asia", "India"],
+        "key_drivers": [
+            "Demand for real-time analytics and business automation",
+            "Falling cost of model deployment via cloud platforms",
+            "Maturity of MLOps ecosystems"
+        ],
+        "risk_factor": "Increased competition, rising cloud infrastructure costs, and data privacy regulations tightening.",
+        "source": "Gartner Q3 2025 AI Adoption Report",
+        "last_updated": datetime(2025, 9, 30).isoformat()
+    },
+    {
+        "id": 2,
+        "industry": "Cloud Infrastructure & Edge Computing",
+        "trend": "Organizations are decentralizing compute workloads through hybrid cloud and edge computing for latency-sensitive applications.",
+        "growth_projection": round(random.uniform(10, 14), 2),
+        "investment_volume_billion": round(random.uniform(150, 200), 1),
+        "key_drivers": [
+            "5G rollout enabling near-real-time data processing",
+            "AI model deployment closer to user endpoints",
+            "Growing IoT ecosystem in logistics and healthcare"
+        ],
+        "risk_factor": "Vendor lock-in, security vulnerabilities at the edge, and cost unpredictability.",
+        "source": "IDC Market Watch 2025: Edge-to-Cloud Integration",
+        "last_updated": datetime(2025, 9, 22).isoformat()
+    },
+    {
+        "id": 3,
+        "industry": "AI Ethics, Governance & Compliance",
+        "trend": "Global regulatory bodies are enacting stricter transparency and accountability frameworks for generative AI models.",
+        "growth_projection": round(random.uniform(6, 9), 2),
+        "key_policies": [
+            "EU AI Act (2025)",
+            "US Algorithmic Accountability Expansion Bill",
+            "OECD AI Governance Framework"
+        ],
+        "impact_on_market": "Compliance-related costs projected to rise by 12% in 2026, prompting firms to invest in explainability tools.",
+        "risk_factor": "Regulatory uncertainty in cross-border AI deployment.",
+        "source": "World Economic Forum Insight Brief, October 2025",
+        "last_updated": datetime(2025, 10, 10).isoformat()
+    },
+    {
+        "id": 4,
+        "industry": "Cybersecurity in AI Systems",
+        "trend": "Data poisoning and adversarial attacks are emerging as critical vulnerabilities in ML pipelines.",
+        "growth_projection": round(random.uniform(9, 12), 2),
+        "key_drivers": [
+            "AI model dependency in financial decision-making",
+            "Rise of model extraction attacks",
+            "Corporate liability for breached data models"
+        ],
+        "risk_factor": "Security talent shortage and fragmented defensive standards.",
+        "source": "McKinsey Cyber Resilience 2025 Outlook",
+        "last_updated": datetime(2025, 10, 5).isoformat()
+    },
+    {
+        "id": 5,
+        "industry": "Automation & Workforce Transformation",
+        "trend": "Automation of repetitive data tasks and AI copilots are reshaping workforce roles and productivity baselines.",
+        "growth_projection": round(random.uniform(8, 13), 2),
+        "displaced_jobs_million": round(random.uniform(15, 25), 1),
+        "new_roles_created_million": round(random.uniform(20, 28), 1),
+        "risk_factor": "Skill gap in data literacy and AI supervision.",
+        "source": "World Bank Digital Labor Report 2025",
+        "last_updated": datetime(2025, 9, 27).isoformat()
+    },
+    {
+        "id": 6,
+        "industry": "Fintech & AI Risk Management",
+        "trend": "Financial institutions are deploying generative AI to model fraud patterns, automate credit scoring, and detect bias in models.",
+        "growth_projection": round(random.uniform(11, 16), 2),
+        "key_drivers": [
+            "Increased digital transaction volumes",
+            "Pressure for fair lending and explainable AI",
+            "Integration of AI into core banking APIs"
+        ],
+        "risk_factor": "Data governance complexity and ethical model deployment challenges.",
+        "source": "Accenture Fintech Intelligence Index 2025",
+        "last_updated": datetime(2025, 9, 25).isoformat()
+    }
+]
+json.dump(market_trends, open(f"{OUTPUT_DIR}/external_market_trends.json", "w"), indent=2)
+
+# --- Competitors (Enriched) ---
+competitors = [
+    {
+        "id": 1,
+        "company_name": "NeuraEdge Analytics",
+        "focus_area": "Predictive Analytics",
+        "annual_revenue_million": 118.3,
+        "profit_margin_percent": 17.2,
+        "employees": 640,
+        "market_share_percent": 13.2,
+        "r_and_d_investment_percent": 5.3,
+        "ai_patent_count": 28,
+        "global_presence": ["North America", "EU", "India"],
+        "recent_initiatives": [
+            "Launched low-code analytics for SMEs",
+            "Expanded into EU data compliance consulting"
+        ],
+        "strength": "Enterprise trust, broad partner network",
+        "weakness": "Limited innovation pipeline",
+        "last_updated": datetime(2025, 10, 12).isoformat()
+    },
+    {
+        "id": 2,
+        "company_name": "Cognitix Systems",
+        "focus_area": "AI Infrastructure & Cloud Tools",
+        "annual_revenue_million": 231.4,
+        "profit_margin_percent": 21.5,
+        "employees": 1200,
+        "market_share_percent": 25.1,
+        "r_and_d_investment_percent": 11.7,
+        "ai_patent_count": 54,
+        "global_presence": ["North America", "Europe", "APAC"],
+        "recent_initiatives": [
+            "Partnered with telecoms for edge AI integration",
+            "Invested in workforce AI upskilling programs"
+        ],
+        "strength": "Robust R&D and global reach",
+        "weakness": "High operational cost and complex hierarchy",
+        "last_updated": datetime(2025, 10, 8).isoformat()
+    },
+    {
+        "id": 3,
+        "company_name": "InsightForge Labs",
+        "focus_area": "Data Visualization & AI Dashboards",
+        "annual_revenue_million": 89.6,
+        "profit_margin_percent": 13.9,
+        "employees": 420,
+        "market_share_percent": 11.5,
+        "r_and_d_investment_percent": 7.8,
+        "ai_patent_count": 15,
+        "global_presence": ["North America", "Japan"],
+        "recent_initiatives": [
+            "Released cross-platform data storytelling suite",
+            "Acquired BI firm focusing on healthcare analytics"
+        ],
+        "strength": "Agile innovation cycles",
+        "weakness": "Dependence on niche clients",
+        "last_updated": datetime(2025, 10, 5).isoformat()
+    }
+]
+json.dump(competitors, open(f"{OUTPUT_DIR}/competitor_data.json", "w"), indent=2)
+
+# --- Regional Sentiment (Expanded) ---
+regions = ["North America", "Europe", "Asia-Pacific", "South America", "Middle East"]
+regional_sentiment = []
+for i, region in enumerate(regions, 1):
+    regional_sentiment.append({
+        "id": i,
+        "region": region,
+        "business_confidence_index": round(random.uniform(65, 90), 2),
+        "consumer_sentiment_score": round(random.uniform(60, 85), 2),
+        "market_activity_level": random.choice(["High", "Moderate", "Emerging"]),
+        "investment_flow": random.choice(["Inbound ↑", "Stable ↔", "Outbound ↓"]),
+        "industry_focus": random.choice(["AI", "Fintech", "Healthcare", "Retail", "Energy"]),
+        "talent_availability": round(random.uniform(0.5, 1.0), 2),
+        "notes": random.choice([
+            "Increased venture capital inflows into AI startups.",
+            "Corporate restructuring due to AI-driven automation.",
+            "Positive hiring momentum in data and analytics roles.",
+            "Local regulation tightening for AI model transparency."
+        ]),
+        "last_updated": datetime(2025, 10, 16).isoformat()
+    })
+json.dump(regional_sentiment, open(f"{OUTPUT_DIR}/regional_sentiment.json", "w"), indent=2)
