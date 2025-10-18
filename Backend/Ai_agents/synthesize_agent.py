@@ -4,7 +4,7 @@ from langchain_litellm import ChatLiteLLM
 from datetime import datetime
 
 def create_synthesis_crew(
-    sql_analysis_report: str,
+    internal_analysis_report: str,
     business_research_findings: str,
     google_api_key: str,
     serper_api_key: str,
@@ -41,25 +41,25 @@ def create_synthesis_crew(
     )
 
     # --- Dynamic Task Description ---
-    # The base description for the synthesis task.
     task_description = f"""Synthesize the following two reports into a single, unified executive summary for the current business context of {current_date}.
     Your goal is to identify cross-functional themes, contradictions, and strategic implications.
 
-    **Report 1: Quantitative Data Analysis Report (Received at {current_time})**
+    **Report 1: Internal Document Analysis Report (Received at {current_time})**
+    (This report is based on scanning all internal unstructured files like emails, meetings, etc.)
     ---
-    {sql_analysis_report}
+    {internal_analysis_report} 
     ---
 
-    **Report 2: Qualitative Business Research Findings (Received at {current_time})**
+    **Report 2: External Business Research Findings (Received at {current_time})**
+    (This report is based on external Google searches)
     ---
     {business_research_findings}
     ---
 
     **Your analysis must:**
     1.  Identify the top 3-5 cross-functional themes that appear in both reports.
-    2.  Highlight any contradictions or data gaps. If you identify a critical data gap, briefly use the search tool to find external context that might help explain it.
+    2.  Highlight any contradictions or data gaps. (e.g., "Internal meeting notes say X, but external web search says Y").
     3.  Formulate a final executive summary that includes strategic highlights, critical risks, and actionable recommendations for the next quarter."""
-
     # If human feedback is provided, append it as a critical instruction.
     if human_feedback:
         task_description += (
