@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "organization_id": 1,
+    "name": "Team Efficiency",
+    "value": 94.52,
+    "unit": "%",
+    "change_from_last": 0.2,
+    "last_updated": "2025-10-14T00:00:00"
+  },
+  {
+    "id": 2,
+    "organization_id": 1,
+    "name": "Project Delivery Rate",
+    "value": 92.67,
+    "unit": "%",
+    "change_from_last": 0.55,
+    "last_updated": "2025-10-14T00:00:00"
+  },
+  {
+    "id": 3,
+    "organization_id": 1,
+    "name": "Employee Utilization",
+    "value": 86.57,
+    "unit": "%",
+    "change_from_last": -2.5,
+    "last_updated": "2025-10-14T00:00:00"
+  },
+  {
+    "id": 4,
+    "organization_id": 1,
+    "name": "Customer Retention",
+    "value": 80.72,
+    "unit": "%",
+    "change_from_last": 2.2,
+    "last_updated": "2025-10-14T00:00:00"
+  }
+]

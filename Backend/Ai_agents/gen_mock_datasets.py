@@ -1,189 +1,271 @@
+import os
 import json
 import random
-import os
 from datetime import datetime, timedelta
 
-# -------- CONFIG --------
-NUM_EMPLOYEES = 200
-NUM_PROJECTS = 20
-AVG_TASKS_PER_PROJECT = 6
-AVG_EMAILS_PER_DAY = 35
-SIM_DAYS = 30
-OUTPUT_DIR = "Backend/Ai_agents/mock_data_large"
+# === CONFIG ===
+OUTPUT_DIR = "Backend/Ai_agents/mock_data_enterprise"
+COMPANY_NAME = "AstraNova Technologies"
 random.seed(42)
-# ------------------------
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-DEPARTMENTS = ["Engineering", "Product", "Finance", "HR", "Marketing", "Operations"]
-ROLES = {
-    "Engineering": ["Head of Engineering", "Software Engineer", "Data Engineer", "AI Researcher"],
-    "Product": ["Head of Product", "Product Manager", "UX Designer", "Product Analyst"],
-    "Finance": ["Head of Finance", "Financial Analyst", "Accountant"],
-    "HR": ["Head of HR", "HR Specialist", "Recruiter"],
-    "Marketing": ["Head of Marketing", "Marketing Manager", "Content Strategist"],
-    "Operations": ["Head of Operations", "Ops Lead", "Analyst"]
+# === 1. ORGANIZATION ===
+organization = {
+    "id": 1,
+    "Name": COMPANY_NAME,
+    "team_size": 125,
+    "industry": "AI & Data Analytics",
+    "created_at": datetime(2023, 7, 1).isoformat(),
+    "project_number": 6
+}
+json.dump(organization, open(f"{OUTPUT_DIR}/organization.json", "w"), indent=2)
+
+# === 2. TEAMS ===
+departments = ["Engineering", "Product", "Finance", "HR", "Marketing", "Operations"]
+teams = [
+    {
+        "id": i + 1,
+        "organization_id": 1,
+        "name": dept,
+        "created_at": (datetime(2023, 7, 1) + timedelta(days=i)).isoformat()
+    }
+    for i, dept in enumerate(departments)
+]
+json.dump(teams, open(f"{OUTPUT_DIR}/teams.json", "w"), indent=2)
+
+# === 3. USERS ===
+roles = {
+    "Engineering": ["Software Engineer", "Data Engineer", "AI Researcher"],
+    "Product": ["Product Manager", "UX Designer", "Business Analyst"],
+    "Finance": ["Financial Analyst", "Accountant"],
+    "HR": ["HR Specialist", "Recruiter"],
+    "Marketing": ["Marketing Manager", "Content Strategist"],
+    "Operations": ["Ops Lead", "Analyst"]
 }
 
-def random_name():
-    first = random.choice(["Alex", "Jamie", "Taylor", "Jordan", "Morgan", "Casey", "Riley", "Cameron", "Quinn", "Avery"])
-    last = random.choice(["Smith", "Johnson", "Lee", "Zhang", "Patel", "Garcia", "Brown", "Davis", "Wilson", "Martinez"])
-    return f"{first} {last}"
+users = []
+uid = 1
+for team in teams:
+    for _ in range(random.randint(8, 15)):
+        users.append({
+            "id": uid,
+            "organization_id": 1,
+            "first_name": random.choice(["Alex", "Jordan", "Taylor", "Morgan", "Riley", "Quinn", "Casey", "Jamie", "Avery", "Dylan"]),
+            "second_name": random.choice(["Smith", "Lee", "Brown", "Johnson", "Martinez", "Davis", "Zhang", "Nguyen"]),
+            "role": random.choice(roles[team["name"]]),
+            "created_at": datetime(2024, 1, random.randint(1, 28)).isoformat()
+        })
+        uid += 1
+json.dump(users, open(f"{OUTPUT_DIR}/users.json", "w"), indent=2)
 
-# ---------------- EMPLOYEES ----------------
-def generate_employees(n):
-    employees = []
-    # CEO
-    employees.append({
-        "unique_id": "E001",
-        "name": "Romeo Willis",
-        "role": "CEO",
-        "department": "Executive",
-        "direct_reports": ""
+# === 4. TEAM MEMBERS ===
+team_members = []
+tm_id = 1
+for team in teams:
+    team_users = [u for u in users if u["role"] in roles[team["name"]]]
+    for user in random.sample(team_users, min(8, len(team_users))):
+        team_members.append({
+            "id": tm_id,
+            "team_id": team["id"],
+            "user_id": user["id"],
+            "role": user["role"],
+            "performance": round(random.uniform(0.6, 1.0), 2),
+            "capacity": round(random.uniform(0.5, 1.0), 2),
+            "project_count": random.randint(1, 5),
+            "status": random.choice(["available", "busy"])
+        })
+        tm_id += 1
+json.dump(team_members, open(f"{OUTPUT_DIR}/team_members.json", "w"), indent=2)
+
+# === 5. TEAM SKILLS ===
+skills = {
+    "Engineering": ["Python", "SQL", "Machine Learning", "Cloud"],
+    "Product": ["Market Research", "UX Design", "Prototyping"],
+    "Finance": ["Budgeting", "Forecasting", "Excel Modeling"],
+    "HR": ["Recruitment", "Training", "Policy Management"],
+    "Marketing": ["SEO", "Content Strategy", "Social Media"],
+    "Operations": ["Logistics", "Supply Chain", "Data Reporting"]
+}
+team_skills = []
+ts_id = 1
+for team in teams:
+    for skill in skills[team["name"]]:
+        team_skills.append({
+            "id": ts_id,
+            "team_id": team["id"],
+            "skill_name": skill,
+            "proficiency": round(random.uniform(0.6, 0.95), 2)
+        })
+        ts_id += 1
+json.dump(team_skills, open(f"{OUTPUT_DIR}/team_skills.json", "w"), indent=2)
+
+# === 6. DATA SOURCES ===
+data_sources = [
+    {
+        "id": 1,
+        "organization_id": 1,
+        "name": "Internal Metrics DB",
+        "type": "internal",
+        "connection_info": {"host": "metrics-db.local", "port": 5432},
+        "last_updated": datetime(2025, 10, 10).isoformat()
+    },
+    {
+        "id": 2,
+        "organization_id": 1,
+        "name": "External Market Insights API",
+        "type": "external",
+        "connection_info": {"api_url": "https://marketdata.api"},
+        "last_updated": datetime(2025, 10, 12).isoformat()
+    }
+]
+json.dump(data_sources, open(f"{OUTPUT_DIR}/data_sources.json", "w"), indent=2)
+
+# === 7. DATASETS ===
+datasets = [
+    {
+        "id": 1,
+        "data_source_id": 1,
+        "name": "Team Performance Metrics",
+        "schema": {"columns": ["team_id", "efficiency", "output", "error_rate"]},
+        "data_refresh_rate": "weekly",
+        "created_at": datetime(2024, 5, 1).isoformat()
+    },
+    {
+        "id": 2,
+        "data_source_id": 2,
+        "name": "Market Sentiment Trends",
+        "schema": {"columns": ["region", "sentiment_score", "trend_index"]},
+        "data_refresh_rate": "monthly",
+        "created_at": datetime(2024, 6, 10).isoformat()
+    }
+]
+json.dump(datasets, open(f"{OUTPUT_DIR}/datasets.json", "w"), indent=2)
+
+# === 8. DATA RECORDS ===
+data_records = []
+for i in range(1, 11):
+    data_records.append({
+        "id": i,
+        "dataset_id": 1,
+        "record_data": {
+            "team_id": random.randint(1, 6),
+            "efficiency": round(random.uniform(0.7, 1.0), 2),
+            "output": random.randint(70, 120),
+            "error_rate": round(random.uniform(0.01, 0.1), 2)
+        },
+        "imported_at": datetime(2025, 10, 15).isoformat()
     })
+json.dump(data_records, open(f"{OUTPUT_DIR}/data_records.json", "w"), indent=2)
 
-    # Department Heads
-    heads = []
-    emp_counter = 2
-    for dept in DEPARTMENTS:
-        head = {
-            "unique_id": f"E{emp_counter:03d}",
-            "name": random_name(),
-            "role": f"Head of {dept}",
-            "department": dept,
-            "direct_reports": ""
-        }
-        employees[0]["direct_reports"] += ("," if employees[0]["direct_reports"] else "") + head["unique_id"]
-        heads.append(head)
-        emp_counter += 1
+# === 9. METRICS ===
+metric_names = [
+    ("Team Efficiency", "%"), ("Project Delivery Rate", "%"),
+    ("Employee Utilization", "%"), ("Customer Retention", "%")
+]
+metrics = []
+for i, (name, unit) in enumerate(metric_names, 1):
+    val = round(random.uniform(70, 95), 2)
+    metrics.append({
+        "id": i,
+        "organization_id": 1,
+        "name": name,
+        "value": val,
+        "unit": unit,
+        "change_from_last": round(random.uniform(-3, 3), 2),
+        "last_updated": datetime(2025, 10, 14).isoformat()
+    })
+json.dump(metrics, open(f"{OUTPUT_DIR}/metrics.json", "w"), indent=2)
 
-    # Regular Employees
-    for _ in range(emp_counter, n + 2):
-        dept = random.choice(DEPARTMENTS)
-        role = random.choice(ROLES[dept][1:])  # skip Head role
-        employees.append({
-            "unique_id": f"E{emp_counter:03d}",
-            "name": random_name(),
-            "role": role,
-            "department": dept,
-            "direct_reports": ""
-        })
-        emp_counter += 1
+# === 10. OBJECTIVES / MILESTONES ===
+objectives = [
+    {
+        "id": 1,
+        "organization_id": 1,
+        "title": "Improve Cross-Team Coordination",
+        "progress": 0.64,
+        "status": "at-risk",
+        "team_responsible": "Operations",
+        "created_at": datetime(2025, 1, 20).isoformat()
+    },
+    {
+        "id": 2,
+        "organization_id": 1,
+        "title": "Enhance Data Infrastructure Reliability",
+        "progress": 0.85,
+        "status": "on-track",
+        "team_responsible": "Engineering",
+        "created_at": datetime(2025, 2, 10).isoformat()
+    }
+]
+json.dump(objectives, open(f"{OUTPUT_DIR}/objectives.json", "w"), indent=2)
 
-    # Assign team members to department heads
-    for emp in employees:
-        if emp["role"].startswith("Head of"):
-            subordinates = random.sample(
-                [e for e in employees if e["department"] == emp["department"] and not e["role"].startswith("Head")],
-                k=random.randint(5, 10)
-            )
-            emp["direct_reports"] = ",".join([s["unique_id"] for s in subordinates])
-
-    return employees
-
-# ---------------- PROJECTS & TASKS ----------------
-def generate_projects(employees):
-    projects = []
-    for p in range(1, NUM_PROJECTS + 1):
-        project_name = f"Project {p:03d}"
-        dept = random.choice(DEPARTMENTS)
-        owner = random.choice([e for e in employees if e["department"] == dept])
-        start_date = datetime(2025, 9, random.randint(20, 25))
-        deadline = start_date + timedelta(days=random.randint(10, 20))
-        actual_completion = deadline + timedelta(days=random.choice([-3, 0, 2, 5]))  # simulate delay
-        num_tasks = random.randint(AVG_TASKS_PER_PROJECT - 2, AVG_TASKS_PER_PROJECT + 2)
-
-        for t in range(1, num_tasks + 1):
-            assignee = random.choice([e for e in employees if e["department"] == dept])
-            status = random.choices(["Completed", "In Progress", "Blocked"], weights=[0.6, 0.3, 0.1])[0]
-            projects.append({
-                "project_id": f"P{p:03d}",
-                "project_name": project_name,
-                "department": dept,
-                "owner_id": owner["unique_id"],
-                "task_id": f"T{p:03d}-{t:02d}",
-                "task_name": f"Task {t} for {project_name}",
-                "assignee_id": assignee["unique_id"],
-                "status": status,
-                "start_date": start_date.isoformat(),
-                "deadline": deadline.isoformat(),
-                "completed_at": actual_completion.isoformat() if status == "Completed" else "",
-            })
-    return projects
-
-# ---------------- EMAILS ----------------
-def generate_emails(employees):
-    subjects = [
-        "Budget Update", "Deadline Extension", "Team Sync", "Urgent Issue",
-        "Project Delay", "Client Feedback", "System Alert", "Recruitment Update"
+# === 11. MEETINGS ===
+meetings = []
+for i in range(1, 5):
+    dept = random.choice(departments)
+    start_time = datetime(2025, 10, random.randint(10, 17), 10, 0)
+    content = (
+        f"The {dept} department held its bi-weekly progress meeting to review "
+        "current project deliverables, discuss internal bottlenecks, and review "
+        "collaboration metrics. Emphasis was placed on improving reporting cadence "
+        "and aligning communication flows between dependent teams."
+    )
+    actions = [
+        "Summarize deliverables by end of week",
+        "Standardize cross-departmental progress updates",
+        "Schedule follow-up sync next Wednesday"
     ]
-    body_templates = [
-        "Hi {receiver}, please review the latest {topic} update for {project}.",
-        "{receiver}, we're facing delays in {project} due to {reason}.",
-        "Please confirm resource allocation for {project} ASAP.",
-        "Reminder: {meeting} scheduled at {time}."
-    ]
-    emails = []
-    for i in range(AVG_EMAILS_PER_DAY * SIM_DAYS):
-        sender = random.choice(employees)
-        receiver = random.choice([e for e in employees if e != sender])
-        topic = random.choice(["budget", "planning", "QA", "deployment"])
-        reason = random.choice(["resource shortage", "scope change", "technical issue"])
-        project = f"Project {random.randint(1, NUM_PROJECTS):03d}"
-        meeting = random.choice(["Weekly Sync", "Budget Review", "All Hands"])
-        timestamp = (datetime(2025, 10, 1) + timedelta(days=random.randint(0, SIM_DAYS))).isoformat()
-        body = random.choice(body_templates).format(receiver=receiver["name"], topic=topic, reason=reason, project=project, meeting=meeting, time="10:00 AM")
+    meetings.append({
+        "id": i,
+        "organization_id": 1,
+        "title": f"{dept} Department Sync - Week {i+40}",
+        "category": "team",
+        "scheduled_time": start_time.isoformat(),
+        "duration": 60,
+        "content": content,
+        "action_items": actions
+    })
+json.dump(meetings, open(f"{OUTPUT_DIR}/meetings.json", "w"), indent=2)
 
-        emails.append({
-            "email_id": f"EM{i+1:05d}",
-            "from_employee_id": sender["unique_id"],
-            "to_employee_id": receiver["unique_id"],
-            "subject": random.choice(subjects),
-            "body": body,
-            "timestamp": timestamp
-        })
-    return emails
+# === 12. FEEDBACK ===
+feedback = []
+for i in range(1, 10):
+    uid = random.choice(users)["id"]
+    feedback.append({
+        "id": i,
+        "user_id": uid,
+        "rating": random.choice([3, 4, 5]),
+        "comment": random.choice([
+            "Communication within the product team could improve.",
+            "Appreciate the clearer timelines recently introduced.",
+            "Would like more structured feedback from project leads.",
+            "Great collaboration between Engineering and Marketing this month."
+        ]),
+        "written_at": datetime(2025, 10, random.randint(10, 17)).isoformat()
+    })
+json.dump(feedback, open(f"{OUTPUT_DIR}/feedback.json", "w"), indent=2)
 
-# ---------------- MEETINGS ----------------
-def generate_meetings(employees):
-    meetings = []
-    topics = [
-        "Executive Review", "Cross-Department Sync", "Budget Planning",
-        "Engineering Standup", "Marketing Campaign Review", "Product Roadmap", "HR Policy Update"
-    ]
-    for i in range(1, NUM_PROJECTS + 10):
-        organizer = random.choice(employees)
-        attendees = random.sample(employees, random.randint(4, 10))
-        title = random.choice(topics)
-        start = datetime(2025, 10, random.randint(1, 28), random.randint(9, 16))
-        end = start + timedelta(minutes=random.choice([30, 45, 60]))
-        meetings.append({
-            "meeting_id": f"M{i:04d}",
-            "title": title,
-            "organizer_id": organizer["unique_id"],
-            "attendees": ",".join([a["unique_id"] for a in attendees]),
-            "start_time": start.isoformat(),
-            "end_time": end.isoformat()
-        })
-    return meetings
+# === 13. FEEDBACK TAGS ===
+feedback_tags = []
+tag_types = ["suggestion", "concern", "praise"]
+for fb in feedback:
+    feedback_tags.append({
+        "id": fb["id"],
+        "feedback_id": fb["id"],
+        "tag": random.choice(tag_types)
+    })
+json.dump(feedback_tags, open(f"{OUTPUT_DIR}/feedback_tags.json", "w"), indent=2)
 
-# ---------------- WRITE FILES ----------------
-def main():
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    employees = generate_employees(NUM_EMPLOYEES)
-    projects = generate_projects(employees)
-    emails = generate_emails(employees)
-    meetings = generate_meetings(employees)
+# === 14. FEEDBACK METRICS ===
+feedback_metrics = {
+    "id": 1,
+    "organization_id": 1,
+    "clarity_improvement": 0.12,
+    "action_rate_increase": 0.08,
+    "resolution_speed": 0.91,
+    "user_satisfaction": 4.3,
+    "updated_at": datetime(2025, 10, 16).isoformat()
+}
+json.dump(feedback_metrics, open(f"{OUTPUT_DIR}/feedback_metrics.json", "w"), indent=2)
 
-    with open(os.path.join(OUTPUT_DIR, "employees.json"), "w") as f:
-        json.dump(employees, f, indent=2)
-    with open(os.path.join(OUTPUT_DIR, "projects_and_tasks.json"), "w") as f:
-        json.dump(projects, f, indent=2)
-    with open(os.path.join(OUTPUT_DIR, "emails.json"), "w") as f:
-        json.dump(emails, f, indent=2)
-    with open(os.path.join(OUTPUT_DIR, "meetings.json"), "w") as f:
-        json.dump(meetings, f, indent=2)
-
-    print(f"✅ Generated realistic dataset under '{OUTPUT_DIR}'")
-    print(f"Employees: {len(employees)}, Projects: {NUM_PROJECTS}, Tasks: {len(projects)}, Emails: {len(emails)}, Meetings: {len(meetings)}")
-
-if __name__ == "__main__":
-    main()
+print(f"✅ Mock data successfully generated in {OUTPUT_DIR}")

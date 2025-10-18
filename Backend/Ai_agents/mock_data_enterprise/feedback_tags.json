@@ -1,0 +1,47 @@
+[
+  {
+    "id": 1,
+    "feedback_id": 1,
+    "tag": "praise"
+  },
+  {
+    "id": 2,
+    "feedback_id": 2,
+    "tag": "praise"
+  },
+  {
+    "id": 3,
+    "feedback_id": 3,
+    "tag": "concern"
+  },
+  {
+    "id": 4,
+    "feedback_id": 4,
+    "tag": "concern"
+  },
+  {
+    "id": 5,
+    "feedback_id": 5,
+    "tag": "praise"
+  },
+  {
+    "id": 6,
+    "feedback_id": 6,
+    "tag": "suggestion"
+  },
+  {
+    "id": 7,
+    "feedback_id": 7,
+    "tag": "suggestion"
+  },
+  {
+    "id": 8,
+    "feedback_id": 8,
+    "tag": "praise"
+  },
+  {
+    "id": 9,
+    "feedback_id": 9,
+    "tag": "praise"
+  }
+]

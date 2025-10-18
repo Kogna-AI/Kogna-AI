@@ -1,0 +1,482 @@
+[
+  {
+    "id": 1,
+    "team_id": 1,
+    "user_id": 9,
+    "role": "Data Engineer",
+    "performance": 0.76,
+    "capacity": 0.97,
+    "project_count": 5,
+    "status": "available"
+  },
+  {
+    "id": 2,
+    "team_id": 1,
+    "user_id": 2,
+    "role": "AI Researcher",
+    "performance": 0.83,
+    "capacity": 0.52,
+    "project_count": 1,
+    "status": "busy"
+  },
+  {
+    "id": 3,
+    "team_id": 1,
+    "user_id": 7,
+    "role": "Software Engineer",
+    "performance": 0.86,
+    "capacity": 0.78,
+    "project_count": 3,
+    "status": "busy"
+  },
+  {
+    "id": 4,
+    "team_id": 1,
+    "user_id": 8,
+    "role": "Data Engineer",
+    "performance": 0.68,
+    "capacity": 0.86,
+    "project_count": 2,
+    "status": "busy"
+  },
+  {
+    "id": 5,
+    "team_id": 1,
+    "user_id": 1,
+    "role": "Software Engineer",
+    "performance": 0.76,
+    "capacity": 0.84,
+    "project_count": 3,
+    "status": "busy"
+  },
+  {
+    "id": 6,
+    "team_id": 1,
+    "user_id": 5,
+    "role": "AI Researcher",
+    "performance": 0.73,
+    "capacity": 0.88,
+    "project_count": 1,
+    "status": "available"
+  },
+  {
+    "id": 7,
+    "team_id": 1,
+    "user_id": 3,
+    "role": "AI Researcher",
+    "performance": 0.78,
+    "capacity": 1.0,
+    "project_count": 1,
+    "status": "available"
+  },
+  {
+    "id": 8,
+    "team_id": 1,
+    "user_id": 4,
+    "role": "Software Engineer",
+    "performance": 0.82,
+    "capacity": 0.75,
+    "project_count": 2,
+    "status": "busy"
+  },
+  {
+    "id": 9,
+    "team_id": 2,
+    "user_id": 11,
+    "role": "Product Manager",
+    "performance": 0.84,
+    "capacity": 0.99,
+    "project_count": 5,
+    "status": "available"
+  },
+  {
+    "id": 10,
+    "team_id": 2,
+    "user_id": 13,
+    "role": "Business Analyst",
+    "performance": 0.87,
+    "capacity": 0.78,
+    "project_count": 1,
+    "status": "available"
+  },
+  {
+    "id": 11,
+    "team_id": 2,
+    "user_id": 12,
+    "role": "UX Designer",
+    "performance": 0.71,
+    "capacity": 0.94,
+    "project_count": 5,
+    "status": "available"
+  },
+  {
+    "id": 12,
+    "team_id": 2,
+    "user_id": 16,
+    "role": "UX Designer",
+    "performance": 0.71,
+    "capacity": 0.8,
+    "project_count": 3,
+    "status": "available"
+  },
+  {
+    "id": 13,
+    "team_id": 2,
+    "user_id": 18,
+    "role": "Business Analyst",
+    "performance": 0.87,
+    "capacity": 0.93,
+    "project_count": 5,
+    "status": "busy"
+  },
+  {
+    "id": 14,
+    "team_id": 2,
+    "user_id": 17,
+    "role": "Product Manager",
+    "performance": 0.7,
+    "capacity": 0.95,
+    "project_count": 1,
+    "status": "available"
+  },
+  {
+    "id": 15,
+    "team_id": 2,
+    "user_id": 15,
+    "role": "UX Designer",
+    "performance": 0.85,
+    "capacity": 0.91,
+    "project_count": 1,
+    "status": "available"
+  },
+  {
+    "id": 16,
+    "team_id": 2,
+    "user_id": 14,
+    "role": "Business Analyst",
+    "performance": 0.73,
+    "capacity": 0.57,
+    "project_count": 3,
+    "status": "available"
+  },
+  {
+    "id": 17,
+    "team_id": 3,
+    "user_id": 26,
+    "role": "Financial Analyst",
+    "performance": 0.82,
+    "capacity": 0.92,
+    "project_count": 5,
+    "status": "available"
+  },
+  {
+    "id": 18,
+    "team_id": 3,
+    "user_id": 25,
+    "role": "Accountant",
+    "performance": 0.77,
+    "capacity": 0.52,
+    "project_count": 3,
+    "status": "available"
+  },
+  {
+    "id": 19,
+    "team_id": 3,
+    "user_id": 23,
+    "role": "Accountant",
+    "performance": 0.96,
+    "capacity": 0.61,
+    "project_count": 2,
+    "status": "available"
+  },
+  {
+    "id": 20,
+    "team_id": 3,
+    "user_id": 19,
+    "role": "Financial Analyst",
+    "performance": 0.74,
+    "capacity": 0.78,
+    "project_count": 4,
+    "status": "available"
+  },
+  {
+    "id": 21,
+    "team_id": 3,
+    "user_id": 24,
+    "role": "Financial Analyst",
+    "performance": 0.97,
+    "capacity": 0.62,
+    "project_count": 2,
+    "status": "available"
+  },
+  {
+    "id": 22,
+    "team_id": 3,
+    "user_id": 27,
+    "role": "Accountant",
+    "performance": 0.95,
+    "capacity": 0.51,
+    "project_count": 3,
+    "status": "busy"
+  },
+  {
+    "id": 23,
+    "team_id": 3,
+    "user_id": 21,
+    "role": "Accountant",
+    "performance": 0.92,
+    "capacity": 0.93,
+    "project_count": 2,
+    "status": "busy"
+  },
+  {
+    "id": 24,
+    "team_id": 3,
+    "user_id": 22,
+    "role": "Financial Analyst",
+    "performance": 0.66,
+    "capacity": 0.85,
+    "project_count": 4,
+    "status": "available"
+  },
+  {
+    "id": 25,
+    "team_id": 4,
+    "user_id": 41,
+    "role": "HR Specialist",
+    "performance": 0.92,
+    "capacity": 0.61,
+    "project_count": 1,
+    "status": "available"
+  },
+  {
+    "id": 26,
+    "team_id": 4,
+    "user_id": 35,
+    "role": "HR Specialist",
+    "performance": 0.76,
+    "capacity": 0.64,
+    "project_count": 1,
+    "status": "busy"
+  },
+  {
+    "id": 27,
+    "team_id": 4,
+    "user_id": 31,
+    "role": "Recruiter",
+    "performance": 0.74,
+    "capacity": 0.75,
+    "project_count": 5,
+    "status": "busy"
+  },
+  {
+    "id": 28,
+    "team_id": 4,
+    "user_id": 39,
+    "role": "Recruiter",
+    "performance": 0.98,
+    "capacity": 0.56,
+    "project_count": 3,
+    "status": "available"
+  },
+  {
+    "id": 29,
+    "team_id": 4,
+    "user_id": 40,
+    "role": "HR Specialist",
+    "performance": 0.83,
+    "capacity": 0.99,
+    "project_count": 1,
+    "status": "available"
+  },
+  {
+    "id": 30,
+    "team_id": 4,
+    "user_id": 33,
+    "role": "Recruiter",
+    "performance": 0.84,
+    "capacity": 0.67,
+    "project_count": 3,
+    "status": "busy"
+  },
+  {
+    "id": 31,
+    "team_id": 4,
+    "user_id": 32,
+    "role": "Recruiter",
+    "performance": 0.84,
+    "capacity": 0.76,
+    "project_count": 4,
+    "status": "available"
+  },
+  {
+    "id": 32,
+    "team_id": 4,
+    "user_id": 34,
+    "role": "Recruiter",
+    "performance": 0.7,
+    "capacity": 0.85,
+    "project_count": 1,
+    "status": "available"
+  },
+  {
+    "id": 33,
+    "team_id": 5,
+    "user_id": 47,
+    "role": "Marketing Manager",
+    "performance": 0.89,
+    "capacity": 0.65,
+    "project_count": 3,
+    "status": "busy"
+  },
+  {
+    "id": 34,
+    "team_id": 5,
+    "user_id": 48,
+    "role": "Marketing Manager",
+    "performance": 0.73,
+    "capacity": 0.85,
+    "project_count": 5,
+    "status": "available"
+  },
+  {
+    "id": 35,
+    "team_id": 5,
+    "user_id": 43,
+    "role": "Content Strategist",
+    "performance": 0.68,
+    "capacity": 0.83,
+    "project_count": 4,
+    "status": "available"
+  },
+  {
+    "id": 36,
+    "team_id": 5,
+    "user_id": 52,
+    "role": "Content Strategist",
+    "performance": 0.85,
+    "capacity": 0.65,
+    "project_count": 5,
+    "status": "available"
+  },
+  {
+    "id": 37,
+    "team_id": 5,
+    "user_id": 56,
+    "role": "Content Strategist",
+    "performance": 0.72,
+    "capacity": 0.61,
+    "project_count": 5,
+    "status": "busy"
+  },
+  {
+    "id": 38,
+    "team_id": 5,
+    "user_id": 51,
+    "role": "Content Strategist",
+    "performance": 0.79,
+    "capacity": 0.72,
+    "project_count": 2,
+    "status": "busy"
+  },
+  {
+    "id": 39,
+    "team_id": 5,
+    "user_id": 53,
+    "role": "Marketing Manager",
+    "performance": 0.92,
+    "capacity": 0.98,
+    "project_count": 2,
+    "status": "available"
+  },
+  {
+    "id": 40,
+    "team_id": 5,
+    "user_id": 54,
+    "role": "Content Strategist",
+    "performance": 0.71,
+    "capacity": 0.83,
+    "project_count": 5,
+    "status": "busy"
+  },
+  {
+    "id": 41,
+    "team_id": 6,
+    "user_id": 58,
+    "role": "Ops Lead",
+    "performance": 0.62,
+    "capacity": 0.99,
+    "project_count": 5,
+    "status": "available"
+  },
+  {
+    "id": 42,
+    "team_id": 6,
+    "user_id": 60,
+    "role": "Ops Lead",
+    "performance": 0.78,
+    "capacity": 0.94,
+    "project_count": 5,
+    "status": "available"
+  },
+  {
+    "id": 43,
+    "team_id": 6,
+    "user_id": 67,
+    "role": "Ops Lead",
+    "performance": 0.89,
+    "capacity": 0.69,
+    "project_count": 4,
+    "status": "available"
+  },
+  {
+    "id": 44,
+    "team_id": 6,
+    "user_id": 61,
+    "role": "Ops Lead",
+    "performance": 0.66,
+    "capacity": 0.84,
+    "project_count": 1,
+    "status": "busy"
+  },
+  {
+    "id": 45,
+    "team_id": 6,
+    "user_id": 68,
+    "role": "Analyst",
+    "performance": 0.69,
+    "capacity": 0.9,
+    "project_count": 5,
+    "status": "busy"
+  },
+  {
+    "id": 46,
+    "team_id": 6,
+    "user_id": 65,
+    "role": "Analyst",
+    "performance": 0.62,
+    "capacity": 0.62,
+    "project_count": 1,
+    "status": "busy"
+  },
+  {
+    "id": 47,
+    "team_id": 6,
+    "user_id": 69,
+    "role": "Ops Lead",
+    "performance": 0.65,
+    "capacity": 0.73,
+    "project_count": 5,
+    "status": "busy"
+  },
+  {
+    "id": 48,
+    "team_id": 6,
+    "user_id": 57,
+    "role": "Ops Lead",
+    "performance": 0.98,
+    "capacity": 0.95,
+    "project_count": 5,
+    "status": "busy"
+  }
+]
