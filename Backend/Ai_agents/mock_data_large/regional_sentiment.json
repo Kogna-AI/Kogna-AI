@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "region": "North America",
+    "business_confidence_index": 84.68,
+    "consumer_sentiment_score": 81.62,
+    "market_activity_level": "High",
+    "investment_flow": "Inbound \u2191",
+    "industry_focus": "Healthcare",
+    "talent_availability": 0.81,
+    "notes": "Increased venture capital inflows into AI startups.",
+    "last_updated": "2025-10-16T00:00:00"
+  },
+  {
+    "id": 2,
+    "region": "Europe",
+    "business_confidence_index": 79.26,
+    "consumer_sentiment_score": 64.55,
+    "market_activity_level": "Moderate",
+    "investment_flow": "Stable \u2194",
+    "industry_focus": "Energy",
+    "talent_availability": 0.6,
+    "notes": "Increased venture capital inflows into AI startups.",
+    "last_updated": "2025-10-16T00:00:00"
+  },
+  {
+    "id": 3,
+    "region": "Asia-Pacific",
+    "business_confidence_index": 79.48,
+    "consumer_sentiment_score": 61.36,
+    "market_activity_level": "Moderate",
+    "investment_flow": "Stable \u2194",
+    "industry_focus": "Fintech",
+    "talent_availability": 0.55,
+    "notes": "Corporate restructuring due to AI-driven automation.",
+    "last_updated": "2025-10-16T00:00:00"
+  },
+  {
+    "id": 4,
+    "region": "South America",
+    "business_confidence_index": 89.57,
+    "consumer_sentiment_score": 82.55,
+    "market_activity_level": "High",
+    "investment_flow": "Outbound \u2193",
+    "industry_focus": "Retail",
+    "talent_availability": 0.97,
+    "notes": "Corporate restructuring due to AI-driven automation.",
+    "last_updated": "2025-10-16T00:00:00"
+  },
+  {
+    "id": 5,
+    "region": "Middle East",
+    "business_confidence_index": 70.22,
+    "consumer_sentiment_score": 62.08,
+    "market_activity_level": "High",
+    "investment_flow": "Stable \u2194",
+    "industry_focus": "Healthcare",
+    "talent_availability": 0.93,
+    "notes": "Local regulation tightening for AI model transparency.",
+    "last_updated": "2025-10-16T00:00:00"
+  }
+]
