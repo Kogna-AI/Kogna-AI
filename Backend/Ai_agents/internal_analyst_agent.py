@@ -1,57 +1,142 @@
 import os
 import json
+import re
 from crewai import Agent, Task, Crew, Process
-from crewai.tools import BaseTool
+from crewai.tools import BaseTool # <-- Import BaseTool
 from langchain_litellm import ChatLiteLLM
 
-# --- 1. Define the Custom Tool ---
-# This tool simulates a RAG vector search over your files.
-# It just reads all the text and dumps it into the agent's context.
+# --- 1. Define the Tool by Inheriting from BaseTool ---
 
-class InternalDocumentSearchTool(BaseTool):
+class InternalDocumentRouterTool(BaseTool):
     name: str = "Internal Company Document Search Tool"
     description: str = (
-        "Use this tool to search all internal company documents, including "
-        "emails, meeting transcripts, project notes, and employee data. "
-        "It will return all raw text content from all available files."
+        "You MUST use this tool to find relevant internal company data. "
+        "Pass the user's original query to this tool. "
+        "It will intelligently search the company's knowledge base "
+        "using content previews and return ALL relevant documents."
     )
-    
-    def _run(self) -> str:
-        print("\n--- [Tool] Searching internal unstructured data... ---")
-        data_dir = os.path.join(os.path.dirname(__file__), "mock_data_large")
-        files_to_load = [
-            "employees.json", 
-            "projects_and_tasks.json", 
-            "emails.json", 
-            "meetings.json"
-        ]
-        
-        all_internal_context = ""
-        
-        for file_name in files_to_load:
-            try:
-                file_path = os.path.join(data_dir, file_name)
-                with open(file_path, 'r') as f:
-                    data = json.load(f)
-                    all_internal_context += f"--- START: Content from {file_name} ---\n"
-                    all_internal_context += json.dumps(data, indent=2)
-                    all_internal_context += f"\n--- END: Content from {file_name} ---\n\n"
+    llm: ChatLiteLLM = None
+    data_dir: str = ""
+    file_previews: dict = {}
+
+    def __init__(self, llm: ChatLiteLLM):
+        super().__init__()
+        self.llm = llm
+        self.data_dir = os.path.join(os.path.dirname(__file__), "mock_data_large")
+        self.file_previews = self._generate_previews()
+
+    def _generate_previews(self) -> dict:
+        """
+        Reads the first 10 lines of each .json file in the data directory
+        to create a 'preview' for the routing LLM.
+        """
+        print("\n--- [Smart Tool Init] Generating file previews... ---")
+        previews = {}
+        try:
+            for filename in os.listdir(self.data_dir):
+                if filename.endswith(".json"):
+                    file_path = os.path.join(self.data_dir, filename)
+                    try:
+                        with open(file_path, 'r') as f:
+                            preview_lines = [next(f) for _ in range(10)]
+                        preview_content = "".join(preview_lines)
+                        previews[filename] = preview_content
+                        print(f"--- [Smart Tool Init] Created preview for {filename}")
+                    except Exception as e:
+                        print(f"Warning: Could not read {filename} for preview: {e}")
             
-            except Exception as e:
-                print(f"Warning: Could not load or parse {file_name}. Error: {e}")
-                
-        if not all_internal_context:
-            return "Error: No internal documents were found or could be loaded."
+            if not previews:
+                print("--- [Smart Tool Init] CRITICAL: No .json files found in 'mock_data_large' directory. ---")
             
-        return all_internal_context
+            return previews
+        except FileNotFoundError:
+            print(f"--- [Smart Tool Init] CRITICAL: 'mock_data_large' directory not found at {self.data_dir} ---")
+            return {}
+
+    # This is the main execution method for BaseTool
+    def _run(self, query: str) -> str:
+        """
+        Executes the tool's logic.
+        """
+        print(f"\n--- [Smart Tool] Received query: '{query}' ---")
+        
+        if not self.file_previews:
+            return "Error: No internal documents are available. The tool was not initialized correctly."
+
+        # --- Router Logic ---
+        previews_list = "\n\n".join([
+            f"Filename: {file}\nPreview:\n{preview}" 
+            for file, preview in self.file_previews.items()
+        ])
+        
+        router_prompt = f"""
+        You are an expert data router. Your job is to select ALL files
+        that are relevant to answering the user's query, based on a preview of their content.
+
+        User Query: "{query}"
+
+        Available Data Files and their Content Previews:
+        ---
+        {previews_list}
+        ---
+
+        Return a JSON-formatted list of *all* relevant filenames.
+        - If the query is 'list of employees', return `["employees.json"]`.
+        - If the query is 'risks for Alpha project', you might return `["projects.json", "meetings.json"]`.
+        - If no files are relevant, return an empty list `[]`.
+        
+        Return *only* the JSON list and nothing else.
+        """
+        
+        # 2. Call the LLM to decide
+        try:
+            print("--- [Smart Tool] Asking router LLM to pick file(s)... ---")
+            router_response = self.llm.invoke(router_prompt)
+            
+            match = re.search(r'\[.*\]', router_response.content, re.DOTALL)
+            if not match:
+                raise ValueError("Router LLM did not return a valid JSON list.")
+            
+            chosen_files = json.loads(match.group(0))
+
+        except Exception as e:
+            return f"Error during router LLM call or JSON parsing: {e}. Response was: {router_response.content}"
+
+        # 3. Validate and load the chosen files
+        if not chosen_files:
+            print(f"--- [Smart Tool] Router found no relevant files. ---")
+            return f"No relevant internal documents were found for the query: '{query}'"
+
+        print(f"--- [Smart Tool] Router chose: {chosen_files} ---")
+        
+        all_relevant_content = ""
+        for filename in chosen_files:
+            if filename in self.file_previews:
+                print(f"--- [Smart Tool] Loading full content of {filename}... ---")
+                try:
+                    file_path = os.path.join(self.data_dir, filename)
+                    with open(file_path, 'r') as f:
+                        data = json.load(f)
+                        content = json.dumps(data, indent=2)
+                    
+                    all_relevant_content += (
+                        f"--- START: Full Content from {filename} ---\n"
+                        f"{content}\n"
+                        f"--- END: Full Content from {filename} ---\n\n"
+                    )
+                except Exception as e:
+                    all_relevant_content += f"Error loading file {filename}: {e}\n\n"
+            else:
+                 all_relevant_content += f"Router chose an invalid file: {filename}\n\n"
+        
+        return all_relevant_content
 
 # --- 2. Define the Agent and Crew ---
 
 def create_internal_analyst_crew(gemini_api_key: str) -> Crew:
     """
     Creates the Internal Data Analyst Crew.
-    This crew is responsible for performing RAG-like analysis on
-    unstructured internal documents based on a user query.
+    This crew now uses the BaseTool-inherited router tool.
     """
     
     llm = ChatLiteLLM(
@@ -60,52 +145,50 @@ def create_internal_analyst_crew(gemini_api_key: str) -> Crew:
         api_key=gemini_api_key
     )
 
-    internal_tool = InternalDocumentSearchTool()
+    # --- THIS IS THE FIX ---
+    # 1. Instantiate the tool
+    internal_tool = InternalDocumentRouterTool(llm=llm)
+    # ----------------------
 
     internal_analyst = Agent(
         role='Internal Document Analyst',
         goal=(
-            "Scan all unstructured internal company documents (emails, meetings, projects) "
-            "to find all information relevant to the user's request."
+            "Use the provided search tool to find all relevant internal "
+            "documents to answer the user's request."
         ),
         backstory=(
-            "You are an expert internal analyst. Your specialty is reading "
-            "thousands of unstructured documents (conversations, JSON blobs, notes) "
-            "and extracting the *specific* information needed to answer a strategic question. "
-            "You are not a SQL analyst; you are a text and data retrieval expert."
+            "You are an expert retrieval analyst. You do not have direct access "
+            "to the data. You MUST use your 'Internal Company Document Search Tool' "
+            "to find the information you need. You trust the tool to be smart "
+            "and give you all the relevant documents."
         ),
         verbose=True,
         llm=llm,
+        # --- THIS IS THE FIX ---
+        # 2. Pass the *instance* of the tool
         tools=[internal_tool]
+        # ----------------------
     )
 
+    # The task description remains correct, as the tool's 'name'
+    # is still "Internal Company Document Search Tool"
     analysis_task = Task(
         description=(
             "A user has a primary request: '{user_query}'.\n"
-            "Your job is to be a data *extraction* expert. You must answer the user's request *precisely*.\n\n"
+            "Your job is to find the *internal* data to answer this.\n\n"
             "Follow these steps:\n"
-            "1. **Use the Tool:** Activate the 'Internal Company Document Search Tool' "
-            "to get all internal data. This data will contain content from multiple files "
-            "(like 'employees.json', 'projects.json', etc.).\n"
-            "2. **Analyze Context:** Read the full context from the tool. Your primary goal is to find "
-            "the *most relevant data* to answer the user's query. The context is large and "
-            "contains many topics. You must not get confused.\n"
-            "3. **Execute Task:**\n"
-            "    - **If the user asks for a specific list (like 'list of all employees' or 'list of projects'),** "
-            "      you MUST find the specific file content (e.g., 'employees.json' or 'projects.json') "
-            "      and extract that list. Do NOT summarize a related topic.\n"
-            "    - **If the user asks a general question (like 'what are our risks?'),** "
-            "      then you can synthesize information from multiple files ('projects.json', 'meetings.json') "
-            "      to create a summary.\n\n"
-            "**Crucial Instruction for the user's query ('{user_query}'):** This is a "
-            "simple data extraction request. Find the employee list in the 'employees.json' "
-            "file's content and return it. Do not mention performance reviews."
+            "1. **Use the Tool:** You MUST call the 'Internal Company Document Search Tool' "
+            "and pass the user's *exact* query, '{user_query}', to it. "
+            "This tool will use AI to search all internal files by preview "
+            "and return the full content of ALL relevant document(s).\n"
+            "2. **Analyze Content:** Read all the document content returned by the tool.\n"
+            "3. **Synthesize Findings:** Based *only* on the documents provided by the tool, "
+            "create the 'Internal Analysis Report' that directly answers '{user_query}'."
         ),
         expected_output=(
-            "A precise and direct answer to the user's query: '{user_query}'.\n"
-            "If the user asks for a list of employees, the output MUST be that list, "
-            "not a summary of other topics. For example: 'Here is the list of employees "
-            "found in the internal 'employees.json' file: [data...]'."
+            "A comprehensive 'Internal Analysis Report' that summarizes all "
+            "relevant information found in the *document(s)* retrieved by the tool "
+            "to answer the user's query: '{user_query}'."
         ),
         agent=internal_analyst
     )
