@@ -1,0 +1,70 @@
+[
+  {
+    "id": 1,
+    "company_name": "NeuraEdge Analytics",
+    "focus_area": "Predictive Analytics",
+    "annual_revenue_million": 118.3,
+    "profit_margin_percent": 17.2,
+    "employees": 640,
+    "market_share_percent": 13.2,
+    "r_and_d_investment_percent": 5.3,
+    "ai_patent_count": 28,
+    "global_presence": [
+      "North America",
+      "EU",
+      "India"
+    ],
+    "recent_initiatives": [
+      "Launched low-code analytics for SMEs",
+      "Expanded into EU data compliance consulting"
+    ],
+    "strength": "Enterprise trust, broad partner network",
+    "weakness": "Limited innovation pipeline",
+    "last_updated": "2025-10-12T00:00:00"
+  },
+  {
+    "id": 2,
+    "company_name": "Cognitix Systems",
+    "focus_area": "AI Infrastructure & Cloud Tools",
+    "annual_revenue_million": 231.4,
+    "profit_margin_percent": 21.5,
+    "employees": 1200,
+    "market_share_percent": 25.1,
+    "r_and_d_investment_percent": 11.7,
+    "ai_patent_count": 54,
+    "global_presence": [
+      "North America",
+      "Europe",
+      "APAC"
+    ],
+    "recent_initiatives": [
+      "Partnered with telecoms for edge AI integration",
+      "Invested in workforce AI upskilling programs"
+    ],
+    "strength": "Robust R&D and global reach",
+    "weakness": "High operational cost and complex hierarchy",
+    "last_updated": "2025-10-08T00:00:00"
+  },
+  {
+    "id": 3,
+    "company_name": "InsightForge Labs",
+    "focus_area": "Data Visualization & AI Dashboards",
+    "annual_revenue_million": 89.6,
+    "profit_margin_percent": 13.9,
+    "employees": 420,
+    "market_share_percent": 11.5,
+    "r_and_d_investment_percent": 7.8,
+    "ai_patent_count": 15,
+    "global_presence": [
+      "North America",
+      "Japan"
+    ],
+    "recent_initiatives": [
+      "Released cross-platform data storytelling suite",
+      "Acquired BI firm focusing on healthcare analytics"
+    ],
+    "strength": "Agile innovation cycles",
+    "weakness": "Dependence on niche clients",
+    "last_updated": "2025-10-05T00:00:00"
+  }
+]
