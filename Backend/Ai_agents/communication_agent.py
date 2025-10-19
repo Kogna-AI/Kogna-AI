@@ -1,6 +1,13 @@
 from crewai import Agent, Task, Crew, Process
 from crewai_tools import SerpApiGoogleSearchTool
-from langchain_litellm import ChatLiteLLM
+from supabase_connect import get_supabase_manager
+from dotenv import load_dotenv
+
+load_dotenv()
+
+#connect to supabase
+supabase_manager = get_supabase_manager()
+supabase = supabase_manager.client
 
 def create_communication_crew(
     synthesis_context: str,

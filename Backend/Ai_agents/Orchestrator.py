@@ -5,7 +5,7 @@ import json
 from langgraph.graph import StateGraph, END
 from supabase_connect import get_supabase_manager
 from dotenv import load_dotenv
-1
+
 load_dotenv()
 
 #connect to supabase
