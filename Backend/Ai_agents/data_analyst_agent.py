@@ -5,7 +5,15 @@ import sqlite3
 import pandas as pd
 from crewai import Agent, Task, Crew
 from crewai.tools import tool
-from langchain_litellm import ChatLiteLLM
+from langchain_community.chat_models import ChatLiteLLM
+from supabase_connect import get_supabase_manager
+from dotenv import load_dotenv
+
+load_dotenv()
+
+#connect to supabase
+supabase_manager = get_supabase_manager()
+supabase = supabase_manager.client
 
 def create_data_analyst_crew(
     gemini_api_key: str,
