@@ -2,8 +2,15 @@ import os
 import json
 import re
 from crewai import Agent, Task, Crew, Process
-from crewai.tools import BaseTool
-from langchain_litellm import ChatLiteLLM
+from crewai.tools import BaseTool # <-- Import BaseTool
+from supabase_connect import get_supabase_manager
+from dotenv import load_dotenv
+
+load_dotenv()
+
+#connect to supabase
+supabase_manager = get_supabase_manager()
+supabase = supabase_manager.client
 
 # --- 1. Define the Tool (with a memory) ---
 

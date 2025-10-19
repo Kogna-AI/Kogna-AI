@@ -3,6 +3,14 @@ from dotenv import load_dotenv
 from typing import TypedDict, Optional
 import json
 from langgraph.graph import StateGraph, END
+from supabase_connect import get_supabase_manager
+from dotenv import load_dotenv
+
+load_dotenv()
+
+#connect to supabase
+supabase_manager = get_supabase_manager()
+supabase = supabase_manager.client
 
 # Import your existing crew creation functions
 # from data_ingestion_agent import create_scribe_crew

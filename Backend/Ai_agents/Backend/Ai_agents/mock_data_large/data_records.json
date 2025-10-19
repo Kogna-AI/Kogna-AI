@@ -1,0 +1,112 @@
+[
+  {
+    "id": 1,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 6,
+      "efficiency": 0.81,
+      "output": 103,
+      "error_rate": 0.02
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  },
+  {
+    "id": 2,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 5,
+      "efficiency": 0.93,
+      "output": 103,
+      "error_rate": 0.1
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  },
+  {
+    "id": 3,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 6,
+      "efficiency": 0.76,
+      "output": 81,
+      "error_rate": 0.05
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  },
+  {
+    "id": 4,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 2,
+      "efficiency": 0.98,
+      "output": 79,
+      "error_rate": 0.09
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  },
+  {
+    "id": 5,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 5,
+      "efficiency": 0.96,
+      "output": 91,
+      "error_rate": 0.07
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  },
+  {
+    "id": 6,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 4,
+      "efficiency": 0.85,
+      "output": 113,
+      "error_rate": 0.1
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  },
+  {
+    "id": 7,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 3,
+      "efficiency": 0.9,
+      "output": 104,
+      "error_rate": 0.02
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  },
+  {
+    "id": 8,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 4,
+      "efficiency": 0.85,
+      "output": 98,
+      "error_rate": 0.08
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  },
+  {
+    "id": 9,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 6,
+      "efficiency": 0.97,
+      "output": 112,
+      "error_rate": 0.06
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  },
+  {
+    "id": 10,
+    "dataset_id": 1,
+    "record_data": {
+      "team_id": 2,
+      "efficiency": 0.78,
+      "output": 116,
+      "error_rate": 0.03
+    },
+    "imported_at": "2025-10-15T00:00:00"
+  }
+]

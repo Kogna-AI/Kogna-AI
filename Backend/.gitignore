@@ -30,3 +30,9 @@ Thumbs.db
 # Ignore temporary files
 *.tmp
 *.temp
+
+# Ignore all mock data and JSON files in mock_data_large
+mock_data_large/
+**/mock_data_large/
+mock_data_large/*.json
+**/mock_data_large/*.json
