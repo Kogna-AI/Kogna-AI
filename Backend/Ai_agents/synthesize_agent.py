@@ -2,19 +2,10 @@ from crewai import Agent, Task, Crew, Process
 from crewai_tools import SerpApiGoogleSearchTool
 from langchain_community.chat_models import ChatLiteLLM
 from datetime import datetime
-from supabase_connect import get_supabase_manager
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
-#connect to supabase
-supabase_manager = get_supabase_manager()
-supabase = supabase_manager.client
-
 
 def create_synthesis_crew(
     internal_analysis_report: str,
+    internal_sources: Optional[List[str]],
     business_research_findings: str,
     google_api_key: str,
     serper_api_key: str,
@@ -51,10 +42,14 @@ def create_synthesis_crew(
     )
 
     # --- Dynamic Task Description ---
+    sources_text = "Not specified."
+    if internal_sources:
+        sources_text = ", ".join(internal_sources)
+
     task_description = f"""Synthesize the following two reports into a single, unified executive summary for the current business context of {current_date}.
     Your goal is to identify cross-functional themes, contradictions, and strategic implications.
 
-    **Report 1: Internal Document Analysis Report (Received at {current_time})**
+    **Report 1: Internal Document Analysis Report (Received at {current_time})(Sourced from: {sources_text})**
     (This report is based on scanning all internal unstructured files like emails, meetings, etc.)
     ---
     {internal_analysis_report} 
@@ -68,7 +63,7 @@ def create_synthesis_crew(
 
     **Your analysis must:**
     1.  Identify the top 3-5 cross-functional themes that appear in both reports.
-    2.  Highlight any contradictions or data gaps. (e.g., "Internal meeting notes say X, but external web search says Y").
+    2.  Highlight any contradictions or data gaps. (e.g., "Internal data from {sources_text} says X, but web search says Y").
     3.  Formulate a final executive summary that includes strategic highlights, critical risks, and actionable recommendations for the next quarter."""
     # If human feedback is provided, append it as a critical instruction.
     if human_feedback:
