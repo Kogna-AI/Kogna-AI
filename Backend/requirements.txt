@@ -8,6 +8,7 @@ python-multipart==0.0.6
 # Database
 psycopg2-binary==2.9.9
 sqlalchemy==2.0.23
+supabase==2.3.4
 
 # Environment & Configuration
 python-dotenv==1.0.0
@@ -17,6 +18,7 @@ crewai==0.28.0
 crewai-tools==0.1.6
 langchain==0.1.0
 langchain-community==0.0.13
+langgraph==0.0.20
 
 # LLM Providers
 openai==1.6.1

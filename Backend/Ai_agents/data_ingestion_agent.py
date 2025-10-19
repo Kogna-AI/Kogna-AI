@@ -1,6 +1,15 @@
 import json
 from crewai import Agent, Task, Crew, Process
-from langchain_litellm import ChatLiteLLM # Correct, more robust import
+from langchain_community.chat_models import ChatLiteLLM
+from supabase_connect import get_supabase_manager
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+#connect to supabase
+supabase_manager = get_supabase_manager()
+supabase = supabase_manager.client
 
 #
 # This is the refactored script for the Scribe Agent.

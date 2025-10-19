@@ -1,0 +1,94 @@
+[
+  {
+    "id": 1,
+    "industry": "AI & Data Analytics",
+    "trend": "Enterprise-wide adoption of AI-assisted decision-making and predictive modeling is accelerating across industries.",
+    "growth_projection": 15.61,
+    "investment_volume_billion": 303.1,
+    "regional_leaders": [
+      "North America",
+      "Western Europe"
+    ],
+    "emerging_markets": [
+      "Southeast Asia",
+      "India"
+    ],
+    "key_drivers": [
+      "Demand for real-time analytics and business automation",
+      "Falling cost of model deployment via cloud platforms",
+      "Maturity of MLOps ecosystems"
+    ],
+    "risk_factor": "Increased competition, rising cloud infrastructure costs, and data privacy regulations tightening.",
+    "source": "Gartner Q3 2025 AI Adoption Report",
+    "last_updated": "2025-09-30T00:00:00"
+  },
+  {
+    "id": 2,
+    "industry": "Cloud Infrastructure & Edge Computing",
+    "trend": "Organizations are decentralizing compute workloads through hybrid cloud and edge computing for latency-sensitive applications.",
+    "growth_projection": 11.64,
+    "investment_volume_billion": 173.2,
+    "key_drivers": [
+      "5G rollout enabling near-real-time data processing",
+      "AI model deployment closer to user endpoints",
+      "Growing IoT ecosystem in logistics and healthcare"
+    ],
+    "risk_factor": "Vendor lock-in, security vulnerabilities at the edge, and cost unpredictability.",
+    "source": "IDC Market Watch 2025: Edge-to-Cloud Integration",
+    "last_updated": "2025-09-22T00:00:00"
+  },
+  {
+    "id": 3,
+    "industry": "AI Ethics, Governance & Compliance",
+    "trend": "Global regulatory bodies are enacting stricter transparency and accountability frameworks for generative AI models.",
+    "growth_projection": 7.25,
+    "key_policies": [
+      "EU AI Act (2025)",
+      "US Algorithmic Accountability Expansion Bill",
+      "OECD AI Governance Framework"
+    ],
+    "impact_on_market": "Compliance-related costs projected to rise by 12% in 2026, prompting firms to invest in explainability tools.",
+    "risk_factor": "Regulatory uncertainty in cross-border AI deployment.",
+    "source": "World Economic Forum Insight Brief, October 2025",
+    "last_updated": "2025-10-10T00:00:00"
+  },
+  {
+    "id": 4,
+    "industry": "Cybersecurity in AI Systems",
+    "trend": "Data poisoning and adversarial attacks are emerging as critical vulnerabilities in ML pipelines.",
+    "growth_projection": 11.78,
+    "key_drivers": [
+      "AI model dependency in financial decision-making",
+      "Rise of model extraction attacks",
+      "Corporate liability for breached data models"
+    ],
+    "risk_factor": "Security talent shortage and fragmented defensive standards.",
+    "source": "McKinsey Cyber Resilience 2025 Outlook",
+    "last_updated": "2025-10-05T00:00:00"
+  },
+  {
+    "id": 5,
+    "industry": "Automation & Workforce Transformation",
+    "trend": "Automation of repetitive data tasks and AI copilots are reshaping workforce roles and productivity baselines.",
+    "growth_projection": 8.44,
+    "displaced_jobs_million": 23.3,
+    "new_roles_created_million": 25.7,
+    "risk_factor": "Skill gap in data literacy and AI supervision.",
+    "source": "World Bank Digital Labor Report 2025",
+    "last_updated": "2025-09-27T00:00:00"
+  },
+  {
+    "id": 6,
+    "industry": "Fintech & AI Risk Management",
+    "trend": "Financial institutions are deploying generative AI to model fraud patterns, automate credit scoring, and detect bias in models.",
+    "growth_projection": 15.19,
+    "key_drivers": [
+      "Increased digital transaction volumes",
+      "Pressure for fair lending and explainable AI",
+      "Integration of AI into core banking APIs"
+    ],
+    "risk_factor": "Data governance complexity and ethical model deployment challenges.",
+    "source": "Accenture Fintech Intelligence Index 2025",
+    "last_updated": "2025-09-25T00:00:00"
+  }
+]
