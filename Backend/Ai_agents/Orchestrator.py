@@ -75,14 +75,27 @@ def node_synthesizer(state: WorkflowState) -> dict:
     return {"synthesis_report": synthesis_result.raw, "human_feedback": None}
 
 def node_communicator(state: WorkflowState) -> dict:
+    """
+    Node 4: Creates final communication deliverables.
+    """
     print("\n--- [Node] Executing Communications Crew ---")
-    # ... (code is unchanged)
-    google_key = os.getenv("GOOGLE_API_KEY")
-    serper_key = os.getenv("SERPAPI_API_KEY")
-    communications_crew = create_communication_crew(synthesis_context=state['synthesis_report'], google_api_key=google_key, serper_api_key=serper_key)
-    final_report_result = communications_crew.kickoff()
-    return {"final_report": final_report_result.raw}
+    try:
+        google_key = os.getenv("GOOGLE_API_KEY")
+        serper_key = os.getenv("SERPAPI_API_KEY")
+        
+        if not serper_key or not google_key:
+            raise ValueError("SERPAPI_API_KEY or GOOGLE_API_KEY not found in .env file.")
 
+        communications_crew = create_communication_crew(
+            synthesis_context=state['synthesis_report'], 
+            user_query=state['user_query'], # <--- ADD THIS LINE
+            google_api_key=google_key, 
+            serper_api_key=serper_key
+        )
+        final_report_result = communications_crew.kickoff()
+        return {"final_report": final_report_result.raw}
+    except Exception as e:
+        return {"final_report": f"Error in node_communicator: {str(e)}"}
 def node_error_handler(state: WorkflowState) -> dict:
     print("\n--- [Node] Executing Error Handler ---")
     # --- UPDATE THIS ---
