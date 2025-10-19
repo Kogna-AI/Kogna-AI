@@ -1,10 +1,12 @@
 from crewai import Agent, Task, Crew, Process
 from crewai_tools import SerpApiGoogleSearchTool
 from langchain_litellm import ChatLiteLLM
+from typing import List, Optional
 
 def create_communication_crew(
     synthesis_context: str,
     user_query: str,  # <--- 1. ACCEPT THE USER'S QUERY
+    internal_sources: Optional[List[str]],
     google_api_key: str,
     serper_api_key: str
 ) -> Crew:
@@ -42,6 +44,10 @@ def create_communication_crew(
 
     # --- 2. This is the new DYNAMIC task ---
     # We replace your two static tasks with this single, smart one.
+
+    sources_text = "internal documents"
+    if internal_sources:
+        sources_text = ", ".join(internal_sources)
     
     dynamic_formatting_task = Task(
         description=f"""
@@ -49,6 +55,7 @@ def create_communication_crew(
         
         The Kogna AI pipeline has analyzed internal and external data and
         produced the following synthesized report:
+        (Internal data was sourced from: {sources_text})
         ---
         {synthesis_context}
         ---
@@ -64,6 +71,7 @@ def create_communication_crew(
         2.  **If the user asked for a complex analysis (e.g., "what are our risks?", "give me a report on team performance"):**
             Format the synthesis report into a professional executive summary.
             Include a brief overview, key bullet points, and a conclusion.
+            At the very end,add a "Sources:" line. (e.g., "Sources: {sources_text}, Web Search")
             
         3.  **For all other requests:** Use your best judgment to present the information
             in the clearest and most direct way possible. Do not invent new information.
@@ -72,6 +80,8 @@ def create_communication_crew(
         expected_output="""
         The final, perfectly formatted answer for the user,
         adapted to their original query.
+        If it's a complex report, it MUST end with a sources line,
+        e.g., "Sources: {sources_text}, Web Search"
         """,
         agent=communications_agent
     )

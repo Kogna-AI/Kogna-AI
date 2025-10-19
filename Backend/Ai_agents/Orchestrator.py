@@ -11,14 +11,14 @@ from internal_analyst_agent import create_internal_analyst_crew
 from reasearch_agent import create_research_crew
 from synthesize_agent import create_synthesis_crew
 from communication_agent import create_communication_crew
-
+from typing import TypedDict, Optional, List
 # --- 1. Define the State for the Graph ---
 # Added 'human_feedback' to store correction instructions.
 class WorkflowState(TypedDict):
     # raw_data: str
     user_query: str
     execution_mode: str
-    # structured_data: Optional[str]
+    internal_sources: Optional[List[str]]
     internal_analysis_report: Optional[str]
     business_research_findings: Optional[str]
     synthesis_report: Optional[str]
@@ -40,12 +40,21 @@ def node_internal_analyst(state: WorkflowState) -> dict:
     print("\n--- [Node] Executing Internal Analyst Crew (RAG) ---")
     google_key = os.getenv("GOOGLE_API_KEY")
     
-    internal_analyst_crew = create_internal_analyst_crew(gemini_api_key=google_key)
+    # 1. Get both the crew and the tool instance
+    internal_analyst_crew, tool_instance = create_internal_analyst_crew(gemini_api_key=google_key)
     
     inputs = {'user_query': state['user_query']} 
     analysis_result = internal_analyst_crew.kickoff(inputs=inputs)
     
-    return {"internal_analysis_report": analysis_result.raw}
+    # 2. Get the sources from the tool's memory
+    sources = tool_instance.last_chosen_files
+    print(f"--- [Node] Internal Analyst used sources: {sources} ---")
+    
+    # 3. Return both the report and the sources to the state
+    return {
+        "internal_analysis_report": analysis_result.raw,
+        "internal_sources": sources
+    }
 
 def node_researcher(state: WorkflowState) -> dict:
     print("\n--- [Node] Executing Research Crew (Skipped) ---")
@@ -62,9 +71,8 @@ def node_synthesizer(state: WorkflowState) -> dict:
         print(f"--- [Info] Synthesizer is re-running with human feedback: '{human_feedback}' ---")
     
     synthesizer_crew = create_synthesis_crew(
-        # --- PASS THE NEW REPORT ---
-        internal_analysis_report=state['internal_analysis_report'], # Was: sql_analysis_report
-        # ---------------------------
+        internal_analysis_report=state['internal_analysis_report'],
+        internal_sources=state.get('internal_sources'), # <--- ADD THIS
         business_research_findings=state['business_research_findings'],
         google_api_key=google_key,
         serper_api_key=serper_key,
@@ -75,10 +83,7 @@ def node_synthesizer(state: WorkflowState) -> dict:
     return {"synthesis_report": synthesis_result.raw, "human_feedback": None}
 
 def node_communicator(state: WorkflowState) -> dict:
-    """
-    Node 4: Creates final communication deliverables.
-    """
-    print("\n--- [Node] Executing Communications Crew ---")
+    # ... (try/except block)
     try:
         google_key = os.getenv("GOOGLE_API_KEY")
         serper_key = os.getenv("SERPAPI_API_KEY")
@@ -88,7 +93,8 @@ def node_communicator(state: WorkflowState) -> dict:
 
         communications_crew = create_communication_crew(
             synthesis_context=state['synthesis_report'], 
-            user_query=state['user_query'], # <--- ADD THIS LINE
+            user_query=state['user_query'],
+            internal_sources=state.get('internal_sources'), # <--- ADD THIS
             google_api_key=google_key, 
             serper_api_key=serper_key
         )
@@ -96,6 +102,7 @@ def node_communicator(state: WorkflowState) -> dict:
         return {"final_report": final_report_result.raw}
     except Exception as e:
         return {"final_report": f"Error in node_communicator: {str(e)}"}
+    
 def node_error_handler(state: WorkflowState) -> dict:
     print("\n--- [Node] Executing Error Handler ---")
     # --- UPDATE THIS ---

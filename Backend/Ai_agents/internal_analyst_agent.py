@@ -2,10 +2,10 @@ import os
 import json
 import re
 from crewai import Agent, Task, Crew, Process
-from crewai.tools import BaseTool # <-- Import BaseTool
+from crewai.tools import BaseTool
 from langchain_litellm import ChatLiteLLM
 
-# --- 1. Define the Tool by Inheriting from BaseTool ---
+# --- 1. Define the Tool (with a memory) ---
 
 class InternalDocumentRouterTool(BaseTool):
     name: str = "Internal Company Document Search Tool"
@@ -18,18 +18,17 @@ class InternalDocumentRouterTool(BaseTool):
     llm: ChatLiteLLM = None
     data_dir: str = ""
     file_previews: dict = {}
+    last_chosen_files: list[str] = []  # <--- 1. ADD MEMORY
 
     def __init__(self, llm: ChatLiteLLM):
         super().__init__()
         self.llm = llm
         self.data_dir = os.path.join(os.path.dirname(__file__), "mock_data_large")
         self.file_previews = self._generate_previews()
+        self.last_chosen_files = [] # Ensure it's reset on init
 
     def _generate_previews(self) -> dict:
-        """
-        Reads the first 10 lines of each .json file in the data directory
-        to create a 'preview' for the routing LLM.
-        """
+        # ... (This function is unchanged)
         print("\n--- [Smart Tool Init] Generating file previews... ---")
         previews = {}
         try:
@@ -53,17 +52,15 @@ class InternalDocumentRouterTool(BaseTool):
             print(f"--- [Smart Tool Init] CRITICAL: 'mock_data_large' directory not found at {self.data_dir} ---")
             return {}
 
-    # This is the main execution method for BaseTool
     def _run(self, query: str) -> str:
-        """
-        Executes the tool's logic.
-        """
+        # ... (This function is mostly unchanged, except for one line)
         print(f"\n--- [Smart Tool] Received query: '{query}' ---")
+        self.last_chosen_files = [] # Reset for this run
         
         if not self.file_previews:
             return "Error: No internal documents are available. The tool was not initialized correctly."
 
-        # --- Router Logic ---
+        # ... (Router Prompt Logic is unchanged) ...
         previews_list = "\n\n".join([
             f"Filename: {file}\nPreview:\n{preview}" 
             for file, preview in self.file_previews.items()
@@ -98,6 +95,8 @@ class InternalDocumentRouterTool(BaseTool):
                 raise ValueError("Router LLM did not return a valid JSON list.")
             
             chosen_files = json.loads(match.group(0))
+            
+            self.last_chosen_files = chosen_files  # <--- 2. SAVE THE CHOICE
 
         except Exception as e:
             return f"Error during router LLM call or JSON parsing: {e}. Response was: {router_response.content}"
@@ -110,6 +109,7 @@ class InternalDocumentRouterTool(BaseTool):
         print(f"--- [Smart Tool] Router chose: {chosen_files} ---")
         
         all_relevant_content = ""
+        # ... (Loading loop is unchanged) ...
         for filename in chosen_files:
             if filename in self.file_previews:
                 print(f"--- [Smart Tool] Loading full content of {filename}... ---")
@@ -133,10 +133,10 @@ class InternalDocumentRouterTool(BaseTool):
 
 # --- 2. Define the Agent and Crew ---
 
-def create_internal_analyst_crew(gemini_api_key: str) -> Crew:
+def create_internal_analyst_crew(gemini_api_key: str): # <--- 3. REMOVED -> Crew
     """
     Creates the Internal Data Analyst Crew.
-    This crew now uses the BaseTool-inherited router tool.
+    This function now returns BOTH the Crew and the tool instance.
     """
     
     llm = ChatLiteLLM(
@@ -145,10 +145,7 @@ def create_internal_analyst_crew(gemini_api_key: str) -> Crew:
         api_key=gemini_api_key
     )
 
-    # --- THIS IS THE FIX ---
-    # 1. Instantiate the tool
     internal_tool = InternalDocumentRouterTool(llm=llm)
-    # ----------------------
 
     internal_analyst = Agent(
         role='Internal Document Analyst',
@@ -164,14 +161,9 @@ def create_internal_analyst_crew(gemini_api_key: str) -> Crew:
         ),
         verbose=True,
         llm=llm,
-        # --- THIS IS THE FIX ---
-        # 2. Pass the *instance* of the tool
         tools=[internal_tool]
-        # ----------------------
     )
 
-    # The task description remains correct, as the tool's 'name'
-    # is still "Internal Company Document Search Tool"
     analysis_task = Task(
         description=(
             "A user has a primary request: '{user_query}'.\n"
@@ -193,4 +185,5 @@ def create_internal_analyst_crew(gemini_api_key: str) -> Crew:
         agent=internal_analyst
     )
 
-    return Crew(agents=[internal_analyst], tasks=[analysis_task], verbose=True)
+    # --- 4. RETURN BOTH THE CREW AND THE TOOL INSTANCE ---
+    return Crew(agents=[internal_analyst], tasks=[analysis_task], verbose=True), internal_tool
