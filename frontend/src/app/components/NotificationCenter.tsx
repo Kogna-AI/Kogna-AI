@@ -54,7 +54,7 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
   const actionCount = notificationList.filter(n => n.actionRequired && !n.read).length;
 
   return (
-    <Card className="fixed top-4 right-4 w-96 h-[600px] shadow-lg z-50 flex flex-col">
+    <Card className="fixed top-4 right-4 w-96 h-[600px] shadow-lg z-50 flex flex-col overflow-auto">
       <NotificationHeader unreadCount={unreadCount} onMarkAll={markAllAsRead} onClose={onClose} />
 
       <CardContent className="flex-1 flex flex-col p-0">

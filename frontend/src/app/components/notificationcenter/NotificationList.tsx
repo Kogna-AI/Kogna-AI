@@ -6,7 +6,7 @@ import { Notification } from './notificationData';
 
 export default function NotificationList({ notifications, onItemClick, onDismiss }: { notifications: Notification[]; onItemClick: (id: string) => void; onDismiss: (id: string) => void }) {
   return (
-    <ScrollArea className="h-full px-6">
+    <ScrollArea className="h-full px-6 overflow-scroll">
       <div className="space-y-3 pb-4">
         {notifications.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">

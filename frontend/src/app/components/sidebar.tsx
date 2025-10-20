@@ -54,9 +54,9 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden  bg-gradient-to-br from-purple-500/10 to-blue-500/10 backdrop-blur-sm border border-white/20 shadow-sm">
             <img 
-              src={KognaKLetterLogo.src}  //burruhhhhh
+              src={KognaKLetterLogo.src} 
               alt="KognaDash Logo" 
-              height = {KognaKLetterLogo.height}
+              height = {KognaKLetterLogo.height/2}
               className="w-full h-full object-contain"
             />
           </div>
