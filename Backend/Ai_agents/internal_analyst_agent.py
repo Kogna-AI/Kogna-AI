@@ -3,6 +3,7 @@ import json
 import re
 from crewai import Agent, Task, Crew, Process
 from crewai.tools import BaseTool # <-- Import BaseTool
+from langchain_community.chat_models import ChatLiteLLM
 from supabase_connect import get_supabase_manager
 from dotenv import load_dotenv
 
