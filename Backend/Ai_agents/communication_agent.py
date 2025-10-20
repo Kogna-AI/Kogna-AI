@@ -1,6 +1,7 @@
 from crewai import Agent, Task, Crew, Process
 from crewai_tools import SerpApiGoogleSearchTool
 from typing import Optional, List
+from langchain_community.chat_models import ChatLiteLLM
 from supabase_connect import get_supabase_manager
 from dotenv import load_dotenv
 
