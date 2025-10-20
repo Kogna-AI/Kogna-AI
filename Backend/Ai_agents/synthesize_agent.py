@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional, List
 from supabase_connect import get_supabase_manager
 from dotenv import load_dotenv
-
+from typing import List, Optional
 load_dotenv()
 
 #connect to supabase

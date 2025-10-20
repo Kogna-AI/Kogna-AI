@@ -1,13 +1,13 @@
 "use client"
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/Button';
+import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
 import { Alert, AlertDescription } from '../../ui/alert';
 import { Badge } from '../../ui/badge';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
-import logoImage from 'figma:asset/50beeccf5a3ff0b200a9985334cd82dcf3349a1d.png'; //fix later
+import KognaIcon from '../../../../public/KognaIcon.svg'; //fix later
 import { useUser } from './UserContext';
 
 export function LoginScreen() {
@@ -47,7 +47,7 @@ export function LoginScreen() {
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-white shadow-lg flex items-center justify-center">
             <img 
-              src={logoImage.src} 
+              src= "KognaIcon"
               alt="KognaDash Logo" 
               className="w-10 h-10 object-contain"
             />

@@ -6,7 +6,7 @@ from crewai.tools import BaseTool # <-- Import BaseTool
 from langchain_community.chat_models import ChatLiteLLM
 from supabase_connect import get_supabase_manager
 from dotenv import load_dotenv
-
+from langchain_community.chat_models import ChatLiteLLM
 load_dotenv()
 
 #connect to supabase
