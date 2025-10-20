@@ -2,7 +2,7 @@ from crewai import Agent, Task, Crew, Process
 from crewai_tools import SerpApiGoogleSearchTool
 from supabase_connect import get_supabase_manager
 from dotenv import load_dotenv
-
+from typing import List, Optional
 load_dotenv()
 
 #connect to supabase
