@@ -11,8 +11,9 @@ import {
   LogOut,
   Brain
 } from 'lucide-react';
-import logoImage from 'figma:asset/50beeccf5a3ff0b200a9985334cd82dcf3349a1d.png';
-import { Button } from '../ui/Button';
+// Using Next.js Image component for better optimization
+import Image from 'next/image';
+import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/seperator';
 import { KogniiThinkingIcon } from '../../../public/KogniiThinkingIcon';
@@ -25,9 +26,16 @@ interface SidebarProps {
   onNotificationsToggle: () => void;
 }
 
+interface NavItem {
+  id: string;
+  label: string;
+  icon: any;
+  badge?: string | number;
+}
+
 export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificationsToggle }: SidebarProps) {
   const { user, logout } = useUser();
-  const navigationItems = [
+  const navigationItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'team', label: 'Team Overview', icon: Users },
     { id: 'strategy', label: 'Strategy Hub', icon: Target },
@@ -35,18 +43,22 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'feedback', label: 'Feedback', icon: MessageSquare },
+    { id : 'insights', label: 'Insights', icon: Brain}
   ];
 
   return (
-    <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+    <div className="w-64 relative bg-gradient-to-br from-slate-50/95 via-white/95 to-gray-50/95 backdrop-blur-xl border-r border-white/20 shadow-lg flex flex-col">
       {/* Header */}
-      <div className="p-6 border-b border-sidebar-border">
+    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-transparent pointer-events-none"></div>
+      <div className="p-6 border-b border-white/20">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
-            <img 
-              src={logoImage} 
+            <Image 
+              src="/logoImage.svg" 
               alt="KognaDash Logo" 
-              className="w-full h-full object-contain"
+              width={32}
+              height={32}
+              className="object-contain"
             />
           </div>
           <div>

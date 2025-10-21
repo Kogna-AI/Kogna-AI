@@ -1,13 +1,14 @@
 "use client"
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/Button';
+import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
 import { Alert, AlertDescription } from '../../ui/alert';
 import { Badge } from '../../ui/badge';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
-import logoImage from 'figma:asset/50beeccf5a3ff0b200a9985334cd82dcf3349a1d.png'; //fix later
+// Using Next.js Image component for better optimization
+import Image from 'next/image';
 import { useUser } from './UserContext';
 
 export function LoginScreen() {
@@ -46,10 +47,12 @@ export function LoginScreen() {
         {/* Logo */}
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-white shadow-lg flex items-center justify-center">
-            <img 
-              src={logoImage.src} 
+            <Image 
+              src="/logoImage.svg" 
               alt="KognaDash Logo" 
-              className="w-10 h-10 object-contain"
+              width={40}
+              height={40}
+              className="object-contain"
             />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome to KognaDash</h1>
