@@ -2,7 +2,7 @@
 
 import { ReactPortal, Key, ReactElement, ReactNode, JSXElementConstructor, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/Button';
+import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { 
   Database, 

@@ -2,9 +2,17 @@
 
 from crewai import Agent, Task, Crew
 from crewai.tools import tool
-from crewai_tools import SerperDevTool
+from crewai_tools import SerpApiGoogleSearchTool
 import requests
-from langchain_litellm import ChatLiteLLM  # Correct import for Gemini
+from langchain_community.chat_models import ChatLiteLLM
+from supabase_connect import get_supabase_manager
+from dotenv import load_dotenv
+
+load_dotenv()
+
+#connect to supabase
+supabase_manager = get_supabase_manager()
+supabase = supabase_manager.client
 
 #
 # This is the refactored script for the Research Agent.
@@ -123,7 +131,7 @@ def create_research_crew(
     )
 
     # Initialize built-in tools with provided API key
-    search_tool = SerperDevTool(api_key=serper_api_key)
+    search_tool = SerpApiGoogleSearchTool(api_key=serper_api_key)
 
     # Create the Research Agent with all tools
     research_agent = Agent(
