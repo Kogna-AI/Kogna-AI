@@ -11,8 +11,8 @@ import {
   LogOut,
   Brain
 } from 'lucide-react';
-import logoImage from '../../../public/logoImage.svg';
-import KognaKLetterLogo from "../../../public/KognaKLetterLogo.png"
+// Using Next.js Image component for better optimization
+import Image from 'next/image';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/seperator';
@@ -52,12 +52,13 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
     <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-transparent pointer-events-none"></div>
       <div className="p-6 border-b border-white/20">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden  bg-gradient-to-br from-purple-500/10 to-blue-500/10 backdrop-blur-sm border border-white/20 shadow-sm">
-            <img 
-              src={KognaKLetterLogo.src} 
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+            <Image 
+              src="/logoImage.svg" 
               alt="KognaDash Logo" 
-              height = {KognaKLetterLogo.height/2}
-              className="w-full h-full object-contain"
+              width={32}
+              height={32}
+              className="object-contain"
             />
           </div>
           <div>

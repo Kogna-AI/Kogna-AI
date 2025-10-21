@@ -1,0 +1,65 @@
+[
+  {
+    "id": 1,
+    "user_id": 65,
+    "rating": 5,
+    "comment": "Communication within the product team could improve.",
+    "written_at": "2025-10-13T00:00:00"
+  },
+  {
+    "id": 2,
+    "user_id": 30,
+    "rating": 3,
+    "comment": "Would like more structured feedback from project leads.",
+    "written_at": "2025-10-14T00:00:00"
+  },
+  {
+    "id": 3,
+    "user_id": 4,
+    "rating": 3,
+    "comment": "Would like more structured feedback from project leads.",
+    "written_at": "2025-10-16T00:00:00"
+  },
+  {
+    "id": 4,
+    "user_id": 21,
+    "rating": 3,
+    "comment": "Appreciate the clearer timelines recently introduced.",
+    "written_at": "2025-10-17T00:00:00"
+  },
+  {
+    "id": 5,
+    "user_id": 49,
+    "rating": 3,
+    "comment": "Appreciate the clearer timelines recently introduced.",
+    "written_at": "2025-10-13T00:00:00"
+  },
+  {
+    "id": 6,
+    "user_id": 34,
+    "rating": 4,
+    "comment": "Would like more structured feedback from project leads.",
+    "written_at": "2025-10-11T00:00:00"
+  },
+  {
+    "id": 7,
+    "user_id": 62,
+    "rating": 5,
+    "comment": "Communication within the product team could improve.",
+    "written_at": "2025-10-10T00:00:00"
+  },
+  {
+    "id": 8,
+    "user_id": 33,
+    "rating": 3,
+    "comment": "Appreciate the clearer timelines recently introduced.",
+    "written_at": "2025-10-10T00:00:00"
+  },
+  {
+    "id": 9,
+    "user_id": 50,
+    "rating": 4,
+    "comment": "Communication within the product team could improve.",
+    "written_at": "2025-10-14T00:00:00"
+  }
+]

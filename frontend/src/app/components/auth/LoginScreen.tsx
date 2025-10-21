@@ -7,7 +7,8 @@ import { Label } from '../../ui/label';
 import { Alert, AlertDescription } from '../../ui/alert';
 import { Badge } from '../../ui/badge';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
-import KognaIcon from '../../../../public/KognaIcon.svg'; //fix later
+// Using Next.js Image component for better optimization
+import Image from 'next/image';
 import { useUser } from './UserContext';
 
 export function LoginScreen() {
@@ -46,10 +47,12 @@ export function LoginScreen() {
         {/* Logo */}
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-white shadow-lg flex items-center justify-center">
-            <img 
-              src= "KognaIcon"
+            <Image 
+              src="/logoImage.svg" 
               alt="KognaDash Logo" 
-              className="w-10 h-10 object-contain"
+              width={40}
+              height={40}
+              className="object-contain"
             />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome to KognaDash</h1>
