@@ -1,7 +1,7 @@
 "use client"
 import { useState,   useMemo } from 'react';
 import {Sidebar} from './components/sidebar';
-import { MainDashboard } from './components/MainDashboard';
+import { MainDashboard } from './components/maindashboard';
 import { KogniiAssistant } from './components/KogniiAssistant';
 import { NotificationCenter } from './components/NotificationCenter';
 import { UserProvider, useUser } from './components/auth/UserContext';

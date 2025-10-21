@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/button';
+import { Button } from '../../ui/Button';
 import { Switch } from '../../ui/switch';
 import { Label } from '../../ui/label';
 import { Settings, Bell, Shield, User } from 'lucide-react';

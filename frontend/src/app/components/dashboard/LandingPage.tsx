@@ -1,5 +1,5 @@
 import { KogniiThinkingIcon } from '../../../../public/KogniiThinkingIcon';
-import { Button } from '../../ui/button';
+import { Button } from '../../ui/Button';
 import { 
   Brain, 
   TrendingUp, 

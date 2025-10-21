@@ -1,0 +1,142 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# Env / Secrets
+.env
+.env.*
+!.env.example
+.python-version
+
+# Node / JS
+node_modules/
+.next/
+.turbo/
+.vercel/
+dist/
+build/
+coverage/
+.coverage
+.cache/
+.parcel-cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Data files
+**/mock_data_large/**
+*.db
+*.sqlite
+*.db-journal
+
+# Project-specific extras
+Backend/Ai_agents/node_modules/
+Backend/Ai_agents/pipeline_data.db
+Backend/pipeline_data.db# ===========================================
+# Kogna-AI Project .gitignore
+# ===========================================
+
+# ===========================================
+# Node.js / Frontend
+# ===========================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js build output
+.next/
+out/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ===========================================
+# Python / Backend
+# ===========================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# ===========================================
+# IDEs and Editors
+# ===========================================
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+
+# IntelliJ IDEA
+.idea/
+
+# ===========================================
+# Operating System
+# ===========================================
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# ===========================================
+# Project Specific
+# ===========================================
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+*.log
+
+# Build artifacts
+dist/
+build/
+
+# ===========================================
+# Security & Secrets
+# ===========================================
+
+# API keys and secrets
+secrets/
+*.pem
+*.key
+*.crt
