@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../ui/dialog';
 import { Badge } from '../../../ui/badge';
-import { Button } from '../../../ui/button';
+import { Button } from '../../../ui/Button';
 import { ArrowRight } from 'lucide-react';
 import { getRoleResponsibilities } from './utils';
 

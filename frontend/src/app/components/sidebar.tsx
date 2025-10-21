@@ -11,7 +11,8 @@ import {
   LogOut,
   Brain
 } from 'lucide-react';
-import logoImage from 'figma:asset/50beeccf5a3ff0b200a9985334cd82dcf3349a1d.png';
+// Using Next.js Image component for better optimization
+import Image from 'next/image';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/seperator';
@@ -43,10 +44,12 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
-            <img 
-              src={logoImage} 
+            <Image 
+              src="/logoImage.svg" 
               alt="KognaDash Logo" 
-              className="w-full h-full object-contain"
+              width={32}
+              height={32}
+              className="object-contain"
             />
           </div>
           <div>
