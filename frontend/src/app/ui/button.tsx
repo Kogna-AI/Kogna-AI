@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Slot } from "radix-ui";
+import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "./utils";
@@ -41,9 +41,8 @@ const Button = React.forwardRef<
       asChild?: boolean;
     }
 >(({ className, variant, size, asChild = false, ...props }, ref) => {
-  const Comp = asChild ? (Slot as unknown as React.ElementType) : "span";
+  const Comp = asChild ? (Slot as unknown as React.ElementType) : "button";
   
-
   return (
     <Comp
       data-slot="button"
