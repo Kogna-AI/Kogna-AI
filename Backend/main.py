@@ -25,7 +25,7 @@ app.include_router(metrics.router)
 app.include_router(insights.router)
 app.include_router(recommendations.router)
 app.include_router(actions.router)
-app.include_router(ai_pipeline.router)
+# app.include_router(ai_pipeline.router)
 
 @app.get("/")
 def root():
