@@ -1,11 +1,13 @@
 "use client"
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { api } from '@/services/api';
 
 interface User {
   id: string;
   name: string;
   email: string;
   role: 'founder' | 'executive' | 'manager' | 'member';
+  organization_id?: number;
   avatar?: string;
   preferences: {
     theme: 'light' | 'dark' | 'system';
@@ -17,6 +19,7 @@ interface User {
 interface UserContextType {
   user: User | null;
   isAuthenticated: boolean;
+  loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUserPreferences: (preferences: Partial<User['preferences']>) => void;
@@ -24,67 +27,96 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// Mock user data - in real app this would come from your backend
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'Allen',
-    email: 'allen@kognadash.com',
-    role: 'founder',
-    preferences: {
-      theme: 'light',
-      notifications: true,
-      twoWaySync: true
-    }
-  },
-  {
-    id: '2',
-    name: 'Sarah Chen',
-    email: 'sarah@kognadash.com',
-    role: 'executive',
-    preferences: {
-      theme: 'light',
-      notifications: true,
-      twoWaySync: false
-    }
-  }
-];
-
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session - for demo, we'll auto-login as Allen
-    const savedUser = localStorage.getItem('kognadash_user');
-    if (savedUser) {
-      const userData = JSON.parse(savedUser);
-      setUser(userData);
-      setIsAuthenticated(true);
-    } else {
-      // Auto-login as Allen for demo
-      const allenUser = mockUsers[0];
-      setUser(allenUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('kognadash_user', JSON.stringify(allenUser));
-    }
+    // Check for existing session and validate token
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('kognadash_user');
+
+      if (token && savedUser) {
+        try {
+          // Validate token by fetching current user
+          const response = await api.getCurrentUser();
+          const backendUser = response.data || response;
+
+          // Convert backend user format to frontend User format
+          const userData: User = {
+            id: backendUser.id?.toString() || backendUser.id,
+            name: `${backendUser.first_name} ${backendUser.second_name || ''}`.trim(),
+            email: backendUser.email,
+            role: backendUser.role || 'member',
+            organization_id: backendUser.organization_id,
+            preferences: JSON.parse(savedUser).preferences || {
+              theme: 'light',
+              notifications: true,
+              twoWaySync: true
+            }
+          };
+
+          setUser(userData);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Token validation failed:', error);
+          // Clear invalid session
+          localStorage.removeItem('token');
+          localStorage.removeItem('kognadash_user');
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      }
+      setLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication - in real app this would call your backend
-    const foundUser = mockUsers.find(u => u.email === email);
-    if (foundUser && password === 'demo123') {
-      setUser(foundUser);
+    try {
+      setLoading(true);
+      const response = await api.login(email, password);
+
+      // Response format: { success: true, token: "...", user: {...} }
+      const { token, user: backendUser } = response;
+
+      // Store token
+      localStorage.setItem('token', token);
+
+      // Convert backend user to frontend User format
+      const userData: User = {
+        id: backendUser.id?.toString() || backendUser.id,
+        name: `${backendUser.first_name} ${backendUser.second_name || ''}`.trim(),
+        email: backendUser.email,
+        role: backendUser.role || 'member',
+        organization_id: backendUser.organization_id,
+        preferences: {
+          theme: 'light',
+          notifications: true,
+          twoWaySync: true
+        }
+      };
+
+      setUser(userData);
       setIsAuthenticated(true);
-      localStorage.setItem('kognadash_user', JSON.stringify(foundUser));
+      localStorage.setItem('kognadash_user', JSON.stringify(userData));
+      setLoading(false);
+
       return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      setLoading(false);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem('token');
     localStorage.removeItem('kognadash_user');
   };
 
@@ -103,6 +135,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     <UserContext.Provider value={{
       user,
       isAuthenticated,
+      loading,
       login,
       logout,
       updateUserPreferences

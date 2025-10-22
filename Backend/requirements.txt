@@ -40,6 +40,10 @@ numpy==1.26.2
 # Email validation for Pydantic
 email-validator==2.1.0
 
+# Authentication & Security
+pyjwt==2.8.0
+bcrypt==4.1.2
+
 # Date & Time
 python-dateutil==2.8.2
 
