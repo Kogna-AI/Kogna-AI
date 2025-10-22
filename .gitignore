@@ -1,3 +1,4 @@
+
 # OS / Editor
 .DS_Store
 Thumbs.db
@@ -51,7 +52,7 @@ venv/
 # Project-specific extras
 Backend/Ai_agents/node_modules/
 Backend/Ai_agents/pipeline_data.db
-Backend/pipeline_data.db# ===========================================
+Backend/pipeline_data.db# 
 # Kogna-AI Project .gitignore
 # ===========================================
 
@@ -140,3 +141,4 @@ secrets/
 *.pem
 *.key
 *.crt
+
