@@ -1,8 +1,3 @@
-"""
-KognaDash Strategic Management Dashboard - Complete Backend API
-Integrated with Research Agent and Data Analyst Agent
-"""
-
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
