@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from routers import (
     organizations, users, teams, objectives,
     metrics, insights, recommendations, actions,ai_pipeline,connectors
+    metrics, insights, recommendations, actions,ai_pipeline, Authentication
 )
 
 load_dotenv()
@@ -30,6 +31,7 @@ app.include_router(metrics.router)
 app.include_router(insights.router)
 app.include_router(recommendations.router)
 app.include_router(actions.router)
+app.include_router(Authentication.router)
 # app.include_router(ai_pipeline.router)
 
 @app.get("/")
