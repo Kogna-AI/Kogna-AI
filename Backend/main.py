@@ -3,8 +3,7 @@ from core.config import setup_cors
 from dotenv import load_dotenv
 from routers import (
     organizations, users, teams, objectives,
-    metrics, insights, recommendations, actions,ai_pipeline,connectors
-    metrics, insights, recommendations, actions,ai_pipeline, Authentication
+    metrics, insights, recommendations, actions,ai_pipeline,connectors,Authentication
 )
 
 load_dotenv()
