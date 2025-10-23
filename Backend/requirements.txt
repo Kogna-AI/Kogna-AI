@@ -76,3 +76,4 @@ pandas
 langchain_anthropic
 langchain_litellm
 datetime
+jira

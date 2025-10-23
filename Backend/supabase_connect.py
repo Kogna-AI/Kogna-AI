@@ -12,9 +12,9 @@ class SupabaseManager:
     """
     def __init__(self):
         self.url = os.getenv("SUPABASE_URL")
-        self.key = os.getenv("SUPABASE_ANON_KEY")
+        self.key = os.getenv("SUPABASE_SERVICE_KEY")
         if not self.url or not self.key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_ANON_KEY in environment variables.")
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY in environment variables.")
         self.client: Client = create_client(self.url, self.key)
 
 # Singleton instance cache
