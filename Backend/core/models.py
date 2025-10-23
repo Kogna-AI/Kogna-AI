@@ -99,3 +99,28 @@ class ActionCreate(BaseModel):
     recommendation_id: Optional[int] = None
     action_taken: str
     result: Optional[str] = None
+
+
+#Authentication
+class SuccessResponse(BaseModel):
+    success: bool = True
+    message: str
+    data: Optional[Any] = None
+
+# Authentication
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    first_name: str
+    second_name: Optional[str] = None
+    role: Optional[str] = None
+    organization_id: int
+
+class AuthResponse(BaseModel):
+    success: bool = True
+    token: str
+    user: Dict[str, Any]

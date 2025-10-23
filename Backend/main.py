@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from core.config import setup_cors
 from routers import (
     organizations, users, teams, objectives,
-    metrics, insights, recommendations, actions,ai_pipeline
+    metrics, insights, recommendations, actions,ai_pipeline, Authentication
 )
 
 app = FastAPI(
@@ -25,6 +25,7 @@ app.include_router(metrics.router)
 app.include_router(insights.router)
 app.include_router(recommendations.router)
 app.include_router(actions.router)
+app.include_router(Authentication.router)
 # app.include_router(ai_pipeline.router)
 
 @app.get("/")
