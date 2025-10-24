@@ -52,7 +52,12 @@ venv/
 # Project-specific extras
 Backend/Ai_agents/node_modules/
 Backend/Ai_agents/pipeline_data.db
-Backend/pipeline_data.db# ===========================================
+<<<<<<<<< Temporary merge branch 1
+Backend/pipeline_data.db# 
+=========
+Backend/pipeline_data.db
+# ===========================================
+>>>>>>>>> Temporary merge branch 2
 # Kogna-AI Project .gitignore
 # ===========================================
 
@@ -141,3 +146,11 @@ secrets/
 *.pem
 *.key
 *.crt
+
+<<<<<<<<< Temporary merge branch 1
+=========
+# ===========================================
+
+**/.claude/
+**/settings.local.json
+>>>>>>>>> Temporary merge branch 2
