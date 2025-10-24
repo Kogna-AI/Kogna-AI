@@ -3,7 +3,7 @@ from crewai_tools import SerpApiGoogleSearchTool
 from supabase_connect import get_supabase_manager
 from dotenv import load_dotenv
 from typing import List, Optional
-from langchain_community.chat_models import ChatLiteLLM
+from langchain_litellm import ChatLiteLLM
 load_dotenv()
 
 #connect to supabase
@@ -12,10 +12,10 @@ supabase = supabase_manager.client
 
 def create_communication_crew(
     synthesis_context: str,
-    user_query: str,  # <--- 1. ACCEPT THE USER'S QUERY
+    user_query: str,
     internal_sources: Optional[List[str]],
     google_api_key: str,
-    serper_api_key: str
+    serper_api_key: str  # <--- No longer needed, but fine to leave as an arg
 ) -> Crew:
     """
     Creates and configures the Communications Crew.
@@ -24,12 +24,12 @@ def create_communication_crew(
     """
 
     llm = ChatLiteLLM(
-        model="gemini/gemini-2.0-flash", # <-- Make sure you're using the updated model name
+        model="gemini/gemini-2.0-flash", # <-- 1. FIXED MODEL NAME
         temperature=0.2,
         api_key=google_api_key
     )
 
-    search_tool = SerpApiGoogleSearchTool(api_key=serper_api_key)
+    # --- Search tool removed, as this agent's job is to format, not research ---
 
     communications_agent = Agent(
         role="Executive Communications Strategist",
@@ -43,18 +43,20 @@ def create_communication_crew(
             "most logical, clear, and helpful format. You are not just a report-writer; "
             "you are an answer-formatter."
         ),
-        verbose=True,
+        verbose=False,
         allow_delegation=False,
         llm=llm,
-        tools=[search_tool]
+        tools=[]  # <-- 2. REMOVED search_tool
     )
 
-    # --- 2. This is the new DYNAMIC task ---
-    # We replace your two static tasks with this single, smart one.
-
+    # --- Dynamic task logic is 100% correct ---
+    
     sources_text = "internal documents"
     if internal_sources:
-        sources_text = ", ".join(internal_sources)
+        # Filter out potential None or empty strings
+        valid_sources = [s for s in internal_sources if s]
+        if valid_sources:
+            sources_text = ", ".join(valid_sources)
     
     dynamic_formatting_task = Task(
         description=f"""
@@ -96,8 +98,8 @@ def create_communication_crew(
     # Assemble the crew
     communication_crew = Crew(
         agents=[communications_agent],
-        tasks=[dynamic_formatting_task], # <-- 3. Use the new dynamic task
-        verbose=True,
+        tasks=[dynamic_formatting_task],
+        verbose=False,
         process="sequential"
     )
 
