@@ -222,7 +222,7 @@ async def _run_jira_etl(user_id: str, access_token: str):
                 bucket_name = "Kogna" 
                 print(f"Saving {len(issues)} issues to Supabase Storage bucket '{bucket_name}'...")
                 issues_json_string = json.dumps(issues, indent=2)
-                file_path = f"jira/issues_{user_id}_{int(time.time())}.json"
+                file_path = f"{user_id}/jira/issues_{int(time.time())}.json"
                 issues_bytes = issues_json_string.encode('utf-8')
                 
                 try:
@@ -274,6 +274,61 @@ async def refresh_google_token(refresh_token: str):
         print(f"Unexpected error refreshing Google token: {e}")
     return None
 
+async def extract_and_save_content(client, user_id, file_id, file_name, mime_type):
+    """
+    Handles downloading and saving the content of a single file.
+    """
+    content = None
+    file_extension = "txt" # Default
+    base_url = "https://www.googleapis.com/drive/v3/files/"
+    
+    try:
+        if mime_type == "application/vnd.google-apps.document":
+            # --- Handle Google Docs ---
+            export_url = f"{base_url}{file_id}/export?mimeType=text/plain"
+            response = await client.get(export_url)
+            response.raise_for_status()
+            content = response.content # This will be as bytes
+            file_extension = "txt"
+
+        elif mime_type == "application/vnd.google-apps.spreadsheet":
+            # --- Handle Google Sheets ---
+            export_url = f"{base_url}{file_id}/export?mimeType=text/csv"
+            response = await client.get(export_url)
+            response.raise_for_status()
+            content = response.content
+            file_extension = "csv"
+
+        elif mime_type == "application/pdf" or mime_type == "text/plain":
+            # --- Handle Plain Text and PDFs ---
+            # NOTE: PDFs will be saved as-is. Agent will need a PDF reader.
+            download_url = f"{base_url}{file_id}?alt=media"
+            response = await client.get(download_url)
+            response.raise_for_status()
+            content = response.content
+            file_extension = "pdf" if mime_type == "application/pdf" else "txt"
+            
+        else:
+            # --- Handle Unsupported Files (like video/quicktime) ---
+            print(f"ℹ️ Skipping unsupported file: {file_name} (Type: {mime_type})")
+            return # Stop here, do not save anything
+
+        # 3. Save the extracted content to Supabase
+        if content:
+            bucket_name = "Kogna"
+            # We save content in a new 'content' subfolder
+            file_path = f"{user_id}/google_drive/content/{file_id}.{file_extension}"
+            
+            print(f"Saving content for: {file_name}")
+            supabase.storage.from_(bucket_name).upload(
+                path=file_path,
+                file=content, # Upload the raw bytes
+                file_options={"content-type": mime_type}
+            )
+
+    except Exception as e:
+        print(f"❌ Error processing file {file_name} (ID: {file_id}): {e}")
+
 async def _run_google_etl(user_id: str, access_token: str):
     """
     Fetches file metadata from Google Drive.
@@ -286,42 +341,29 @@ async def _run_google_etl(user_id: str, access_token: str):
         }
         
         async with httpx.AsyncClient(headers=headers) as client:
-            # 1. Define API endpoint to list files
-            # This fetches the first 100 files, ordered by modified time
+            # 1. Get the file list (your existing code)
             list_files_url = (
                 "https://www.googleapis.com/drive/v3/files?"
                 "pageSize=100&"
                 "orderBy=modifiedTime desc&"
                 "fields=files(id,name,mimeType,createdTime,modifiedTime,webViewLink)"
             )
-            
             response = await client.get(list_files_url)
             response.raise_for_status()
             
             files_data = response.json()
-            files = files_data.get('files', [])
-            print(f"✅ Successfully fetched {len(files)} Google Drive files!")
+            files_list = files_data.get('files', [])
+            print(f"✅ Successfully fetched metadata for {len(files_list)} Google Drive files!")
 
-            # 2. Save to bucket
-            if files:
-                bucket_name = "Kogna" # Using your same bucket
-                file_path = f"google_drive/files_{user_id}_{int(time.time())}.json"
-                print(f"Saving {len(files)} files to Supabase Storage bucket...")
+            # 2. ⬇️ NEW: Loop through each file and extract content ⬇️
+            for file in files_list:
+                file_id = file.get("id")
+                file_name = file.get("name")
+                mime_type = file.get("mimeType")
 
-                files_json_string = json.dumps(files, indent=2)
-                files_bytes = files_json_string.encode('utf-8')
-                
-                try:
-                    supabase.storage.from_(bucket_name).upload(
-                        path=file_path,
-                        file=files_bytes,
-                        file_options={"content-type": "application/json;charset=UTF-8"}
-                    )
-                    print(f"✅ Successfully saved Google files to bucket!")
-                    print(f"   File path: {file_path}")
-                except Exception as e:
-                    print(f"❌ Error uploading to Supabase Storage: {e}")
-            
+                # This is where we handle the different types
+                await extract_and_save_content(client, user_id, file_id, file_name, mime_type)
+
             print(f"--- Finished Google Drive ETL for user: {user_id} ---")
             return True
 
