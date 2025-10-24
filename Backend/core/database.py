@@ -8,10 +8,7 @@ load_dotenv()
 
 @contextmanager
 def get_db():
-    conn = psycopg2.connect(
-        os.getenv("DATABASE_URL"),
-        cursor_factory=RealDictCursor
-    )
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     try:
         yield conn
     finally:
