@@ -14,6 +14,8 @@ import asyncio
 import jwt
 import bcrypt
 
+
+
 load_dotenv()
 # Load Ai_agents/.env for API keys but don't override existing vars
 load_dotenv(dotenv_path="Ai_agents/.env", override=False)
@@ -43,6 +45,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# include ROUTERS
+from routers.Authentication import router as auth_router
+app.include_router(auth_router)
 
 
 # Database Connection
@@ -304,136 +311,136 @@ def health_check():
 # AUTHENTICATION ENDPOINTS
 # ============================================================================
 
-@app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
-def register(data: RegisterRequest):
-    """Register a new user"""
-    with get_db() as conn:
-        cursor = conn.cursor()
+# @app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
+# def register(data: RegisterRequest):
+#     """Register a new user"""
+#     with get_db() as conn:
+#         cursor = conn.cursor()
 
-        # Check if user already exists
-        cursor.execute("SELECT id FROM users WHERE email = %s", (data.email,))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Email already registered")
+#         # Check if user already exists
+#         cursor.execute("SELECT id FROM users WHERE email = %s", (data.email,))
+#         if cursor.fetchone():
+#             raise HTTPException(status_code=400, detail="Email already registered")
 
-        # Check if password column exists, if not add it
-        cursor.execute("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name='users' AND column_name='password_hash'
-        """)
-        if not cursor.fetchone():
-            cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)")
-            conn.commit()
+#         # Check if password column exists, if not add it
+#         cursor.execute("""
+#             SELECT column_name
+#             FROM information_schema.columns
+#             WHERE table_name='users' AND column_name='password_hash'
+#         """)
+#         if not cursor.fetchone():
+#             cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)")
+#             conn.commit()
 
-        # Hash password and create user
-        hashed_password = hash_password(data.password)
-        cursor.execute("""
-            INSERT INTO users (organization_id, first_name, second_name, role, email, password_hash)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id, organization_id, first_name, second_name, role, email, created_at
-        """, (data.organization_id, data.first_name, data.second_name, data.role, data.email, hashed_password))
+#         # Hash password and create user
+#         hashed_password = hash_password(data.password)
+#         cursor.execute("""
+#             INSERT INTO users (organization_id, first_name, second_name, role, email, password_hash)
+#             VALUES (%s, %s, %s, %s, %s, %s)
+#             RETURNING id, organization_id, first_name, second_name, role, email, created_at
+#         """, (data.organization_id, data.first_name, data.second_name, data.role, data.email, hashed_password))
 
-        user = cursor.fetchone()
-        conn.commit()
+#         user = cursor.fetchone()
+#         conn.commit()
 
-        # Create JWT token
-        token = create_access_token({"user_id": user['id'], "email": user['email']})
+#         # Create JWT token
+#         token = create_access_token({"user_id": user['id'], "email": user['email']})
 
-        return {
-            "success": True,
-            "token": token,
-            "user": dict(user)
-        }
-
-
-@app.post("/api/auth/login")
-def login(data: LoginRequest):
-    """Login user and return JWT token"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-
-        # Check if password column exists
-        cursor.execute("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name='users' AND column_name='password_hash'
-        """)
-        password_column_exists = cursor.fetchone()
-
-        if not password_column_exists:
-            # For demo purposes, allow login without password
-            cursor.execute("""
-                SELECT id, organization_id, first_name, second_name, role, email, created_at
-                FROM users WHERE email = %s
-            """, (data.email,))
-            user = cursor.fetchone()
-
-            if not user:
-                raise HTTPException(status_code=401, detail="Invalid email or password")
-
-            # Create JWT token
-            token = create_access_token({"user_id": user['id'], "email": user['email']})
-
-            return {
-                "success": True,
-                "token": token,
-                "user": dict(user)
-            }
-
-        # Get user with password hash
-        cursor.execute("""
-            SELECT id, organization_id, first_name, second_name, role, email, password_hash, created_at
-            FROM users WHERE email = %s
-        """, (data.email,))
-
-        user = cursor.fetchone()
-
-        if not user:
-            raise HTTPException(status_code=401, detail="Invalid email or password")
-
-        # Check if user has no password set 
-        if user['password_hash'] is None:
-            # Allow login without password verification for users with null password_hash
-            user_data = {k: v for k, v in user.items() if k != 'password_hash'}
-            token = create_access_token({"user_id": user['id'], "email": user['email']})
-            return {
-                "success": True,
-                "token": token,
-                "user": user_data
-            }
-
-        # Verify password
-        if not verify_password(data.password, user['password_hash']):
-            raise HTTPException(status_code=401, detail="Invalid email or password")
-
-        # Remove password_hash from user dict
-        user_data = {k: v for k, v in user.items() if k != 'password_hash'}
-
-        # Create JWT token
-        token = create_access_token({"user_id": user['id'], "email": user['email']})
-
-        return {
-            "success": True,
-            "token": token,
-            "user": user_data
-        }
+#         return {
+#             "success": True,
+#             "token": token,
+#             "user": dict(user)
+#         }
 
 
-@app.get("/api/auth/me")
-async def get_current_user_info(user_id: int = Depends(get_current_user)):
-    """Get current authenticated user information"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, organization_id, first_name, second_name, role, email, created_at
-            FROM users WHERE id = %s
-        """, (user_id,))
-        user = cursor.fetchone()
+# @app.post("/api/auth/login")
+# def login(data: LoginRequest):
+#     """Login user and return JWT token"""
+#     with get_db() as conn:
+#         cursor = conn.cursor()
 
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+#         # Check if password column exists
+#         cursor.execute("""
+#             SELECT column_name
+#             FROM information_schema.columns
+#             WHERE table_name='users' AND column_name='password_hash'
+#         """)
+#         password_column_exists = cursor.fetchone()
 
-        return {"success": True, "data": user}
+#         if not password_column_exists:
+#             # For demo purposes, allow login without password
+#             cursor.execute("""
+#                 SELECT id, organization_id, first_name, second_name, role, email, created_at
+#                 FROM users WHERE email = %s
+#             """, (data.email,))
+#             user = cursor.fetchone()
+
+#             if not user:
+#                 raise HTTPException(status_code=401, detail="Invalid email or password")
+
+#             # Create JWT token
+#             token = create_access_token({"user_id": user['id'], "email": user['email']})
+
+#             return {
+#                 "success": True,
+#                 "token": token,
+#                 "user": dict(user)
+#             }
+
+#         # Get user with password hash
+#         cursor.execute("""
+#             SELECT id, organization_id, first_name, second_name, role, email, password_hash, created_at
+#             FROM users WHERE email = %s
+#         """, (data.email,))
+
+#         user = cursor.fetchone()
+
+#         if not user:
+#             raise HTTPException(status_code=401, detail="Invalid email or password")
+
+#         # Check if user has no password set 
+#         if user['password_hash'] is None:
+#             # Allow login without password verification for users with null password_hash
+#             user_data = {k: v for k, v in user.items() if k != 'password_hash'}
+#             token = create_access_token({"user_id": user['id'], "email": user['email']})
+#             return {
+#                 "success": True,
+#                 "token": token,
+#                 "user": user_data
+#             }
+
+#         # Verify password
+#         if not verify_password(data.password, user['password_hash']):
+#             raise HTTPException(status_code=401, detail="Invalid email or password")
+
+#         # Remove password_hash from user dict
+#         user_data = {k: v for k, v in user.items() if k != 'password_hash'}
+
+#         # Create JWT token
+#         token = create_access_token({"user_id": user['id'], "email": user['email']})
+
+#         return {
+#             "success": True,
+#             "token": token,
+#             "user": user_data
+#         }
+
+
+# @app.get("/api/auth/me")
+# async def get_current_user_info(user_id: int = Depends(get_current_user)):
+#     """Get current authenticated user information"""
+#     with get_db() as conn:
+#         cursor = conn.cursor()
+#         cursor.execute("""
+#             SELECT id, organization_id, first_name, second_name, role, email, created_at
+#             FROM users WHERE id = %s
+#         """, (user_id,))
+#         user = cursor.fetchone()
+
+#         if not user:
+#             raise HTTPException(status_code=404, detail="User not found")
+
+#         return {"success": True, "data": user}
 
 # ============================================================================
 # ORGANIZATIONS ENDPOINTS
