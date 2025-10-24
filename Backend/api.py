@@ -15,6 +15,8 @@ import jwt
 import bcrypt
 
 load_dotenv()
+# Load Ai_agents/.env for API keys but don't override existing vars
+load_dotenv(dotenv_path="Ai_agents/.env", override=False)
 
 # Security Configuration
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback-secret-key-change-this")
@@ -26,7 +28,7 @@ security = HTTPBearer()
 # FastAPI config
 
 app = FastAPI(
-    title="KognaDash API",
+    title="Kogna-AI API",
     description="AI-Powered Strategic Management Dashboard",
     version="2.0.0",
     docs_url="/api/docs",
@@ -359,7 +361,7 @@ def login(data: LoginRequest):
         password_column_exists = cursor.fetchone()
 
         if not password_column_exists:
-            # For demo purposes, allow login without password (backward compatibility)
+            # For demo purposes, allow login without password
             cursor.execute("""
                 SELECT id, organization_id, first_name, second_name, role, email, created_at
                 FROM users WHERE email = %s
@@ -388,6 +390,17 @@ def login(data: LoginRequest):
 
         if not user:
             raise HTTPException(status_code=401, detail="Invalid email or password")
+
+        # Check if user has no password set 
+        if user['password_hash'] is None:
+            # Allow login without password verification for users with null password_hash
+            user_data = {k: v for k, v in user.items() if k != 'password_hash'}
+            token = create_access_token({"user_id": user['id'], "email": user['email']})
+            return {
+                "success": True,
+                "token": token,
+                "user": user_data
+            }
 
         # Verify password
         if not verify_password(data.password, user['password_hash']):
