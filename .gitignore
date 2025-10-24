@@ -143,8 +143,6 @@ secrets/
 *.crt
 
 # ===========================================
-# Tooling / Local settings (do not commit)
-# ===========================================
-# Anthropic Claude (local settings per developer)
+
 **/.claude/
 **/settings.local.json
