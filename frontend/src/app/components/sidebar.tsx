@@ -69,32 +69,35 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
       </div>
 
       {/* Quick Actions */}
-      <div className="p-4 border-b border-sidebar-border">
+      <div className="relative p-4 border-b border-white/20">
         <div className="space-y-2">
           <Button 
             onClick={onKogniiToggle}
             variant="outline" 
             size="sm" 
-            className="w-full justify-start gap-2 text-sidebar-foreground border-sidebar-border hover:bg-sidebar-accent"
+            className="w-full justify-start gap-2 bg-gradient-to-br from-purple-500/10 via-white/60 to-blue-500/10 backdrop-blur-md border-white/40 hover:bg-white/70 hover:shadow-md transition-all duration-300 group"
           >
-            <KogniiThinkingIcon className="w-4 h-4" />
-            Kognii Assistant
-            <Badge variant="secondary" className="ml-auto text-xs">AI</Badge>
+            <div className="p-1 rounded bg-gradient-to-br from-purple-500/20 to-blue-500/20">
+              <KogniiThinkingIcon className="w-4 h-4 text-purple-600" />
+            </div>
+            <span className="font-medium">Kognii Assistant</span>
+            <Badge className="ml-auto text-xs bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-700 border-purple-200/50 backdrop-blur-sm">AI</Badge>
           </Button>
           
           <Button 
             onClick={onNotificationsToggle}
             variant="outline" 
             size="sm" 
-            className="w-full justify-start gap-2 text-sidebar-foreground border-sidebar-border hover:bg-sidebar-accent"
+            className="w-full justify-start gap-2 bg-white/60 backdrop-blur-md border-white/40 hover:bg-white/70 hover:shadow-md transition-all duration-300 group"
           >
-            <Bell className="w-4 h-4" />
-            Notifications
-            <Badge variant="destructive" className="ml-auto text-xs">3</Badge>
+            <div className="p-1 rounded bg-gradient-to-br from-orange-500/20 to-red-500/20">
+              <Bell className="w-4 h-4 text-orange-600" />
+            </div>
+            <span className="font-medium">Notifications</span>
+            <Badge className="ml-auto text-xs bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-700 border-red-200/50 backdrop-blur-sm">3</Badge>
           </Button>
         </div>
       </div>
-
       {/* Navigation */}
       <div className="flex-1 p-4">
         <nav className="space-y-2">
