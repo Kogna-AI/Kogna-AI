@@ -19,10 +19,10 @@ load_dotenv()
 # Import your existing crew creation functions
 # from data_ingestion_agent import create_scribe_crew
 # from data_analyst_agent import create_data_analyst_crew
-from internal_analyst_agent import create_internal_analyst_crew
-from reasearch_agent import create_research_crew
-from synthesize_agent import create_synthesis_crew
-from communication_agent import create_communication_crew
+from Ai_agents.internal_analyst_agent import create_internal_analyst_crew
+from Ai_agents.reasearch_agent import create_research_crew
+from Ai_agents.synthesize_agent import create_synthesis_crew
+from Ai_agents.communication_agent import create_communication_crew
 
 # --- 1. Define the State for the Graph ---
 class WorkflowState(TypedDict):
