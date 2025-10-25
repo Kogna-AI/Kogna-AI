@@ -4,7 +4,7 @@ import { MainDashboard } from './components/MainDashboard';
 import { KogniiAssistant } from './components/KogniiAssistant';
 import { NotificationCenter } from './components/NotificationCenter';
 import { UserProvider, useUser } from './components/auth/UserContext';
-import { LoginScreen } from './components/auth/LoginScreen';
+import { LoginScreen } from './components/auth/LoginPage';
 
 function AppContent() {
   const { isAuthenticated } = useUser();

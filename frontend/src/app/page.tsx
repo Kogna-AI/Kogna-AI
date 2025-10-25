@@ -5,7 +5,10 @@ import { MainDashboard } from "./components/MainDashboard";
 import { KogniiAssistant } from "./components/KogniiAssistant";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { UserProvider, useUser } from "./components/auth/UserContext";
-import { LoginScreen } from "./components/auth/LoginScreen";
+import { LoginScreen } from "./components/auth/LoginPage";
+import { LandingPage } from "./components/dashboard/LandingPage";
+import {useRouter} from "next/navigation";
+
 
 function AppContent() {
   const { isAuthenticated } = useUser();
@@ -95,6 +98,7 @@ function AppContent() {
   if (!isAuthenticated) {
     return <LoginScreen />;
   }
+  const router = useRouter();
 
   return (
     <div className="size-full flex bg-background">
@@ -139,9 +143,11 @@ function AppContent() {
 }
 
 export default function App() {
+  const router = useRouter();
   return (
     <UserProvider>
-      <AppContent />
+      <LandingPage onGetStarted={() => router.push("components/auth")} />
+      {/* <AppContent /> */}
     </UserProvider>
   );
 }
