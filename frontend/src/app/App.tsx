@@ -6,7 +6,7 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { UserProvider, useUser } from './components/auth/UserContext';
 import { LoginScreen } from './components/auth/LoginPage';
 
-function AppContent() {
+export default function AppContent() {
   const { isAuthenticated } = useUser();
   const [activeView, setActiveView] = useState('dashboard');
   const [isKogniiOpen, setIsKogniiOpen] = useState(false);
@@ -124,13 +124,5 @@ function AppContent() {
         <NotificationCenter onClose={() => setNotificationsOpen(false)} />
       )}
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <UserProvider>
-      <AppContent />
-    </UserProvider>
   );
 }

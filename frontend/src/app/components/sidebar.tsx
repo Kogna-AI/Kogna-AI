@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 // Using Next.js Image component for better optimization
 import Image from 'next/image';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/seperator';
@@ -35,6 +37,8 @@ interface NavItem {
 
 export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificationsToggle }: SidebarProps) {
   const { user, logout } = useUser();
+  const pathname = usePathname();
+  
   const navigationItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'team', label: 'Team Overview', icon: Users },
@@ -103,21 +107,22 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
         <nav className="space-y-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
+            const isActive = pathname === `/${item.id}` || (pathname === '/' && item.id === 'dashboard');
             return (
-              <Button
-                key={item.id}
-                onClick={() => setActiveView(item.id)}
-                variant={activeView === item.id ? "secondary" : "ghost"}
-                className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
-              >
-                <Icon className="w-4 h-4" />
-                {item.label}
-                {item.badge && (
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    {item.badge}
-                  </Badge>
-                )}
-              </Button>
+              <Link key={item.id} href={`/${item.id}`}>
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
+                >
+                  <Icon className="w-4 h-4" />
+                  {item.label}
+                  {item.badge && (
+                    <Badge variant="secondary" className="ml-auto text-xs">
+                      {item.badge}
+                    </Badge>
+                  )}
+                </Button>
+              </Link>
             );
           })}
         </nav>
@@ -127,14 +132,15 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
       
       {/* Footer */}
       <div className="p-4 space-y-2">
-        <Button
-          onClick={() => setActiveView('settings')}
-          variant="ghost"
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
-        >
-          <Settings className="w-4 h-4" />
-          Settings
-        </Button>
+        <Link href="/settings">
+          <Button
+            variant={pathname === '/settings' ? "secondary" : "ghost"}
+            className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <Settings className="w-4 h-4" />
+            Settings
+          </Button>
+        </Link>
         
         <Button
           onClick={logout}
