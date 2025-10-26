@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from 'react';
+import { api } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -318,10 +319,10 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
     return () => clearInterval(interval);
   }, [isAutoPlaying, conversationStep]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
-    // Add user message
+    // 1. Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
@@ -329,28 +330,59 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // Create a snapshot of the new messages list
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInputValue('');
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // 2. Format the history *before* the new message was added
+      const history = formatChatHistory(messages); 
+
+      // 3. Call the REAL API
+      const apiResponse = await api.runAiWorkflow(
+        userMessage.content,
+        history,
+        'autonomous' // You can make this dynamic later
+      );
+
+      let aiContent: string;
+      
+      if (apiResponse.success) {
+        aiContent = apiResponse.final_report;
+      } else {
+        // This handles errors reported by the AI (e.g., error_handler_node)
+        aiContent = `An error occurred during processing: ${apiResponse.final_report || 'Unknown workflow error'}`;
+      }
+
+      // 4. Add the AI's response message
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: generateAIResponse(inputValue),
+        content: aiContent,
         timestamp: new Date(),
-        suggestions: [
-          'Tell me more about this',
-          'Show me detailed analysis',
-          'Create an action plan',
-          'What should I do next?'
+        suggestions: [ // You can have the AI generate these later
+          'Tell me more',
+          'What are the next steps?'
         ]
       };
-
       setMessages(prev => [...prev, aiMessage]);
+
+    } catch (error) {
+      // 5. This catches network/server errors (like 500s or 400s)
+      console.error("Failed to send message:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: `Sorry, I couldn't connect to the AI. Please try again.\n\n**Error:** ${error.message}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      // 6. Stop typing indicator
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleDemoInput = () => {
@@ -489,6 +521,13 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
     setConversationStep(0);
     setIsAutoPlaying(false);
     setMessages([getContextualInitialMessage(activeView)]);
+  };
+  const formatChatHistory = (msgs: Message[]) => {
+    // Only send the last 10 messages to keep the payload light
+    return msgs.slice(-10).map(msg => ({
+      role: msg.type, // 'user', 'assistant', or 'system'
+      content: msg.content
+    }));
   };
 
   const renderMessage = (message: Message) => {

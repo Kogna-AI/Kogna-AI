@@ -626,6 +626,44 @@ export const api = {
     return handleResponse(response);
   },
 
+  // ==================== KOGNII AI ====================
+
+  /**
+   * Run the main Kogna AI orchestration pipeline
+   */
+  runAiWorkflow: async (
+    userQuery: string,
+    chatHistory: { role: 'user' | 'assistant' | 'system'; content: string }[],
+    executionMode: string = "autonomous"
+  ): Promise<{ success: boolean; user_query: string; execution_mode: string; final_report: string }> => {
+    
+    const payload = {
+      user_query: userQuery,
+      chat_history: chatHistory,
+      execution_mode: executionMode,
+    };
+
+    const response = await fetch(`${API_BASE_URL}/ai/run`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    // We handle this response directly instead of using handleResponse
+    // because the AI endpoint returns data at the root, not in a 'data' field.
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ detail: "An error occurred" }));
+      throw new Error(
+        errorData.detail || `HTTP error! status: ${response.status}`
+      );
+    }
+    
+    // The response is { success: true, final_report: "...", ... }
+    return response.json();
+  },
+
   // ==================== HEALTH CHECK ====================
 
   healthCheck: async () => {
