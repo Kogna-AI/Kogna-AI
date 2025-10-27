@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from core.database import get_db
 from core.models import UserCreate
 import psycopg2
@@ -30,3 +30,19 @@ def get_user(user_id: int):
         if not result:
             raise HTTPException(status_code=404, detail="User not found")
         return {"success": True, "data": result}
+
+
+@router.get("/by-supabase/{supabase_id}")
+def get_user_by_supabase_id(supabase_id: str, db=Depends(get_db)):
+    # db here is the connection object
+    cursor = db.cursor()  # ✅ create a cursor from the connection
+
+    cursor.execute("SELECT * FROM users WHERE supabase_id = %s", (supabase_id,))
+    user = cursor.fetchone()
+
+    if not user:
+        cursor.close()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    cursor.close()
+    return {"success": True, "data": user}
