@@ -40,7 +40,6 @@ export function Sidebar({
   onNotificationsToggle,
 }: SidebarProps) {
   const { user, logout } = useUser();
-  console.log(user);
   const navigationItems: NavItem[] = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "team", label: "Team Overview", icon: Users },

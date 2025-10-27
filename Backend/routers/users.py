@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from core.database import get_db
 from core.models import UserCreate
 import psycopg2
+from psycopg2.extras import RealDictCursor
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -35,7 +36,7 @@ def get_user(user_id: int):
 @router.get("/by-supabase/{supabase_id}")
 def get_user_by_supabase_id(supabase_id: str, db=Depends(get_db)):
     # db here is the connection object
-    cursor = db.cursor()  # ✅ create a cursor from the connection
+    cursor = db.cursor(cursor_factory=RealDictCursor)  # ✅ create a cursor from the connection
 
     cursor.execute("SELECT * FROM users WHERE supabase_id = %s", (supabase_id,))
     user = cursor.fetchone()

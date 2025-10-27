@@ -66,9 +66,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
           const backendUser: BackendUser = await api.getUserBySupabaseId(
             supabaseUser.id
           );
+          console.log(backendUser);
           const mergedUser: MergedUser = {
             ...supabaseUser,
-            name: backendUser[2],
+            name: backendUser.first_name + " " + backendUser.second_name,
             role: backendUser.role || "member",
             organization_id: backendUser.organization_id,
           };
