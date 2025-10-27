@@ -69,7 +69,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           console.log(backendUser);
           const mergedUser: MergedUser = {
             ...supabaseUser,
-            name: backendUser.first_name + " " + backendUser.second_name,
+            name: [backendUser.first_name, backendUser.second_name]
+              .filter(Boolean)
+              .join(" "),
             role: backendUser.role || "member",
             organization_id: backendUser.organization_id,
           };
