@@ -1,10 +1,10 @@
-# Backend/services/etl_pipelines.py
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from jira import JIRA
 from urllib.parse import quote
 import time, os, json, asyncio, httpx
 from supabase_connect import get_supabase_manager
+from services.embedding_service import embed_and_store_file
 
 supabase = get_supabase_manager().client
 
@@ -59,8 +59,8 @@ async def run_master_etl(user_id: str, service: str):
     elif service == "google":
         success = await _run_google_etl(user_id, access_token)
     # 📌 FUTURE: Add your next provider's ETL
-    # elif service == "google":
-    #     success = await _run_google_etl(user_id, access_token)
+    # elif service == "another_service":
+    #     success = await _run_another_service_etl(user_id, access_token)
     
     else:
         print(f"❌ MASTER ETL: No pipeline found for service '{service}'.")
@@ -109,8 +109,8 @@ async def get_valid_tokens(user_id: str, service: str):
             new_token_data = await refresh_google_token(refresh_token)
 
         # 📌 FUTURE: Add your next provider's refresh logic
-        # elif service == "google":
-        #     new_token_data = await refresh_google_token(refresh_token)
+        # elif service == "another_service":
+        #     new_token_data = await refresh_another_service_token(refresh_token)
 
         if new_token_data and "access_token" in new_token_data:
             new_expires_at = int(time.time()) + new_token_data.get("expires_in", 3600)
@@ -127,10 +127,9 @@ async def get_valid_tokens(user_id: str, service: str):
     return data["access_token"]
 
 # -------------------------------------------------
-# 3. JIRA-SPECIFIC FUNCTIONS (UNCHANGED)
+# 3. JIRA-SPECIFIC FUNCTIONS
 # -------------------------------------------------
 async def refresh_jira_token(refresh_token: str):
-    # ... (This function is unchanged)
     token_url = "https://auth.atlassian.com/oauth/token"
     data = {
         "client_id": os.getenv("JIRA_CLIENT_ID"),
@@ -154,14 +153,11 @@ async def refresh_jira_token(refresh_token: str):
     return None
 
 
-# ⚠️ CHANGED: Renamed to `_run_jira_etl` and accepts `access_token`
 async def _run_jira_etl(user_id: str, access_token: str):
     """
     Final ETL function with correct endpoints.
     """
     print(f"--- Starting Jira ETL for user: {user_id} ---")
-
-    # ⚠️ REMOVED: The get_valid_tokens call is now in the master function.
     
     try:
         headers = {
@@ -170,13 +166,9 @@ async def _run_jira_etl(user_id: str, access_token: str):
         }
         
         async with httpx.AsyncClient(headers=headers) as client:
-            # 1. Get cloud_id (rest of your code is UNCHANGED)
+            # 1. Get cloud_id
             print("Getting cloud_id...")
             resources_url = "https://api.atlassian.com/oauth/token/accessible-resources"
-            # ...
-            # ... (all your existing logic for fetching, logging, and uploading)
-            # ... (is perfect and remains the same)
-            # ...
             
             response = await client.get(resources_url)
             response.raise_for_status()
@@ -214,7 +206,6 @@ async def _run_jira_etl(user_id: str, access_token: str):
 
             # 4. Save to bucket
             if issues:
-                # ... (your debug print) ...
                 print("\n--- Inspecting first issue from API ---")
                 print(json.dumps(issues[0], indent=2)) 
                 print("---------------------------------------\n")
@@ -233,6 +224,8 @@ async def _run_jira_etl(user_id: str, access_token: str):
                     )
                     print(f"✅ Successfully saved issues to bucket!")
                     print(f"   File path: {file_path}")
+
+                    await embed_and_store_file(user_id, file_path)
                 
                 except Exception as e:
                     print(f"❌ Error uploading to Supabase Storage: {e}")
@@ -241,17 +234,19 @@ async def _run_jira_etl(user_id: str, access_token: str):
             return True
 
     except httpx.HTTPStatusError as e:
-        # ... (error handling is unchanged)
         print(f"❌ API Error {e.response.status_code}: {e.response.text}")
         print(f"Failed URL: {e.request.url}")
         return False
     except Exception as e:
-        # ... (error handling is unchanged)
         print(f"❌ ETL Error: {e}")
         import traceback
         traceback.print_exc()
         return False
-    
+
+# -------------------------------------------------
+# 4. GOOGLE-SPECIFIC FUNCTIONS
+# -------------------------------------------------
+
 async def refresh_google_token(refresh_token: str):
     """Refreshes an expired Google access token."""
     token_url = "https://oauth2.googleapis.com/token"
@@ -265,8 +260,6 @@ async def refresh_google_token(refresh_token: str):
         async with httpx.AsyncClient() as client:
             response = await client.post(token_url, data=data)
             response.raise_for_status()
-            # Google's refresh does NOT return a new refresh_token
-            # It returns access_token, expires_in, scope, token_type
             return response.json() 
     except httpx.HTTPStatusError as e:
         print(f"Error refreshing Google token: {e.response.status_code} - {e.response.text}")
@@ -301,7 +294,6 @@ async def extract_and_save_content(client, user_id, file_id, file_name, mime_typ
 
         elif mime_type == "application/pdf" or mime_type == "text/plain":
             # --- Handle Plain Text and PDFs ---
-            # NOTE: PDFs will be saved as-is. Agent will need a PDF reader.
             download_url = f"{base_url}{file_id}?alt=media"
             response = await client.get(download_url)
             response.raise_for_status()
@@ -326,12 +318,14 @@ async def extract_and_save_content(client, user_id, file_id, file_name, mime_typ
                 file_options={"content-type": mime_type}
             )
 
+            await embed_and_store_file(user_id, file_path)
+
     except Exception as e:
         print(f"❌ Error processing file {file_name} (ID: {file_id}): {e}")
 
 async def _run_google_etl(user_id: str, access_token: str):
     """
-    Fetches file metadata from Google Drive.
+    Fetches file metadata from Google Drive, handling pagination.
     """
     print(f"--- Starting Google Drive ETL for user: {user_id} ---")
     try:
@@ -341,22 +335,47 @@ async def _run_google_etl(user_id: str, access_token: str):
         }
         
         async with httpx.AsyncClient(headers=headers) as client:
-            # 1. Get the file list (your existing code)
-            list_files_url = (
+            
+            # --- Add pagination support ---
+            all_files_list = []
+            page_token = None
+            base_list_url = (
                 "https://www.googleapis.com/drive/v3/files?"
                 "pageSize=100&"
                 "orderBy=modifiedTime desc&"
-                "fields=files(id,name,mimeType,createdTime,modifiedTime,webViewLink)"
+                # We need nextPageToken in the fields list
+                "fields=files(id,name,mimeType,createdTime,modifiedTime,webViewLink),nextPageToken"
             )
-            response = await client.get(list_files_url)
-            response.raise_for_status()
             
-            files_data = response.json()
-            files_list = files_data.get('files', [])
-            print(f"✅ Successfully fetched metadata for {len(files_list)} Google Drive files!")
+            print("Starting Google Drive file list fetch (with pagination)...")
+            
+            while True:
+                # Construct the URL for the current page
+                list_files_url = base_list_url
+                if page_token:
+                    list_files_url += f"&pageToken={page_token}"
+                
+                response = await client.get(list_files_url)
+                response.raise_for_status()
+                
+                files_data = response.json()
+                files_on_page = files_data.get('files', [])
+                all_files_list.extend(files_on_page)
+                
+                page_token = files_data.get('nextPageToken')
+                
+                print(f"Fetched {len(files_on_page)} files. Total so far: {len(all_files_list)}")
+                
+                # If there's no next page token, we're done
+                if not page_token:
+                    break
+            
+            # --- END PAGINATION ---
 
-            # 2. ⬇️ NEW: Loop through each file and extract content ⬇️
-            for file in files_list:
+            print(f"✅ Successfully fetched metadata for {len(all_files_list)} Google Drive files!")
+
+            # 2. Loop through each file and extract content
+            for file in all_files_list:
                 file_id = file.get("id")
                 file_name = file.get("name")
                 mime_type = file.get("mimeType")
