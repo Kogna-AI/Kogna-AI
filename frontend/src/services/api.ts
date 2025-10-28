@@ -5,7 +5,7 @@
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-
+import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
  */
@@ -153,20 +153,20 @@ export const api = {
     return handleResponse(response);
   },
 
-  createUser: async (data: {
-    organization_id: number;
-    first_name: string;
-    second_name?: string;
-    role?: string;
-    email: string;
-  }) => {
-    const response = await fetch(`${API_BASE_URL}/users`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
-    return handleResponse(response);
-  },
+  // createUser: async (data: {
+  //   organization_id: number;
+  //   first_name: string;
+  //   second_name?: string;
+  //   role?: string;
+  //   email: string;
+  // }) => {
+  //   const response = await fetch(`${API_BASE_URL}/users`, {
+  //     method: "POST",
+  //     headers: getAuthHeaders(),
+  //     body: JSON.stringify(data),
+  //   });
+  //   return handleResponse(response);
+  // },
 
   updateUser: async (
     userId: number,
@@ -633,10 +633,14 @@ export const api = {
    */
   runAiWorkflow: async (
     userQuery: string,
-    chatHistory: { role: 'user' | 'assistant' | 'system'; content: string }[],
+    chatHistory: { role: "user" | "assistant" | "system"; content: string }[],
     executionMode: string = "autonomous"
-  ): Promise<{ success: boolean; user_query: string; execution_mode: string; final_report: string }> => {
-    
+  ): Promise<{
+    success: boolean;
+    user_query: string;
+    execution_mode: string;
+    final_report: string;
+  }> => {
     const payload = {
       user_query: userQuery,
       chat_history: chatHistory,
@@ -659,7 +663,7 @@ export const api = {
         errorData.detail || `HTTP error! status: ${response.status}`
       );
     }
-    
+
     // The response is { success: true, final_report: "...", ... }
     return response.json();
   },
@@ -669,6 +673,16 @@ export const api = {
   healthCheck: async () => {
     const response = await fetch(`${API_BASE_URL}/health`);
     return handleResponse(response);
+  },
+
+  getUserBySupabaseId: async (supabaseId: string): Promise<BackendUser> => {
+    const response = await fetch(
+      `${API_BASE_URL}/users/by-supabase/${supabaseId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse<BackendUser>(response);
   },
 };
 
