@@ -1,97 +1,77 @@
+# Backend/Ai_agents/communication_agent.py
+
 from crewai import Agent, Task, Crew, Process
-from crewai_tools import SerpApiGoogleSearchTool
-from supabase_connect import get_supabase_manager
+# from crewai_tools import SerpApiGoogleSearchTool # Not needed
+# from supabase_connect import get_supabase_manager # Not needed
 from dotenv import load_dotenv
 from typing import List, Optional
 from langchain_litellm import ChatLiteLLM
+
+# --- NEW: Import prompts ---
+from .prompt import (
+    COMMUNICATOR_ROLE,
+    COMMUNICATOR_GOAL,
+    COMMUNICATOR_BACKSTORY,
+    COMMUNICATOR_TASK_DESCRIPTION,
+    COMMUNICATOR_EXPECTED_OUTPUT
+)
+
 load_dotenv()
 
-#connect to supabase
-supabase_manager = get_supabase_manager()
-supabase = supabase_manager.client
+# No Supabase needed directly
+# supabase_manager = get_supabase_manager()
+# supabase = supabase_manager.client
 
 def create_communication_crew(
     synthesis_context: str,
     user_query: str,
-    internal_sources: Optional[List[str]],
+    # internal_sources: Optional[List[str]], # No longer needed for final formatting
     google_api_key: str,
-    serper_api_key: str  # <--- No longer needed, but fine to leave as an arg
+    # serper_api_key: str # No longer needed
 ) -> Crew:
     """
-    Creates and configures the Communications Crew.
-    This crew now dynamically formats its output based on the
-    user's original query.
+    Creates and configures the Communications Crew using prompts from prompts.py.
     """
 
     llm = ChatLiteLLM(
-        model="gemini/gemini-2.0-flash", # <-- 1. FIXED MODEL NAME
-        temperature=0.2,
+        model="gemini/gemini-2.0-flash",
+        temperature=0.2, # Low temp for factual formatting
         api_key=google_api_key
     )
 
-    # --- Search tool removed, as this agent's job is to format, not research ---
-
     communications_agent = Agent(
-        role="Executive Communications Strategist",
-        goal=(
-            "Translate complex analytical reports into a final, user-ready answer. "
-            "You must adapt your output format to perfectly match the user's original request."
-        ),
-        backstory=(
-            "You are the final voice of Kogna AI. You receive the user's original question "
-            "and the final synthesized data. Your job is to present that data in the "
-            "most logical, clear, and helpful format. You are not just a report-writer; "
-            "you are an answer-formatter."
-        ),
+        role=COMMUNICATOR_ROLE,                     # <-- Use variable
+        goal=COMMUNICATOR_GOAL.format(user_query=user_query), # <-- Format goal
+        backstory=COMMUNICATOR_BACKSTORY,           # <-- Use variable
         verbose=False,
         allow_delegation=False,
         llm=llm,
-        tools=[]  # <-- 2. REMOVED search_tool
+        tools=[] # Communicator doesn't need external tools
     )
 
-    # --- Dynamic task logic is 100% correct ---
-    
-    sources_text = "internal documents"
-    if internal_sources:
-        # Filter out potential None or empty strings
-        valid_sources = [s for s in internal_sources if s]
-        if valid_sources:
-            sources_text = ", ".join(valid_sources)
-    
+    # --- Prepare dynamic parts for the task ---
+    # Simplified source text handling as it's less critical for the final output formatting now
+    # sources_text = "internal documents and web search"
+    # if internal_sources:
+    #     valid_sources = [s for s in internal_sources if s]
+    #     if valid_sources:
+    #         sources_text = ", ".join(valid_sources) + ", Web Search"
+
+
+    # Format the task description
+    task_description = COMMUNICATOR_TASK_DESCRIPTION.format(
+        user_query=user_query,
+        synthesis_context=synthesis_context,
+        # sources_text=sources_text # Pass if needed by the prompt
+    )
+
+    # Format the expected output
+    expected_output = COMMUNICATOR_EXPECTED_OUTPUT.format(user_query=user_query)
+
+    # --- Create the Task ---
     dynamic_formatting_task = Task(
-        description=f"""
-        A user submitted a request: "{user_query}"
-        
-        The Kogna AI pipeline has analyzed internal and external data and
-        produced the following synthesized report:
-        (Internal data was sourced from: {sources_text})
-        ---
-        {synthesis_context}
-        ---
-
-        Your job is to format this report into a final, clean answer for the user.
-        You MUST adapt your formatting to the user's original request.
-
-        RULES:
-        1.  **If the user asked for a simple list (e.g., "list of employees", "who is on the product team?"):**
-            Do NOT write a big report. Simply extract the relevant list or names from
-            the synthesis report and present them clearly.
-        
-        2.  **If the user asked for a complex analysis (e.g., "what are our risks?", "give me a report on team performance"):**
-            Format the synthesis report into a professional executive summary.
-            Include a brief overview, key bullet points, and a conclusion.
-            At the very end,add a "Sources:" line. (e.g., "Sources: {sources_text}, Web Search")
-            
-        3.  **For all other requests:** Use your best judgment to present the information
-            in the clearest and most direct way possible. Do not invent new information.
-            Your answer should be based *only* on the synthesis report.
-        """,
-        expected_output="""
-        The final, perfectly formatted answer for the user,
-        adapted to their original query.
-        If it's a complex report, it MUST end with a sources line,
-        e.g., "Sources: {sources_text}, Web Search"
-        """,
+        description=task_description,
+        expected_output=expected_output,
         agent=communications_agent
     )
 
@@ -99,7 +79,7 @@ def create_communication_crew(
     communication_crew = Crew(
         agents=[communications_agent],
         tasks=[dynamic_formatting_task],
-        verbose=False,
+        verbose=False, # Set to True for debugging steps
         process="sequential"
     )
 

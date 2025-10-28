@@ -8,6 +8,13 @@ from langchain_litellm import ChatLiteLLM
 # --- New Import ---
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
+from .prompt import ( # Use relative import if in the same directory
+    INTERNAL_ANALYST_ROLE,
+    INTERNAL_ANALYST_GOAL,
+    INTERNAL_ANALYST_BACKSTORY,
+    INTERNAL_ANALYST_TASK_DESCRIPTION,
+    INTERNAL_ANALYST_EXPECTED_OUTPUT,
+)
 load_dotenv()
 
 # --- Connect to Supabase ---
@@ -92,7 +99,7 @@ class VectorSearchTool(BaseTool):
 
 # --- 2. Define the Agent and Crew (Updated) ---
 
-def create_internal_analyst_crew(gemini_api_key: str, user_id: str): # <-- ADDED user_id
+def create_internal_analyst_crew(gemini_api_key: str, user_id: str):
     """
     Creates the Internal Data Analyst Crew using the RAG pipeline.
     Returns the Crew instance.
@@ -102,11 +109,11 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str): # <-- ADDED
 
     # 1. Initialize the LLM for the Agent
     llm = ChatLiteLLM(
-        model="gemini/gemini-2.0-flash", 
+        model="gemini/gemini-2.0-flash",
         temperature=0.1,
         api_key=gemini_api_key
     )
-    
+
     # 2. Initialize the Embedding Model for the Tool
     try:
         embeddings_model = GoogleGenerativeAIEmbeddings(
@@ -122,56 +129,25 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str): # <-- ADDED
         llm=llm,
         supabase_client=supabase,
         embeddings_model=embeddings_model,
-        user_id=user_id # Pass the user ID to the tool
+        user_id=user_id
     )
 
-    # 4. Create the Agent (Updated)
+    # 4. Create the Agent (No changes needed here)
     internal_analyst = Agent(
-        role='Internal Knowledge Analyst',
-        goal=(
-            "Use the provided search tool to find relevant information "
-            "from the company's vector knowledge base to answer the user's request."
-        ),
-        backstory=(
-            "You are an expert retrieval analyst. You do not have direct access "
-            "to data. You MUST use your 'Internal Knowledge Base Search Tool' "
-            "to find the specific *snippets* of information you need. "
-            "You then synthesize these snippets to form a complete answer."
-        ),
+        role=INTERNAL_ANALYST_ROLE,          # <-- Use variable
+        goal=INTERNAL_ANALYST_GOAL,          # <-- Use variable
+        backstory=INTERNAL_ANALYST_BACKSTORY,# <-- Use variable
         verbose=False,
         llm=llm,
-        tools=[rag_tool] # Use the new RAG tool
+        tools=[rag_tool]
     )
-    
-    # 5. Create the Task (Updated)
+
+    # 5. Create the Task (USE IMPORTED PROMPTS)
     analysis_task = Task(
-        description=(
-            "A user has a primary request. You MUST analyze the conversation history for context, "
-            "as the latest query may be a follow-up question.\n\n"
-            "--- CONVERSATION HISTORY ---\n"
-            "{chat_history_str}\n"
-            "--- END HISTORY ---\n\n"
-            "Your job is to find the *internal* data to answer the *latest* user query: '{user_query}'.\n"
-            "Use the history to understand pronouns (like 'they', 'it', 'those').\n\n"
-            "Follow these steps:\n"
-            "1. **Analyze Context:** Look at the latest query '{user_query}' and the history.\n"
-            "2. **Formulate Search Query:** Create an intelligent, self-contained search query. "
-            "   - If the query is 'who are they' and the history mentions 'Product Manager', "
-            "     your search query for the tool should be 'details for Product Manager'.\n"
-            "   - If the query is 'status of the Landon project', just pass that to the tool.\n"
-            "3. **Use the Tool:** Call the 'Internal Knowledge Base Search Tool' with your formulated search query.\n"
-            "4. **Synthesize Findings:** Based *only* on the text snippets provided by the tool, "
-            "create the 'Internal Analysis Report' that directly answers the user's latest query."
-        ),
-        expected_output=(
-            "A comprehensive 'Internal Analysis Report' that synthesizes all "
-            "relevant information *from the provided text snippets* to answer the user's query: '{user_query}'. "
-            "If the tool found no information, state that clearly. "
-            "Do not mention the snippets or file paths in the final answer, just provide the synthesized answer."
-        ),
+        description=INTERNAL_ANALYST_TASK_DESCRIPTION, # <-- Use variable
+        expected_output=INTERNAL_ANALYST_EXPECTED_OUTPUT, # <-- Use variable
         agent=internal_analyst
     )
-    
+
     # 6. Create the Crew
-    # We return the Crew. The tool instance is managed inside it.
     return Crew(agents=[internal_analyst], tasks=[analysis_task], verbose=False)
