@@ -3,6 +3,7 @@ from core.database import get_db
 from core.models import UserCreate
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from uuid import UUID
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -35,15 +36,35 @@ def get_user(user_id: int):
 
 @router.get("/by-supabase/{supabase_id}")
 def get_user_by_supabase_id(supabase_id: str, db=Depends(get_db)):
-    # db here is the connection object
-    cursor = db.cursor(cursor_factory=RealDictCursor)
-
-    cursor.execute("SELECT * FROM users WHERE supabase_id = %s", (supabase_id,))
-    user = cursor.fetchone()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM users WHERE supabase_id = %s", (supabase_id,))
+        user = cursor.fetchone()
 
     if not user:
-        cursor.close()
         raise HTTPException(status_code=404, detail="User not found")
 
-    cursor.close()
     return {"success": True, "data": user}
+
+
+
+@router.get("/{user_id}/team")
+def get_user_team(user_id: UUID, db=Depends(get_db)):
+    """
+    Retrieve the team that a given user belongs to.
+    """
+    query = """
+        SELECT t.id, t.name, t.organization_id
+        FROM team_members tm
+        JOIN teams t ON tm.team_id = t.id
+        WHERE tm.user_id = %s
+        LIMIT 1;
+    """
+
+    with db.cursor() as cur:
+        cur.execute(query, (str(user_id),))
+        team = cur.fetchone()
+
+    if not team:
+        raise HTTPException(status_code=404, detail="User not assigned to any team")
+
+    return {"success": True, "data": team}

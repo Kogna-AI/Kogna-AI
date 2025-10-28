@@ -30,6 +30,7 @@ export interface BackendUser {
 
 // --- Combined user type for context ---
 export type MergedUser = SupabaseUser & {
+  backend_id?: string;
   name?: string;
   role?: string;
   organization_id?: number;
@@ -66,15 +67,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
           const backendUser: BackendUser = await api.getUserBySupabaseId(
             supabaseUser.id
           );
-          console.log(backendUser);
           const mergedUser: MergedUser = {
             ...supabaseUser,
+            backend_id: backendUser.id.toString(),
             name: [backendUser.first_name, backendUser.second_name]
               .filter(Boolean)
               .join(" "),
             role: backendUser.role || "member",
             organization_id: backendUser.organization_id,
           };
+          console.log(mergedUser);
           setUser(mergedUser);
         } catch {
           setUser(supabaseUser);
