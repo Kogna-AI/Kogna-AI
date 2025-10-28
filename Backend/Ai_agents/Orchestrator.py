@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import logging
 from langchain_litellm import ChatLiteLLM
 import re
+from .prompt import TRIAGE_PROMPT, GENERAL_ANSWER_PROMPT
 
 load_dotenv()
 
@@ -26,6 +27,7 @@ from Ai_agents.communication_agent import create_communication_crew
 
 # --- 1. Define the State for the Graph ---
 class WorkflowState(TypedDict):
+    user_id: str # <-- Make sure user_id is defined in the state
     query_classification: Optional[str]
     user_query: str
     execution_mode: str
@@ -36,85 +38,56 @@ class WorkflowState(TypedDict):
     synthesis_report: Optional[str]
     final_report: Optional[str]
     error_message: Optional[str]
-    human_feedback: Optional[str] # NEW: To store feedback for the loop
+    human_feedback: Optional[str] 
 
 def node_triage_query(state: WorkflowState) -> dict:
-    """Classifies the user's query as 'general_conversation' or 'data_request'."""
     print("\n--- [Node] Triaging Query ---")
     user_query = state['user_query']
-    
-    # --- ADDED CONTEXT ---
     chat_history = state.get("chat_history", [])
     history_str = "\n".join(chat_history)
-    # Use a simple, fast LLM call for classification
+
     try:
         llm = ChatLiteLLM(
             model="gemini/gemini-2.0-flash",
             api_key=os.getenv("GOOGLE_API_KEY"),
             temperature=0.0
         )
-        
-        prompt = f"""
-        You are a conversation triage expert. You must classify the user's *latest query*
-        based on the conversation history.
-        Categories are: 'general_conversation' or 'data_request'.
 
-        - 'general_conversation' is for standalone small talk, greetings, or questions about you (the AI).
-        - 'data_request' is for *any* query that asks for specific data OR is a follow-up
-          question related to data already discussed.
+        # --- USE IMPORTED PROMPT ---
+        prompt = TRIAGE_PROMPT.format(history_str=history_str, user_query=user_query)
 
-        --- CONVERSATION HISTORY ---
-        {history_str}
-        --- LATEST USER QUERY ---
-        Human: {user_query}
-        ---
-
-        Rule: If the latest query is a pronoun (like "who are they", "what is it", "why is that")
-        and the history is not empty, it is almost always a 'data_request'.
-        
-        Classification:
-        """
-        
         response = llm.invoke(prompt)
-        # Clean up the response to get just the classification
         classification = response.content.strip().lower()
-        
+
         if "general_conversation" in classification:
             print("--- [Info] Query classified as: general_conversation ---")
             return {"query_classification": "general_conversation"}
         else:
             print("--- [Info] Query classified as: data_request ---")
             return {"query_classification": "data_request"}
-            
+
     except Exception as e:
         print(f"--- [Error] Triage failed: {e}. Defaulting to data_request. ---")
         return {"query_classification": "data_request"}
 
-# --- 2. ADD THIS NEW "GENERAL CHAT" NODE ---
+
 def node_answer_general_query(state: WorkflowState) -> dict:
-    """Answers simple conversational queries."""
     print("\n--- [Node] Answering General Query ---")
     user_query = state['user_query']
-    
+
     try:
         llm = ChatLiteLLM(
             model="gemini/gemini-2.0-flash",
             api_key=os.getenv("GOOGLE_API_KEY"),
             temperature=0.7
         )
-        
-        # We can pass chat history here in the future if needed
-        prompt = f"""
-        You are Kogna AI, a helpful AI assistant. 
-        The user said: "{user_query}"
-        Respond in a brief, friendly, and conversational manner. 
-        If asked your name, say you are Kogna AI.
-        """
+
+        # --- USE IMPORTED PROMPT ---
+        prompt = GENERAL_ANSWER_PROMPT.format(user_query=user_query)
+
         response = llm.invoke(prompt)
-        
-        # This bypasses the whole crew, so we put the answer directly into 'final_report'
         return {"final_report": response.content.strip()}
-        
+
     except Exception as e:
         print(f"--- [Error] General chat failed: {e} ---")
         return {"final_report": f"Sorry, I had an error trying to respond: {e}"}
@@ -129,28 +102,45 @@ def decide_after_triage(state: WorkflowState) -> str:
         return "start_data_workflow"
 # --- 2. Define the Nodes for the Graph ---
 
+# -----------------------------------------------------------------
+# --- FIX 1: This node is updated to work with the new RAG agent ---
+# -----------------------------------------------------------------
 def node_internal_analyst(state: WorkflowState) -> dict:
     print("\n--- [Node] Executing Internal Analyst Crew (RAG) ---")
     google_key = os.getenv("GOOGLE_API_KEY")
+    user_id = state.get("user_id")
     
-    # 1. Get both the crew and the tool instance
-    internal_analyst_crew, tool_instance = create_internal_analyst_crew(gemini_api_key=google_key)
+    if not user_id:
+        print("--- [Error] user_id is missing from state in node_internal_analyst ---")
+        return {"internal_analysis_report": "Error: user_id is missing."}
+    
+    # 1. Call the updated function with the user_id
+    #    It now only returns the crew.
+    internal_analyst_crew = create_internal_analyst_crew(
+        gemini_api_key=google_key,
+        user_id=user_id  # <-- Pass the user_id
+    )
     
     inputs = {
         'user_query': state['user_query'],
-        'chat_history_str': "\n".join(state.get("chat_history", [])) # Pass the history
+        'chat_history_str': "\n".join(state.get("chat_history", []))
     }
     analysis_result = internal_analyst_crew.kickoff(inputs=inputs)
     
-    # 2. Get the sources from the tool's memory
-    sources = tool_instance.last_chosen_files
-    print(f"--- [Node] Internal Analyst used sources: {sources} ---")
+    # 2. The new RAG agent synthesizes the report directly.
+    #    We no longer get a 'tool_instance' or 'last_chosen_files'.
+    #    The 'internal_sources' are now the snippets, which are part of the
+    #    agent's internal process and synthesized into the final report.
+    print(f"--- [Node] Internal Analyst finished. ---")
     
-    # 3. Return both the report and the sources to the state
+    # 3. Return only the report
     return {
-        "internal_analysis_report": analysis_result.raw,
-        "internal_sources": sources
+        "internal_analysis_report": analysis_result.raw
+        # We remove 'internal_sources' as it's no longer relevant
     }
+# -----------------------------------------------------------------
+# --- END OF FIX 1 ---
+# -----------------------------------------------------------------
 
 def node_researcher(state: WorkflowState) -> dict:
     """
@@ -202,10 +192,9 @@ def node_synthesizer(state: WorkflowState) -> dict:
     
     synthesizer_crew = create_synthesis_crew(
         internal_analysis_report=state['internal_analysis_report'],
-        internal_sources=state.get('internal_sources'), # <--- ADD THIS
+        internal_sources=state.get('internal_sources'), # <--- This will be None now, which is fine
         business_research_findings=state['business_research_findings'],
         google_api_key=google_key,
-        serper_api_key=serper_key,
         human_feedback=human_feedback
     )
     synthesis_result = synthesizer_crew.kickoff()
@@ -223,9 +212,8 @@ def node_communicator(state: WorkflowState) -> dict:
         communications_crew = create_communication_crew(
             synthesis_context=state['synthesis_report'], 
             user_query=state['user_query'],
-            internal_sources=state.get('internal_sources'), # <--- ADD THIS
+            # internal_sources=state.get('internal_sources'), # <--- This will be None
             google_api_key=google_key, 
-            serper_api_key=serper_key
         )
         final_report_result = communications_crew.kickoff()
         return {"final_report": final_report_result.raw}
@@ -260,11 +248,12 @@ def decide_next_step_after_analysis(state: WorkflowState) -> str:
     print("\n--- [Decision] Evaluating Internal Analysis Report ---")
     report = state.get("internal_analysis_report", "")
     
+    # Updated error checking
     if (
         report.startswith("Error:") 
-        or report.startswith("No relevant internal documents were found")
-        or "Error during router LLM call" in report
-        or "Router failed" in report
+        or "user_id is missing" in report
+        or "No relevant internal documents were found" in report
+        or "Error during vector search" in report
     ):
         print(f"--- [Decision] Genuine error detected. Routing to error handler. ---")
         return "handle_error"
@@ -296,7 +285,7 @@ def get_compiled_app():
     workflow = StateGraph(WorkflowState)
 
     # --- Add all your nodes ---
-    workflow.add_node("triage_node", node_triage_query)                 # <--- NEW
+    workflow.add_node("triage_node", node_triage_query)
     workflow.add_node("answer_general_query_node", node_answer_general_query)
     workflow.add_node("internal_analyst_node", node_internal_analyst)
     workflow.add_node("researcher_node", node_researcher)
@@ -313,11 +302,11 @@ def get_compiled_app():
         "triage_node",
         decide_after_triage,
         {
-            "answer_general_query": "answer_general_query_node", # If small talk, answer and finish
-            "start_data_workflow": "internal_analyst_node"      # If data, start the main crew
+            "answer_general_query": "answer_general_query_node", 
+            "start_data_workflow": "internal_analyst_node"
         }
     )
-    workflow.add_edge("answer_general_query_node", END) # <--- NEW
+    workflow.add_edge("answer_general_query_node", END) 
     workflow.add_conditional_edges(
         "internal_analyst_node",
         decide_next_step_after_analysis, 
@@ -376,9 +365,13 @@ if __name__ == "__main__":
             break
         if not query.strip(): # Check for empty input
             continue
-
+            
+        # -----------------------------------------------------------------
+        # --- FIX 2: Add your trial user_id to the initial state ---
+        # -----------------------------------------------------------------
         # 2. Set up initial state for this turn
         initial_state = {
+            "user_id": '36506ee8-e820-492a-aba4-59f617cf923f', # <-- ADD THIS LINE
             "user_query": query,
             "chat_history": chat_history.copy(), # Pass current history
             "execution_mode": "autonomous", # Keep it simple for chat
@@ -392,6 +385,9 @@ if __name__ == "__main__":
             "error_message": None,
             "human_feedback": None,
         }
+        # -----------------------------------------------------------------
+        # --- END OF FIX 2 ---
+        # -----------------------------------------------------------------
 
         print("\nKogna AI is thinking... 🤔")
         final_report = None
