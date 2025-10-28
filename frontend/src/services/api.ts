@@ -2,10 +2,16 @@
  * Kogna-AI API Service
  * Frontend API client for communicating with the FastAPI backend
  */
+<<<<<<< HEAD
 
 // 1. API_BASE_URL is clean. It does NOT include '/api'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+=======
+import type { Team, TeamMember } from "@/types/backend";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+>>>>>>> 851d137 (connect the team page first step - only size of the team)
 import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
@@ -190,6 +196,20 @@ export const api = {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
+  },
+
+  getUserTeam: async (userId?: string): Promise<Team> => {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/team`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<Team>(response);
+  },
+
+  listTeamMembers: async (teamId: string): Promise<TeamMember[]> => {
+    const response = await fetch(`${API_BASE_URL}/teams/${teamId}/members`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<TeamMember[]>(response);
   },
 
   listOrganizationTeams: async (orgId: number) => {
