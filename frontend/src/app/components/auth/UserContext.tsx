@@ -91,7 +91,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
-          // ✅ rerun initSession right away to update UI without refresh
           initSession();
           router.push("/");
         } else if (event === "SIGNED_OUT") {

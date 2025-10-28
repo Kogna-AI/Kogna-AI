@@ -682,7 +682,7 @@ export const api = {
         headers: getAuthHeaders(),
       }
     );
-    return handleResponse<BackendUser>(response); // ✅ tell TS this returns BackendUser
+    return handleResponse<BackendUser>(response);
   },
 };
 
