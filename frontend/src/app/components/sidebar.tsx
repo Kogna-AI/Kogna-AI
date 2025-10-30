@@ -48,7 +48,7 @@ export function Sidebar({
     { id: "meetings", label: "Meetings", icon: Calendar },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
     { id: "feedback", label: "Feedback", icon: MessageSquare },
-    { id: "insights", label: "Insights", icon: Brain },
+    // { id: "insights", label: "Insights", icon: Brain },
   ];
 
   return (
