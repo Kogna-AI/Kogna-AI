@@ -1,13 +1,13 @@
-import { DashboardOverview } from './dashboard/dashboardoverview';
-import { TeamOverview } from './dashboard/TeamOverview';
-import { StrategyHub } from './dashboard/StrategyHub';
+import { DashboardOverview } from "./dashboard/dashboardoverview";
+import { TeamOverview } from "./dashboard/TeamOverview";
+import { StrategyHub } from "./dashboard/StrategyHub";
 
-import { DataConnectorHub } from './dashboard/DataConnectorHub';
-import { MeetingsView } from './dashboard/MeetingsView';
-import { AnalyticsView } from './dashboard/AnalyticsView';
-import { FeedbackView } from './dashboard/FeedbackView';
-import { SettingsView } from './dashboard/SettingsView';
-import { useUser } from './auth/UserContext';
+import { DataConnectorHub } from "./dashboard/DataConnectorHub";
+import { MeetingsView } from "./dashboard/MeetingsView";
+import { AnalyticsView } from "./dashboard/AnalyticsView";
+import { FeedbackView } from "./dashboard/FeedbackView";
+import { SettingsView } from "./dashboard/SettingsView";
+import { useUser } from "./auth/UserContext";
 
 interface MainDashboardProps {
   activeView: string;
@@ -17,40 +17,52 @@ interface MainDashboardProps {
   onKogniiActionComplete?: () => void;
 }
 
-export function MainDashboard({ activeView, setActiveView, onStrategySession, kogniiControlState, onKogniiActionComplete }: MainDashboardProps) {
+export function MainDashboard({
+  activeView,
+  setActiveView,
+  onStrategySession,
+  kogniiControlState,
+  onKogniiActionComplete,
+}: MainDashboardProps) {
   const { user } = useUser();
   const renderView = () => {
     switch (activeView) {
-      case 'dashboard':
-        return <DashboardOverview onStrategySession={onStrategySession} user={user} />;
-      case 'team':
-        return <TeamOverview />;
-      case 'strategy':
+      case "dashboard":
         return (
-          <StrategyHub 
+          <DashboardOverview
+            onStrategySession={onStrategySession}
+            user={user}
+          />
+        );
+      case "team":
+        return <TeamOverview />;
+      case "strategy":
+        return (
+          <StrategyHub
             kogniiControlState={kogniiControlState}
             onKogniiActionComplete={onKogniiActionComplete}
           />
         );
 
-      case 'connectors':
+      case "connectors":
         return <DataConnectorHub />;
-      case 'meetings':
+      case "meetings":
         return <MeetingsView />;
-      case 'analytics':
+      case "analytics":
         return <AnalyticsView />;
-      case 'feedback':
+      case "feedback":
         return <FeedbackView />;
-      case 'settings':
+      case "settings":
         return <SettingsView />;
       default:
-        return <DashboardOverview onStrategySession={onStrategySession} user={user} />;
+        return (
+          <DashboardOverview
+            onStrategySession={onStrategySession}
+            user={user}
+          />
+        );
     }
   };
 
-  return (
-    <div className="flex-1 overflow-auto">
-      {renderView()}
-    </div>
-  );
+  return <div className="flex-1 overflow-auto">{renderView()}</div>;
 }
