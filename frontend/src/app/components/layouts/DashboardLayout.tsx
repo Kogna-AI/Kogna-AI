@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Sidebar } from "../sidebar";
 import { MainDashboard } from "../MainDashboard";
-import { KogniiAssistant } from "../KogniiAssistant";
+import { KogniiAssistant } from "../kognii/KogniiAssistant";
 import { NotificationCenter } from "../NotificationCenter";
 import { useUser } from "../auth/UserContext";
 import { useRouter } from "next/navigation";

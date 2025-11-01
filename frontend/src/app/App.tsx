@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {Sidebar} from './components/sidebar';
 import { MainDashboard } from './components/MainDashboard';
-import { KogniiAssistant } from './components/KogniiAssistant';
+import { KogniiAssistant } from './components/kognii/KogniiAssistant';
 import { NotificationCenter } from './components/NotificationCenter';
 import { UserProvider, useUser } from './components/auth/UserContext';
 import { LoginScreen } from './components/auth/LoginPage';
 
 export default function AppContent() {
   const { isAuthenticated } = useUser();
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState('connectors');
   const [isKogniiOpen, setIsKogniiOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [strategySessionMode, setStrategySessionMode] = useState(false);
@@ -84,9 +84,7 @@ export default function AppContent() {
 
 
 
-  if (!isAuthenticated) {
-    return <LoginScreen />;
-  }
+  
 
   return (
     <div className="size-full flex bg-background">

@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { ScrollArea } from '../ui/scroll-area';
 import { Bot } from 'lucide-react';
-import { Message } from './types/KogniiTypes';
+import { Message } from './kognii/types/KogniiTypes';
 import { MessageBubble } from './MessageBubble';
 import { KogniiThinkingIcon } from '../../../public/KogniiThinkingIcon';
 

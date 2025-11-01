@@ -1,7 +1,7 @@
 "use client"
 import { Button } from '../ui/button';
 import { Bot, User } from 'lucide-react';
-import { Message } from './types/KogniiTypes';
+import { Message } from './kognii/types/KogniiTypes';
 
 interface MessageBubbleProps {
   message: Message;

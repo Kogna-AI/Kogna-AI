@@ -9,7 +9,7 @@ import {
   CheckCircle 
 } from 'lucide-react';
 import { KogniiThinkingIcon } from '../../../public/KogniiThinkingIcon';
-import { ConversationStep } from './types/KogniiTypes';
+import { ConversationStep } from './kognii/types/KogniiTypes';
 
 interface ConversationModeProps {
   conversationScenario: ConversationStep[];

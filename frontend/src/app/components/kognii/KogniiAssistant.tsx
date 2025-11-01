@@ -1,8 +1,8 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
+import { Button } from '../../ui/button';
 import { X } from 'lucide-react';
-import { KogniiThinkingIcon } from '../../../public/KogniiThinkingIcon';
+import { KogniiThinkingIcon } from '../../../../public/KogniiThinkingIcon';
 import { KogniiAssistantProps, Message } from './types/KogniiTypes';
 import { 
   getDemoScenarios, 
@@ -11,10 +11,11 @@ import {
   getContextualInitialMessage, 
   generateAIResponse 
 } from './utils/KogniiUtils';
-import { ChatArea } from './ChatArea';
-import { InputArea } from './InputArea';
-import { QuickActions } from './QuickActions';
-import { ConversationMode } from './ConversationMode';
+import { ChatArea } from '../ChatArea';
+import { InputArea } from '../InputArea';
+import { QuickActions } from '../QuickActions';
+import { ConversationMode } from '../ConversationMode';
+import Header from './Header'
 
 
 
@@ -38,7 +39,7 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
   useEffect(() => {
     if (strategySessionMode) {
       setMessages([{
-        id: 'session-1',
+        id: 'session-1',  
         type: 'assistant',
         content: 'Welcome to your AI Strategy Session! I\'ll guide you through a structured strategic planning process. We\'ll cover strategic analysis, goal setting, and action planning. Ready to begin?',
         timestamp: new Date(),
@@ -252,22 +253,9 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
   return (
     <div className="w-96 h-full bg-background border-l border-border shadow-xl flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-              <KogniiThinkingIcon className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Kognii Assistant</h3>
-              <p className="text-xs text-muted-foreground">Strategic AI companion</p>
-            </div>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+      <Header 
+      onClose={onClose}
+      />
 
       {/* Quick Actions */}
       <QuickActions

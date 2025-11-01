@@ -22,7 +22,7 @@ import {
   Play
 } from 'lucide-react';
 import { KogniiThinkingIcon } from '../../../public/KogniiThinkingIcon';
-import { QuickAction } from './types/KogniiTypes';
+import { QuickAction } from './kognii/types/KogniiTypes';
 
 interface QuickActionsProps {
   quickActions: {
