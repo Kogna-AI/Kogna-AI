@@ -439,7 +439,7 @@ if __name__ == "__main__":
             chat_history.append(f"Human: {query}")
             chat_history.append(f"AI: {final_report}")
         elif not stream_error:
-            print("\nKogna AI: I finished processing but couldn't generate a final report. 🤔")
+            print("\nKogna AI: I finished processing but couldn't generate a final report.")
             print("--- DEBUG: No final report found in stream output. Last few outputs: ---")
             print(full_stream_output[-3:])
             chat_history.append(f"Human: {query}")
