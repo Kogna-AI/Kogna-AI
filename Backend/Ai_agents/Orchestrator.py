@@ -361,7 +361,7 @@ def get_compiled_app():
 #         # 1. Get user input
 #         query = input("\nYou: ")
 #         if query.lower() in ["quit", "exit"]:
-#             print("\nKogna AI: Goodbye! 👋")
+#             print("\nKogna AI: Goodbye! ")
 #             break
 #         if not query.strip(): # Check for empty input
 #             continue
@@ -389,7 +389,7 @@ def get_compiled_app():
 #         # --- END OF FIX 2 ---
 #         # -----------------------------------------------------------------
 
-#         print("\nKogna AI is thinking... 🤔")
+#         print("\nKogna AI is thinking... ")
 #         final_report = None
 #         stream_error = None
 #         full_stream_output = [] # Optional: Capture intermediate steps
@@ -439,7 +439,7 @@ def get_compiled_app():
 #             chat_history.append(f"Human: {query}")
 #             chat_history.append(f"AI: {final_report}")
 #         elif not stream_error:
-#             print("\nKogna AI: I finished processing but couldn't generate a final report. 🤔")
+#             print("\nKogna AI: I finished processing but couldn't generate a final report. ")
 #             print("--- DEBUG: No final report found in stream output. Last few outputs: ---")
 #             print(full_stream_output[-3:])
 #             chat_history.append(f"Human: {query}")
