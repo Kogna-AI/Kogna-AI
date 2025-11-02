@@ -331,122 +331,122 @@ def get_compiled_app():
 
 
 # --- Main execution block for Continuous Chat ---
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        filename='kogna_ai.log', # This file will store all the process logs
-        filemode='w' # 'w' overwrites the log each time, 'a' appends
-    )
-    logging.getLogger("LiteLLM").setLevel(logging.WARNING)
-    print("--- Welcome to the Kogna AI Orchestrator (Chat Mode) ---")
-    print("Type 'quit' or 'exit' to end the conversation.")
+#     logging.basicConfig(
+#         level=logging.INFO,
+#         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+#         filename='kogna_ai.log', # This file will store all the process logs
+#         filemode='w' # 'w' overwrites the log each time, 'a' appends
+#     )
+#     logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+#     print("--- Welcome to the Kogna AI Orchestrator (Chat Mode) ---")
+#     print("Type 'quit' or 'exit' to end the conversation.")
 
-    # --- Compile the graph ONCE at the start ---
-    load_dotenv() # Ensure env vars are loaded before compiling
-    try:
-        # This call will now succeed
-        app = get_compiled_app()
-        print("--- LangGraph App Compiled ---")
-    except Exception as e:
-        print(f"FATAL ERROR: Could not compile LangGraph app: {e}")
-        # exit() # Removed exit() so you can debug if needed
+#     # --- Compile the graph ONCE at the start ---
+#     load_dotenv() # Ensure env vars are loaded before compiling
+#     try:
+#         # This call will now succeed
+#         app = get_compiled_app()
+#         print("--- LangGraph App Compiled ---")
+#     except Exception as e:
+#         print(f"FATAL ERROR: Could not compile LangGraph app: {e}")
+#         # exit() # Removed exit() so you can debug if needed
 
-    # --- Initialize chat history ---
-    chat_history = []
+#     # --- Initialize chat history ---
+#     chat_history = []
 
-    # --- Start the conversation loop ---
-    while True:
-        # 1. Get user input
-        query = input("\nYou: ")
-        if query.lower() in ["quit", "exit"]:
-            print("\nKogna AI: Goodbye! 👋")
-            break
-        if not query.strip(): # Check for empty input
-            continue
+#     # --- Start the conversation loop ---
+#     while True:
+#         # 1. Get user input
+#         query = input("\nYou: ")
+#         if query.lower() in ["quit", "exit"]:
+#             print("\nKogna AI: Goodbye! 👋")
+#             break
+#         if not query.strip(): # Check for empty input
+#             continue
             
-        # -----------------------------------------------------------------
-        # --- FIX 2: Add your trial user_id to the initial state ---
-        # -----------------------------------------------------------------
-        # 2. Set up initial state for this turn
-        initial_state = {
-            "user_id": '36506ee8-e820-492a-aba4-59f617cf923f', # <-- ADD THIS LINE
-            "user_query": query,
-            "chat_history": chat_history.copy(), # Pass current history
-            "execution_mode": "autonomous", # Keep it simple for chat
-            # Initialize all state keys to None or default values
-            "query_classification": None,
-            "internal_analysis_report": None,
-            "internal_sources": None,
-            "business_research_findings": None,
-            "synthesis_report": None,
-            "final_report": None,
-            "error_message": None,
-            "human_feedback": None,
-        }
-        # -----------------------------------------------------------------
-        # --- END OF FIX 2 ---
-        # -----------------------------------------------------------------
+#         # -----------------------------------------------------------------
+#         # --- FIX 2: Add your trial user_id to the initial state ---
+#         # -----------------------------------------------------------------
+#         # 2. Set up initial state for this turn
+#         initial_state = {
+#             "user_id" : # <-- ADD THIS LINE
+#             "user_query": query,
+#             "chat_history": chat_history.copy(), # Pass current history
+#             "execution_mode": "autonomous", # Keep it simple for chat
+#             # Initialize all state keys to None or default values
+#             "query_classification": None,
+#             "internal_analysis_report": None,
+#             "internal_sources": None,
+#             "business_research_findings": None,
+#             "synthesis_report": None,
+#             "final_report": None,
+#             "error_message": None,
+#             "human_feedback": None,
+#         }
+#         # -----------------------------------------------------------------
+#         # --- END OF FIX 2 ---
+#         # -----------------------------------------------------------------
 
-        print("\nKogna AI is thinking... 🤔")
-        final_report = None
-        stream_error = None
-        full_stream_output = [] # Optional: Capture intermediate steps
+#         print("\nKogna AI is thinking... 🤔")
+#         final_report = None
+#         stream_error = None
+#         full_stream_output = [] # Optional: Capture intermediate steps
 
-        # 3. Run the graph stream
-        try:
-            # Loop through the stream output from the graph
-            for s in app.stream(initial_state, {"recursion_limit": 25}):
-                full_stream_output.append(s)
+#         # 3. Run the graph stream
+#         try:
+#             # Loop through the stream output from the graph
+#             for s in app.stream(initial_state, {"recursion_limit": 25}):
+#                 full_stream_output.append(s)
 
-                # --- START: MODIFIED LOGIC ---
-                # Check for an answer from EITHER the general chat OR the communicator
+#                 # --- START: MODIFIED LOGIC ---
+#                 # Check for an answer from EITHER the general chat OR the communicator
                 
-                final_answer_node = None
-                if "answer_general_query_node" in s:
-                    final_answer_node = s.get("answer_general_query_node")
-                elif "communicator_node" in s:
-                    final_answer_node = s.get("communicator_node")
+#                 final_answer_node = None
+#                 if "answer_general_query_node" in s:
+#                     final_answer_node = s.get("answer_general_query_node")
+#                 elif "communicator_node" in s:
+#                     final_answer_node = s.get("communicator_node")
 
-                # If we found an answer node and it's not empty
-                if final_answer_node is not None:
-                    report = final_answer_node.get("final_report")
-                    if report:
-                        final_report = report
+#                 # If we found an answer node and it's not empty
+#                 if final_answer_node is not None:
+#                     report = final_answer_node.get("final_report")
+#                     if report:
+#                         final_report = report
                 
-                # --- END: MODIFIED LOGIC ---
+#                 # --- END: MODIFIED LOGIC ---
 
-                # Check if the error handler node ran
-                elif "error_handler_node" in s:
-                     node_output = s["error_handler_node"]
-                     if node_output is not None:
-                         error_msg = node_output.get("error_message")
-                         if error_msg:
-                             final_report = f"Sorry, I encountered an error: {error_msg}"
-                             stream_error = True
+#                 # Check if the error handler node ran
+#                 elif "error_handler_node" in s:
+#                      node_output = s["error_handler_node"]
+#                      if node_output is not None:
+#                          error_msg = node_output.get("error_message")
+#                          if error_msg:
+#                              final_report = f"Sorry, I encountered an error: {error_msg}"
+#                              stream_error = True
 
-        except Exception as e:
-            print(f"\n--- WORKFLOW EXECUTION ERROR ---")
-            print(f"An error occurred while running the graph stream: {e}")
-            final_report = f"Sorry, a critical error occurred during processing: {e}"
-            stream_error = True
+#         except Exception as e:
+#             print(f"\n--- WORKFLOW EXECUTION ERROR ---")
+#             print(f"An error occurred while running the graph stream: {e}")
+#             final_report = f"Sorry, a critical error occurred during processing: {e}"
+#             stream_error = True
 
-        # 4. Print the final AI response
-        if final_report:
-            print(f"\nKogna AI: {final_report}")
-            # 5. Update chat history only on successful completion or handled error
-            chat_history.append(f"Human: {query}")
-            chat_history.append(f"AI: {final_report}")
-        elif not stream_error:
-            print("\nKogna AI: I finished processing but couldn't generate a final report. 🤔")
-            print("--- DEBUG: No final report found in stream output. Last few outputs: ---")
-            print(full_stream_output[-3:])
-            chat_history.append(f"Human: {query}")
-            chat_history.append(f"AI: [Processing completed without a final report]")
+#         # 4. Print the final AI response
+#         if final_report:
+#             print(f"\nKogna AI: {final_report}")
+#             # 5. Update chat history only on successful completion or handled error
+#             chat_history.append(f"Human: {query}")
+#             chat_history.append(f"AI: {final_report}")
+#         elif not stream_error:
+#             print("\nKogna AI: I finished processing but couldn't generate a final report. 🤔")
+#             print("--- DEBUG: No final report found in stream output. Last few outputs: ---")
+#             print(full_stream_output[-3:])
+#             chat_history.append(f"Human: {query}")
+#             chat_history.append(f"AI: [Processing completed without a final report]")
         
-        # Optional: Limit chat history size
-        MAX_HISTORY_TURNS = 5 # Keep last 5 pairs (10 messages total)
-        if len(chat_history) > MAX_HISTORY_TURNS * 2:
-             print("--- Pruning chat history ---")
-             chat_history = chat_history[-(MAX_HISTORY_TURNS * 2):]
+#         # Optional: Limit chat history size
+#         MAX_HISTORY_TURNS = 5 # Keep last 5 pairs (10 messages total)
+#         if len(chat_history) > MAX_HISTORY_TURNS * 2:
+#              print("--- Pruning chat history ---")
+#              chat_history = chat_history[-(MAX_HISTORY_TURNS * 2):]
