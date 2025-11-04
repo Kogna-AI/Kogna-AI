@@ -1,24 +1,34 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, status
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
 from Ai_agents.Orchestrator import get_compiled_app
-# REMOVED: No more langchain_core imports needed here
+from routers.Authentication import get_current_user ,get_backend_user_id
+
+class AiRunPayload(BaseModel):
+    user_query: str
+    execution_mode: str = "autonomous"
+    chat_history: List[Dict[str, Any]] = []
 
 router = APIRouter(prefix="/api/ai", tags=["AI Orchestration"])
 
 @router.post("/run")
-def run_ai_workflow(request: dict):
-    """
-    Run the compiled Kogna AI orchestration pipeline once (non-interactive).
-    """
+def run_ai_workflow(
+    payload: AiRunPayload, 
+    # --- 2. Add the dependency here ---
+    ids: dict = Depends(get_backend_user_id)
+    ):
+
     try:
-        user_query = request.get("user_query")
-        if not user_query:
-            raise HTTPException(status_code=400, detail="Missing 'user_query' field")
+        # --- 3. Access the user ID ---
+        current_user_id = ids['user_id'] 
+        current_org_id = ids['organization_id']
+        print(f"AI Workflow initiated by user_id: {current_user_id} in Org: {current_org_id}")
 
-        execution_mode = request.get("execution_mode", "autonomous")
-        chat_history_dicts = request.get("chat_history", [])
+        user_query = payload.user_query
+        execution_mode = payload.execution_mode
+        chat_history_dicts = payload.chat_history
 
-        # --- NEW: STRING CONVERSION STEP ---
-        # Convert the list of dicts into a list of formatted strings
+        # --- STRING CONVERSION STEP (no change) ---
         converted_chat_history_strings = []
         for msg in chat_history_dicts:
             role = msg.get("role")
@@ -26,14 +36,12 @@ def run_ai_workflow(request: dict):
             if not content:
                 continue
             
-            # Format as simple, human-readable strings
             if role == "user":
                 converted_chat_history_strings.append(f"Human: {content}")
             elif role == "assistant":
                 converted_chat_history_strings.append(f"AI: {content}")
             elif role == "system":
                 converted_chat_history_strings.append(f"System: {content}")
-        # --- END OF NEW STEP ---
 
         app = get_compiled_app()
 
@@ -42,6 +50,8 @@ def run_ai_workflow(request: dict):
             # MODIFIED: Use the new list of strings
             "chat_history": converted_chat_history_strings,
             "execution_mode": execution_mode,
+            "user_id": current_user_id,
+            "organization_id": current_org_id,
             "query_classification": None,
             "internal_analysis_report": None,
             "internal_sources": None,
