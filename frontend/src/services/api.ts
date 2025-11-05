@@ -30,9 +30,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
       errorData.detail || `HTTP error! status: ${response.status}`
     );
   }
-  const data = await response.json();
-  // FastAPI returns {success: true, data: {...}}
-  return data.data || data;
+  // Try to parse JSON
+  try {
+    const data = await response.json();
+    // FastAPI returns {success: true, data: {...}} or root data
+    return data.data || data;
+  } catch (e) {
+    // Handle empty response for methods like DELETE
+    if (response.status === 204 || response.status === 200) {
+        return {} as T;
+    }
+    throw new Error("Failed to parse JSON response.");
+  }
 }
 
 /**
@@ -152,21 +161,6 @@ export const api = {
     );
     return handleResponse(response);
   },
-
-  // createUser: async (data: {
-  //   organization_id: number;
-  //   first_name: string;
-  //   second_name?: string;
-  //   role?: string;
-  //   email: string;
-  // }) => {
-  //   const response = await fetch(`${API_BASE_URL}/users`, {
-  //     method: "POST",
-  //     headers: getAuthHeaders(),
-  //     body: JSON.stringify(data),
-  //   });
-  //   return handleResponse(response);
-  // },
 
   updateUser: async (
     userId: number,
@@ -626,35 +620,77 @@ export const api = {
     return handleResponse(response);
   },
 
-  // ==================== KOGNII AI ====================
+  // ================================================
+  // ===== CHATBOT & AI (STATEFUL) - UPDATED =====
+  // ================================================
 
   /**
-   * Run the main Kogna AI orchestration pipeline
+   * Starts a new chat session for the authenticated user.
+   * This is the first call to make when a user starts a new chat.
+   * @returns {Promise<{id: string, user_id: string, title: string, created_at: string}>} The new session object.
    */
-  runAiWorkflow: async (
+  startChatSession: async (): Promise<{id: string, user_id: string, title: string, created_at: string}> => {
+    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Gets a list of all past chat sessions for the authenticated user.
+   * @returns {Promise<Array<{id: string, user_id: string, title: string, created_at: string}>>} A list of session objects.
+   */
+  getUserSessions: async (): Promise<Array<{id: string, user_id: string, title: string, created_at: string}>> => {
+    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Gets all messages for a specific chat session.
+   * Call this when a user clicks on an old conversation to load its history.
+   * @param sessionId - The UUID of the chat session.
+   * @returns {Promise<Array<{id: string, role: string, content: string, created_at: string}>>} A list of message objects.
+   */
+  getSessionHistory: async (sessionId: string): Promise<Array<{id: string, role: string, content: string, created_at: string}>> => {
+    const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Sends a user's query to a specific chat session and gets the AI's response.
+   * This is the main endpoint for sending and receiving messages.
+   * The backend will automatically load history and save the new user/assistant messages.
+   * @param sessionId - The UUID of the session.
+   * @param userQuery - The user's new message.
+   * @param executionMode - (Optional) "auto" or "micromanage".
+   * @returns {Promise<{final_report: string, session_id: string, user_query: string}>} The AI's response.
+   */
+  runAgentInSession: async (
+    sessionId: string,
     userQuery: string,
-    chatHistory: { role: "user" | "assistant" | "system"; content: string }[],
-    executionMode: string = "autonomous"
-  ): Promise<{
-    success: boolean;
-    user_query: string;
-    execution_mode: string;
-    final_report: string;
-  }> => {
+    executionMode: string = "auto"
+  ): Promise<{final_report: string, session_id: string, user_query: string}> => {
+    
     const payload = {
+      session_id: sessionId,
       user_query: userQuery,
-      chat_history: chatHistory,
       execution_mode: executionMode,
     };
 
-    const response = await fetch(`${API_BASE_URL}/ai/run`, {
+    const response = await fetch(`${API_BASE_URL}/chat/run`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
-
-    // We handle this response directly instead of using handleResponse
-    // because the AI endpoint returns data at the root, not in a 'data' field.
+    
+    // This endpoint returns data at the root, so we handle it directly
     if (!response.ok) {
       const errorData = await response
         .json()
@@ -663,10 +699,9 @@ export const api = {
         errorData.detail || `HTTP error! status: ${response.status}`
       );
     }
-
-    // The response is { success: true, final_report: "...", ... }
     return response.json();
   },
+
 
   // ==================== HEALTH CHECK ====================
 
