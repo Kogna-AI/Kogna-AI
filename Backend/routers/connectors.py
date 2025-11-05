@@ -156,13 +156,12 @@ async def auth_callback(
                 if not data or len(data) == 0:
                     logging.error("Failed to save Jira tokens")
                 else:
-                    logging.info(f"✅ Jira tokens saved for user {user_id}")
+                    logging.info(f"Jira tokens saved for user {user_id}")
 
                 # Trigger ETL regardless
                 background_tasks.add_task(run_master_etl, user_id, "jira")
-                logging.info("🎉 Jira connected. ETL started!")
+                logging.info("Jira connected. ETL started!")
 
-                # 🚀 Redirect to homepage
                 return RedirectResponse(url="http://localhost:3000")
 
             elif provider == "google":
@@ -200,7 +199,7 @@ async def auth_callback(
                     logging.info(f" Google tokens saved for user {user_id}")
 
                 background_tasks.add_task(run_master_etl, user_id, "google")
-                logging.info("🎉 Google connected. ETL started!")
+                logging.info("Google connected. ETL started!")
 
                 return RedirectResponse(url="http://localhost:3000")
 
