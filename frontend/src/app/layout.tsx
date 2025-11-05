@@ -1,7 +1,8 @@
 import "./globals.css";
+import { UserProvider } from "./components/auth/UserContext";
 
 export const metadata = {
-  title: "My App",
+  title: "KognaAI",
   description: "Layout with sans-serif variable",
 };
 
@@ -12,7 +13,11 @@ const rootStyle: React.CSSProperties & { [key: string]: string } = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" style={rootStyle}>
-      <body style={{ fontFamily: "var(--font-sans)" }}>{children}</body>
+      <body style={{ fontFamily: "var(--font-sans)" }}>
+        <UserProvider>
+        {children}
+        </UserProvider>
+        </body>
     </html>
   );
 }

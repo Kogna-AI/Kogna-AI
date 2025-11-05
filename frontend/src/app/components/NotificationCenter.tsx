@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import NotificationHeader from './notificationcenter/NotificationHeader';
-import NotificationList from './notificationcenter/NotificationList';
+import NotificationList from './notificationcenter/NotificationList'; // where I'm currently pulling notification data
 import { sampleNotifications, Notification } from './notificationcenter/notificationData';
 
 interface NotificationCenterProps {
