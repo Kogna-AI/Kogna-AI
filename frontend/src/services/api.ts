@@ -647,7 +647,7 @@ export const api = {
       execution_mode: executionMode,
     };
 
-    const response = await fetch(`${API_BASE_URL}/ai/run`, {
+    const response = await fetch(`${API_BASE_URL}/api/ai/run`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
