@@ -3,11 +3,11 @@ from core.database import get_db
 from core.models import UserCreate
 import psycopg2
 from psycopg2.extras import RealDictCursor
-
+from routers.Authentication import get_current_user
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate):
+def create_user(user: UserCreate, current_user=Depends(get_current_user)):  
     with get_db() as conn:
         cursor = conn.cursor()
         try:
@@ -23,7 +23,7 @@ def create_user(user: UserCreate):
             raise HTTPException(status_code=400, detail="Email already exists")
 
 @router.get("/{user_id}")
-def get_user(user_id: int):
+def get_user(user_id: int, current_user=Depends(get_current_user)):  
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
@@ -32,18 +32,13 @@ def get_user(user_id: int):
             raise HTTPException(status_code=404, detail="User not found")
         return {"success": True, "data": result}
 
-
 @router.get("/by-supabase/{supabase_id}")
-def get_user_by_supabase_id(supabase_id: str, db=Depends(get_db)):
-    # db here is the connection object
+def get_user_by_supabase_id(supabase_id: str, db=Depends(get_db)): 
     cursor = db.cursor(cursor_factory=RealDictCursor)
-
     cursor.execute("SELECT * FROM users WHERE supabase_id = %s", (supabase_id,))
     user = cursor.fetchone()
-
     if not user:
         cursor.close()
         raise HTTPException(status_code=404, detail="User not found")
-
     cursor.close()
     return {"success": True, "data": user}
