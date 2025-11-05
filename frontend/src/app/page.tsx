@@ -6,6 +6,7 @@ import { KogniiAssistant } from './components/KogniiAssistant';
 import { NotificationCenter } from './components/NotificationCenter';
 import { UserProvider, useUser } from './components/auth/UserContext';
 import { LoginScreen } from './components/auth/LoginScreen';
+import { BrowserRouter, Routes, Route, Link} from 'react-router-dom';
 
 function AppContent() {
   const { isAuthenticated } = useUser();
