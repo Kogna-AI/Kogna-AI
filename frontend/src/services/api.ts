@@ -3,8 +3,7 @@
  * Frontend API client for communicating with the FastAPI backend
  */
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
@@ -12,6 +11,7 @@ import type { BackendUser } from "../app/components/auth/UserContext";
 const getAuthHeaders = (): HeadersInit => {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  console.log(token);
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -677,12 +677,88 @@ export const api = {
 
   getUserBySupabaseId: async (supabaseId: string): Promise<BackendUser> => {
     const response = await fetch(
-      `${API_BASE_URL}/users/by-supabase/${supabaseId}`,
+      `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
       {
         headers: getAuthHeaders(),
       }
     );
     return handleResponse<BackendUser>(response);
+  },
+  // ==================== CONNECTORS (GENERAL) ====================
+
+  /**
+   * Get authorization URL for any provider (Jira, Google, Slack, etc.)
+   * Example: const { url } = await api.getConnectUrl("jira");
+   */
+  getConnectUrl: async (provider: string) => {
+    const response = await fetch(`${API_BASE_URL}/connect/${provider}`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+    window.location.href = data.url;
+  },
+
+  /**
+   * Exchange OAuth code for access/refresh tokens (after redirect)
+   * Example: await api.exchangeCode("jira", code);
+   */
+  exchangeCode: async (provider: string, code: string) => {
+    const response = await fetch(
+      `${API_BASE_URL}/auth/exchange/${provider}?code=${encodeURIComponent(
+        code
+      )}`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
+  /**
+   * Manually trigger ETL sync for a specific provider
+   * Example: await api.manualSync("jira");
+   */
+  manualSync: async (provider: string) => {
+    const response = await fetch(`${API_BASE_URL}/connect/sync/${provider}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * (Optional) Get all connectors linked to the current user
+   * Example: const connectors = await api.listConnections(userId);
+   */
+  listConnections: async (userId: string | number) => {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/connectors`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<
+      {
+        id: number;
+        user_id: string;
+        service: string;
+        expires_at: number;
+        created_at: string;
+      }[]
+    >(response);
+  },
+
+  /**
+   * (Optional) Disconnect a specific connector
+   * Example: await api.disconnect("jira");
+   */
+  disconnect: async (provider: string) => {
+    const response = await fetch(
+      `${API_BASE_URL}/connect/disconnect/${provider}`,
+      {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
   },
 };
 
