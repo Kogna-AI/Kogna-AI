@@ -18,11 +18,32 @@ class OrganizationCreate(BaseModel):
 
 # ====== Users ======
 class UserCreate(BaseModel):
+    supabase_id: str  # Required when creating from Supabase signup
     organization_id: int
     first_name: str
     second_name: Optional[str] = None
     role: Optional[str] = None
     email: EmailStr
+
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    second_name: Optional[str] = None
+    role: Optional[str] = None
+    email: Optional[EmailStr] = None
+    organization_id: Optional[int] = None
+
+class UserResponse(BaseModel):
+    id: int
+    supabase_id: str
+    organization_id: int
+    first_name: str
+    second_name: Optional[str] = None
+    email: str
+    role: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 # ====== Teams ======
 class TeamCreate(BaseModel):
