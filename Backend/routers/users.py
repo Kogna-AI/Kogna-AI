@@ -105,10 +105,6 @@ def create_user(user: UserCreate):
                 status_code=500,
                 detail=f"Failed to create user: {str(e)}"
             )
-<<<<<<< HEAD
-
-=======
->>>>>>> 02ff2a9 (implement rbac)
 
 @router.get("/by-supabase/{supabase_id}")
 def get_user_by_supabase_id(supabase_id: str):
