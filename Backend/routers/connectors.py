@@ -1,13 +1,13 @@
 import os
-from fastapi import APIRouter, BackgroundTasks
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import quote
 import httpx
 import logging
 import time 
 from services.etl_pipelines import run_master_etl, run_test
+from routers.Authentication import get_backend_user_id
 
-# ⚠️ CHANGED: Import the new 'master' ETL function
 from services.etl_pipelines import run_master_etl 
 from supabase_connect import get_supabase_manager
 supabase = get_supabase_manager().client
@@ -19,8 +19,9 @@ JIRA_CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-# ⚠️ NEW: Base URL for your app
-APP_BASE_URL = "http://127.0.0.1:8000" 
+# IMPROVEMENT: Load Base URL from ENV with a fallback for development
+# This makes deployment easier.
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000") 
 
 # --- Routers ---
 connect_router = APIRouter(prefix="/connect", tags=["Connectors"])
@@ -36,18 +37,22 @@ async def run_simple_test():
 # -------------------------------------------------
 # 1. GENERIC CONNECT ENDPOINT
 # -------------------------------------------------
-@connect_router.get("/{provider}")  # ⚠️ CHANGED: Was "/jira"
-async def connect_to_service(provider: str):
-    """Initiates OAuth flow for a given provider."""
+@connect_router.get("/{provider}") 
+async def connect_to_service(
+    provider: str,
+    user_data: dict = Depends(get_backend_user_id)
+    ):
+    user_id = user_data.get('user_id')
     
-    state = "your-unique-state-string"
+    # CRITICAL FIX: The state must include the user_id for the callback to work.
+    # We use a timestamp to prevent simple CSRF attacks.
+    state = f"auth_{user_id}_{int(time.time())}"
     
     # --- Provider-specific logic ---
     if provider == "jira":
         scopes = ["read:jira-work", "read:jira-user", "offline_access"]
         scope = quote(" ".join(scopes))
         
-        # ⚠️ CHANGED: redirect_uri is now dynamic
         redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/jira")
         
         auth_url = (
@@ -60,7 +65,7 @@ async def connect_to_service(provider: str):
             f"response_type=code&"
             f"prompt=consent"
         )
-        return RedirectResponse(url=auth_url)
+        return JSONResponse({"url": auth_url})
 
     if provider == "google":
         # Note: 'offline_access' is what gets you a refresh_token
@@ -82,35 +87,37 @@ async def connect_to_service(provider: str):
             f"prompt=consent&"
             f"state={state}"
         )
-        return RedirectResponse(url=auth_url)
+        return JSONResponse({"url": auth_url})
 
     return {"error": "Unknown provider"}
 
 # -------------------------------------------------
 # 2. GENERIC CALLBACK ENDPOINT
 # -------------------------------------------------
-@callback_router.get("/auth/callback/{provider}") # ⚠️ CHANGED: Was "/auth/callback"
+@callback_router.get("/auth/callback/{provider}") 
 async def auth_callback(
-    provider: str,  # ⚠️ NEW: We get the provider from the URL
+    provider: str,  
     code: str, 
     state: str, 
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
 ):
     """
     Handles callback from any provider - SAVES TOKENS + TRIGGERS ETL
+    Then redirects user back to frontend homepage
     """
-    user_id = "12345" # This would come from your user's session
-    
+    try:
+        user_id = state.split('_')[1]
+    except IndexError:
+        logging.error(f"Invalid state format received: {state}")
+        # redirect to homepage if invalid
+        return RedirectResponse(url="http://localhost:3000")
+
     async with httpx.AsyncClient() as client:
         try:
-            # --- Provider-specific logic ---
             if provider == "jira":
-                # 1. Exchange code for tokens (Jira-specific)
+                # Exchange code for tokens
                 token_url = "https://auth.atlassian.com/oauth/token"
-                
-                # ⚠️ CHANGED: The redirect_uri must match the one from step 1
                 redirect_uri = f"{APP_BASE_URL}/auth/callback/jira"
-                
                 payload = {
                     "grant_type": "authorization_code",
                     "client_id": JIRA_CLIENT_ID,
@@ -118,51 +125,48 @@ async def auth_callback(
                     "code": code,
                     "redirect_uri": redirect_uri,
                 }
-                
+
                 response = await client.post(token_url, json=payload)
                 response.raise_for_status()
                 token_data = response.json()
-                
-                # 2. Get tokens and cloud_id (Jira-specific)
+
                 access_token = token_data.get("access_token")
                 refresh_token = token_data.get("refresh_token")
                 expires_in = token_data.get("expires_in", 3600)
 
+                # Jira-specific: get cloud_id
                 resources_url = "https://api.atlassian.com/oauth/token/accessible-resources"
                 headers = {"Authorization": f"Bearer {access_token}"}
                 res_response = await client.get(resources_url, headers=headers)
                 res_response.raise_for_status()
-                
                 resources = res_response.json()
                 cloud_id = resources[0].get("id") if resources else None
-            
-            
-                # 3. SAVE TOKENS (This is already generic!)
-                insert_response = supabase.table("user_connectors") \
-                    .insert({
-                        "user_id": user_id,
-                        "service": "jira",  # ⚠️ We hard-code "jira" here
-                        "access_token": access_token,
-                        "refresh_token": refresh_token,
-                        "cloud_id": cloud_id,
-                        "expires_at": int(time.time()) + expires_in
-                    }) \
-                    .execute()
-                
-                # ... (rest of your insert check logic is fine) ...
-                
-                # 4. ✅ TRIGGER THE *MASTER* ETL
-                # ⚠️ CHANGED: Call the master function with the provider
-                background_tasks.add_task(run_master_etl, user_id, "jira")
-                
-                logging.info("🎉 Jira connected. ETL started!")
-                return {"status": "Jira connected successfully! ETL started."}
 
-            if provider == "google":
-                # 1. Exchange code for tokens (Google-specific)
+                # Save tokens to Supabase
+                insert_response = supabase.table("user_connectors").insert({
+                    "user_id": user_id,
+                    "service": "jira",
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "cloud_id": cloud_id,
+                    "expires_at": int(time.time()) + expires_in
+                }).execute()
+
+                data = getattr(insert_response, "data", None)
+                if not data or len(data) == 0:
+                    logging.error("Failed to save Jira tokens")
+                else:
+                    logging.info(f"Jira tokens saved for user {user_id}")
+
+                # Trigger ETL regardless
+                background_tasks.add_task(run_master_etl, user_id, "jira")
+                logging.info("Jira connected. ETL started!")
+
+                return RedirectResponse(url="http://localhost:3000")
+
+            elif provider == "google":
                 token_url = "https://oauth2.googleapis.com/token"
                 redirect_uri = f"{APP_BASE_URL}/auth/callback/google"
-                
                 payload = {
                     "grant_type": "authorization_code",
                     "client_id": GOOGLE_CLIENT_ID,
@@ -170,59 +174,63 @@ async def auth_callback(
                     "code": code,
                     "redirect_uri": redirect_uri,
                 }
-                
+
                 response = await client.post(token_url, data=payload)
                 response.raise_for_status()
                 token_data = response.json()
-                
+
                 access_token = token_data.get("access_token")
                 refresh_token = token_data.get("refresh_token")
                 expires_in = token_data.get("expires_in", 3600)
 
-                insert_response = supabase.table("user_connectors") \
-                    .insert({
-                        "user_id": user_id,
-                        "service": "google",
-                        "access_token": access_token,
-                        "refresh_token": refresh_token,
-                        "cloud_id": None,
-                        "expires_at": int(time.time()) + expires_in
-                    }) \
-                    .execute()
-                
-                # ⬇️ This is the "insert check logic" ⬇️
+                insert_response = supabase.table("user_connectors").insert({
+                    "user_id": user_id,
+                    "service": "google",
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "cloud_id": None,
+                    "expires_at": int(time.time()) + expires_in
+                }).execute()
+
                 data = getattr(insert_response, "data", None)
-                if data and len(data) > 0:
-                    logging.info(f"✅ Google Tokens SAVED! Record ID: {data[0]['id']}")
+                if not data or len(data) == 0:
+                    logging.error("Failed to save Google tokens")
                 else:
-                    logging.error("❌ Failed to save Google tokens")
-                    return {"error": "Failed to save connection"}
-            
+                    logging.info(f" Google tokens saved for user {user_id}")
+
                 background_tasks.add_task(run_master_etl, user_id, "google")
-                
-                logging.info("🎉 Google connected. ETL started!")
-                return {"status": "Google connected successfully! ETL started."}
-            # ⬆️ --- END OF NEW BLOCK --- ⬆️
-            
+                logging.info("Google connected. ETL started!")
+
+                return RedirectResponse(url="http://localhost:3000")
+
             else:
-                return {"error": "Callback error: Unknown provider"}
-            
+                logging.error(f"Unknown provider: {provider}")
+                return RedirectResponse(url="http://localhost:3000")
+
         except Exception as e:
             logging.error(f"Error during {provider} callback: {e}", exc_info=True)
-            return {"error": "Authentication failed"}
+            return RedirectResponse(url="http://localhost:3000")
 
 # -------------------------------------------------
 # 3. NEW MANUAL SYNC ENDPOINT
 # -------------------------------------------------
 @connect_router.post("/sync/{provider}")
-async def sync_service(provider: str, background_tasks: BackgroundTasks):
+async def sync_service(
+    provider: str, 
+    background_tasks: BackgroundTasks,
+    ids: dict = Depends(get_backend_user_id)
+):
     """
     Manually triggers an ETL sync for a given provider.
     """
-    user_id = "12345" # This would come from your user's session
+    user_id = ids.get('user_id')
     
-    # Just queue the master ETL task
+    if not user_id:
+        logging.error("Sync attempted without valid user ID.")
+        return {"error": "Authentication failed: User ID not found."}
+    
+    logging.info(f"Sync initiated by user_id: {user_id} for provider: {provider}")
+    
     background_tasks.add_task(run_master_etl, user_id, provider)
     
-    return {"status": f"Sync scheduled for {provider}."}
-
+    return {"status": f"Sync scheduled for {provider} for user {user_id}."}
