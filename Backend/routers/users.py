@@ -106,6 +106,7 @@ def create_user(user: UserCreate):
                 detail=f"Failed to create user: {str(e)}"
             )
 
+
 @router.get("/by-supabase/{supabase_id}")
 def get_user_by_supabase_id(supabase_id: str):
     """
