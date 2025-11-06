@@ -3,7 +3,7 @@
  * Frontend API client for communicating with the FastAPI backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
@@ -684,7 +684,11 @@ export const api = {
       execution_mode: executionMode,
     };
 
+<<<<<<< HEAD
     const response = await fetch(`${API_BASE_URL}/api/ai/run`, {
+=======
+    const response = await fetch(`${API_BASE_URL}/chat/run`, {
+>>>>>>> 70a16a1 (context)
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
