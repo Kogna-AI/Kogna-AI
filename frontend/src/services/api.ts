@@ -3,15 +3,9 @@
  * Frontend API client for communicating with the FastAPI backend
  */
 
-<<<<<<< HEAD
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-=======
-
 // 1. API_BASE_URL is clean. It does NOT include '/api'
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
->>>>>>> 7665982 (Update api.ts)
 import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
@@ -94,12 +88,9 @@ export const api = {
   // ==================== ORGANIZATIONS ====================
 
   getOrganization: async (orgId: number) => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/organizations/${orgId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
+      headers: getAuthHeaders(),
+    });
     return handleResponse(response);
   },
 
@@ -135,14 +126,11 @@ export const api = {
       project_number?: number;
     }
   ) => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/organizations/${orgId}`,
-      {
-        method: "PUT",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
     return handleResponse(response);
   },
 
@@ -648,41 +636,53 @@ export const api = {
   // ===== CHATBOT & AI (STATEFUL) - UPDATED =====
   // ================================================
 
+  /**
+   * Starts a new chat session for the authenticated user.
+   * This is the first call to make when a user starts a new chat.
+   * @returns {Promise<{id: string, user_id: string, title: string, created_at: string}>} The new session object.
+   */
   startChatSession: async (): Promise<{
     id: string;
     user_id: string;
     title: string;
     created_at: string;
   }> => {
-    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
+    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
       method: "POST",
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
+  /**
+   * Gets a list of all past chat sessions for the authenticated user.
+   * @returns {Promise<Array<{id: string, user_id: string, title: string, created_at: string}>>} A list of session objects.
+   */
   getUserSessions: async (): Promise<
     Array<{ id: string; user_id: string; title: string; created_at: string }>
   > => {
-    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
+    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
       method: "GET",
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
+  /**
+   * Gets all messages for a specific chat session.
+   * Call this when a user clicks on an old conversation to load its history.
+   * @param sessionId - The UUID of the chat session.
+   * @returns {Promise<Array<{id: string, role: string, content: string, created_at: string}>>} A list of message objects.
+   */
   getSessionHistory: async (
     sessionId: string
   ): Promise<
     Array<{ id: string; role: string; content: string; created_at: string }>
   > => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/chat/history/${sessionId}`,
-      {
-        method: "GET",
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
     return handleResponse(response);
   },
 
@@ -701,7 +701,7 @@ export const api = {
       execution_mode: executionMode,
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/chat/run`, {
+    const response = await fetch(`${API_BASE_URL}/chat/run`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
