@@ -38,7 +38,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   } catch (e) {
     // Handle empty response for methods like DELETE
     if (response.status === 204 || response.status === 200) {
-        return {} as T;
+      return {} as T;
     }
     throw new Error("Failed to parse JSON response.");
   }
@@ -629,7 +629,12 @@ export const api = {
    * This is the first call to make when a user starts a new chat.
    * @returns {Promise<{id: string, user_id: string, title: string, created_at: string}>} The new session object.
    */
-  startChatSession: async (): Promise<{id: string, user_id: string, title: string, created_at: string}> => {
+  startChatSession: async (): Promise<{
+    id: string;
+    user_id: string;
+    title: string;
+    created_at: string;
+  }> => {
     const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
       method: "POST",
       headers: getAuthHeaders(),
@@ -641,7 +646,9 @@ export const api = {
    * Gets a list of all past chat sessions for the authenticated user.
    * @returns {Promise<Array<{id: string, user_id: string, title: string, created_at: string}>>} A list of session objects.
    */
-  getUserSessions: async (): Promise<Array<{id: string, user_id: string, title: string, created_at: string}>> => {
+  getUserSessions: async (): Promise<
+    Array<{ id: string; user_id: string; title: string; created_at: string }>
+  > => {
     const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
       method: "GET",
       headers: getAuthHeaders(),
@@ -655,7 +662,11 @@ export const api = {
    * @param sessionId - The UUID of the chat session.
    * @returns {Promise<Array<{id: string, role: string, content: string, created_at: string}>>} A list of message objects.
    */
-  getSessionHistory: async (sessionId: string): Promise<Array<{id: string, role: string, content: string, created_at: string}>> => {
+  getSessionHistory: async (
+    sessionId: string
+  ): Promise<
+    Array<{ id: string; role: string; content: string; created_at: string }>
+  > => {
     const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
       method: "GET",
       headers: getAuthHeaders(),
@@ -676,24 +687,23 @@ export const api = {
     sessionId: string,
     userQuery: string,
     executionMode: string = "auto"
-  ): Promise<{final_report: string, session_id: string, user_query: string}> => {
-    
+  ): Promise<{
+    final_report: string;
+    session_id: string;
+    user_query: string;
+  }> => {
     const payload = {
       session_id: sessionId,
       user_query: userQuery,
       execution_mode: executionMode,
     };
 
-<<<<<<< HEAD
     const response = await fetch(`${API_BASE_URL}/api/ai/run`, {
-=======
-    const response = await fetch(`${API_BASE_URL}/chat/run`, {
->>>>>>> 70a16a1 (context)
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
-    
+
     // This endpoint returns data at the root, so we handle it directly
     if (!response.ok) {
       const errorData = await response
@@ -705,7 +715,6 @@ export const api = {
     }
     return response.json();
   },
-
 
   // ==================== HEALTH CHECK ====================
 
