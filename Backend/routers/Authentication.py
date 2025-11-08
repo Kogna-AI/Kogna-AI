@@ -178,8 +178,9 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, Client
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
+print(dotenv_values(".env"))
 load_dotenv()
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
@@ -187,8 +188,10 @@ router = APIRouter(prefix="/api/auth", tags=["Auth"])
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError("❌ Missing SUPABASE_URL or SUPABASE_KEY in environment variables")
+if not SUPABASE_URL:
+    raise RuntimeError("❌ Missing SUPABASE_URL in environment variables")
+if not SUPABASE_KEY:
+    raise RuntimeError("❌ Missing SUPABASE_KEY in environment variables")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 security = HTTPBearer()
