@@ -23,7 +23,23 @@ class UserCreate(BaseModel):
     second_name: Optional[str] = None
     role: Optional[str] = None
     email: EmailStr
+    
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    second_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+    organization_id: Optional[int] = None
 
+class UserResponse(BaseModel):
+    id: int
+    supabase_id: str
+    organization_id: int
+    first_name: str
+    second_name: Optional[str] = None
+    role: Optional[str] = None
+    email: EmailStr
+    created_at: datetime
 # ====== Teams ======
 class TeamCreate(BaseModel):
     organization_id: int
