@@ -15,6 +15,7 @@ import type { BackendUser } from "../app/components/auth/UserContext";
 const getAuthHeaders = (): HeadersInit => {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  console.log(token);
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
