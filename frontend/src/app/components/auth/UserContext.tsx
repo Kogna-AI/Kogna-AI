@@ -18,7 +18,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // --- Backend user model ---
 export interface BackendUser {
-  id: number;
+  id: string;
   first_name?: string;
   second_name?: string;
   name?: string;
@@ -30,6 +30,7 @@ export interface BackendUser {
 
 // --- Combined user type for context ---
 export type MergedUser = SupabaseUser & {
+  id: string;
   name?: string;
   role?: string;
   organization_id?: number;
@@ -59,6 +60,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
         data: { session },
       } = await supabase.auth.getSession();
 
+      if (session?.access_token) {
+        // Save the JWT for the backend API client (api.ts) to use
+        localStorage.setItem("token", session.access_token); 
+      }
+
       if (session?.user) {
         const supabaseUser = session.user;
         setIsAuthenticated(true);
@@ -69,6 +75,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           console.log(backendUser);
           const mergedUser: MergedUser = {
             ...supabaseUser,
+            id: backendUser.id,
             name: [backendUser.first_name, backendUser.second_name]
               .filter(Boolean)
               .join(" "),
@@ -91,6 +98,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
+          if (session.access_token) {
+            // Save the JWT for the backend API client (api.ts) to use
+            localStorage.setItem("token", session.access_token); 
+          }
           initSession();
           router.push("/");
         } else if (event === "SIGNED_OUT") {
@@ -106,6 +117,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // --- Logout function ---
   const logout = async () => {
+    localStorage.removeItem("token");
     await supabase.auth.signOut();
   };
 

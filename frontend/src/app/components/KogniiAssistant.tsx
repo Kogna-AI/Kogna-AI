@@ -253,6 +253,7 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(strategySessionMode);
   const [sessionStep, setSessionStep] = useState(0);
   const [currentContext, setCurrentContext] = useState(activeView);
@@ -269,23 +270,53 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
 
   // Initialize messages based on context
   useEffect(() => {
-    if (strategySessionMode) {
-      setMessages([{
-        id: 'session-1',
-        type: 'assistant',
-        content: 'Welcome to your AI Strategy Session! I\'ll guide you through a structured strategic planning process. We\'ll cover strategic analysis, goal setting, and action planning. Ready to begin?',
-        timestamp: new Date(),
-        suggestions: [
-          'Start with SWOT Analysis',
-          'Begin Strategic Goal Setting',
-          'Review Current Performance',
-          'Analyze Market Opportunities'
-        ]
-      }]);
-    } else if (!conversationMode) {
-      setMessages([getContextualInitialMessage(activeView)]);
-    }
-  }, [strategySessionMode, activeView, conversationMode]);
+    // This function runs when the component opens.
+    const initializeChat = async () => {
+      setIsTyping(true);
+      try {
+        // 1. Call the new API endpoint to start a session
+        const session = await api.startChatSession();
+        setSessionId(session.id); // <-- Store the new session ID
+        console.log("New Chat Session Started:", session.id);
+
+        // 2. Set the initial message (this is unchanged)
+        if (strategySessionMode) {
+          setMessages([{
+            id: 'session-1',
+            type: 'assistant',
+            content: 'Welcome to your AI Strategy Session! I\'ll guide you through a structured strategic planning process. We\'ll cover strategic analysis, goal setting, and action planning. Ready to begin?',
+            timestamp: new Date(),
+            suggestions: [
+              'Start with SWOT Analysis',
+              'Begin Strategic Goal Setting',
+              'Review Current Performance',
+              'Analyze Market Opportunities'
+            ]
+          }]);
+        } else if (!conversationMode) {
+          setMessages([getContextualInitialMessage(activeView)]);
+        }
+
+      } catch (error) {
+        console.error("Failed to start chat session:", error);
+        setMessages([{
+          id: 'error-1',
+          type: 'assistant',
+          content: `Sorry, I couldn't connect to the AI. Please try again.\n\n**Error:** ${error.message}`,
+          timestamp: new Date()
+        }]);
+      } finally {
+        setIsTyping(false);
+      }
+    };
+
+    initializeChat();
+    
+    // We only want this to run ONCE when the component mounts.
+    // The eslint-disable is to prevent warnings about missing dependencies,
+    // as this effect is intentionally designed to run only on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -322,6 +353,18 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
+    // --- This is the new check ---
+    if (!sessionId) {
+      console.error("No session ID. Cannot send message.");
+      setMessages(prev => [...prev, {
+        id: 'error-no-session',
+        type: 'assistant',
+        content: 'There was an error connecting to the chat session. Please close and reopen the assistant.',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+
     // 1. Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -330,26 +373,24 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
       timestamp: new Date()
     };
 
-    // Create a snapshot of the new messages list
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
 
     try {
-      // 2. Format the history *before* the new message was added
-      const history = formatChatHistory(messages); 
+      // 2. No longer need to format history! The backend does it.
 
-      // 3. Call the REAL API
-      const apiResponse = await api.runAiWorkflow(
+      // 3. Call the NEW, CORRECT API endpoint
+      const apiResponse = await api.runAgentInSession(
+        sessionId,
         userMessage.content,
-        history,
-        'autonomous' // You can make this dynamic later
+        'auto' // 'auto' is the new "autonomous"
       );
 
       let aiContent: string;
       
-      if (apiResponse.success) {
+      // The response format is simpler now
+      if (apiResponse.final_report) {
         aiContent = apiResponse.final_report;
       } else {
         // This handles errors reported by the AI (e.g., error_handler_node)
@@ -873,8 +914,18 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
           </Button>
           
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            AI Active
+            {/* We check for sessionId to show the real status */}
+            {sessionId ? (
+              <>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                AI Active
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                AI Offline
+              </>
+            )}
           </div>
         </div>
       </div>

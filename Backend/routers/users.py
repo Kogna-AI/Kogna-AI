@@ -14,7 +14,7 @@ from core.permissions import (
 )
 import psycopg2
 from psycopg2.extras import RealDictCursor
-
+from routers.Authentication import get_current_user
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 

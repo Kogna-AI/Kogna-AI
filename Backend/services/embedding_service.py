@@ -146,9 +146,9 @@ async def embed_and_store_file(user_id: str, file_path_in_bucket: str):
         print(f"Inserting {len(documents_to_insert)} new chunks...")
         insert_response = supabase.table("document_chunks").insert(documents_to_insert).execute()
 
-        print(f"✅ Successfully embedded and stored {len(documents_to_insert)} chunks for {file_path_in_bucket}.")
+        print(f" Successfully embedded and stored {len(documents_to_insert)} chunks for {file_path_in_bucket}.")
 
     except Exception as e:
-        print(f"❌ Error during embedding for {file_path_in_bucket}: {e}")
+        print(f" Error during embedding for {file_path_in_bucket}: {e}")
         import traceback
         traceback.print_exc()

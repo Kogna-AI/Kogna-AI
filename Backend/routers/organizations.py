@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status,Depends
 from core.database import get_db
 from core.models import OrganizationCreate
+from routers.Authentication import get_current_user
 
 router = APIRouter(prefix="/api/organizations", tags=["Organizations"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_organization(org: OrganizationCreate):
+def create_organization(org: OrganizationCreate, user=Depends(get_current_user)):  
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -18,7 +19,7 @@ def create_organization(org: OrganizationCreate):
         return {"success": True, "data": result}
 
 @router.get("/{org_id}")
-def get_organization(org_id: int):
+def get_organization(org_id: int, user=Depends(get_current_user)): 
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM organizations WHERE id = %s", (org_id,))
