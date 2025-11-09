@@ -55,7 +55,7 @@ export function LoginScreen() {
         data: { session },
       } = await supabase.auth.getSession();
       const token = session?.access_token;
-
+      localStorage.setItem("token", data.session?.access_token);
       // Optional: call FastAPI backend to verify the token
       const response = await fetch(`${BASE_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
