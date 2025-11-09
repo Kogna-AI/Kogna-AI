@@ -92,7 +92,7 @@ class VectorSearchTool(BaseTool):
             return context_string
 
         except Exception as e:
-            print(f"❌ Error in VectorSearchTool _run: {e}")
+            print(f"Error in VectorSearchTool _run: {e}")
             import traceback
             traceback.print_exc()
             return f"Error during vector search: {e}"
