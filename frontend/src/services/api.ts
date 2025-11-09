@@ -706,11 +706,16 @@ export const api = {
     sessionId: string,
     userQuery: string,
     executionMode: string = "auto"
+<<<<<<< HEAD
   ): Promise<{
     final_report: string;
     session_id: string;
     user_query: string;
   }> => {
+=======
+  ): Promise<{final_report: string, session_id: string, user_query: string}> => {
+
+>>>>>>> f87cac9 (add user_id for msft excel)
     const payload = {
       session_id: sessionId,
       user_query: userQuery,
@@ -753,6 +758,7 @@ export const api = {
     return handleResponse<BackendUser>(response);
   },
 
+<<<<<<< HEAD
   // ==================== CONNECTORS (GENERAL) ====================
 
   getConnectUrl: async (provider: string) => {
@@ -787,6 +793,56 @@ export const api = {
     return handleResponse(response);
   },
 
+=======
+  // ==================== CONNECTORS ====================
+
+  /**
+   * Initiate OAuth flow for a connector
+   * Redirects user to the provider's authorization page
+   */
+  connectProvider: (provider: string) => {
+    // Connector routes are at /api/connect
+    window.location.href = `${API_BASE_URL}/api/connect/${provider}`;
+  },
+
+  /**
+   * Manually trigger sync for a connected provider
+   */
+  syncProvider: async (provider: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/connect/sync/${provider}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Get connection status for a provider
+   */
+  getConnectorStatus: async (provider: string) => {
+    const response = await fetch(
+      `${API_BASE_URL}/connectors/${provider}/status`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
+  /**
+   * List all connected providers for current user
+   */
+  listConnectedProviders: async () => {
+    const response = await fetch(`${API_BASE_URL}/connectors/connected`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * List all connectors for a user
+   */
+>>>>>>> f87cac9 (add user_id for msft excel)
   listConnections: async (userId: string | number) => {
     const response = await fetch(
       `${API_BASE_URL}/api/users/${userId}/connectors`,
@@ -805,6 +861,12 @@ export const api = {
     >(response);
   },
 
+<<<<<<< HEAD
+=======
+  /**
+   * Disconnect a specific connector
+   */
+>>>>>>> f87cac9 (add user_id for msft excel)
   disconnect: async (provider: string) => {
     const response = await fetch(
       `${API_BASE_URL}/api/connect/disconnect/${provider}`,

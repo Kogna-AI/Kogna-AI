@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import quote
 import httpx
 import logging
-import time 
+import time
 from services.etl_pipelines import run_master_etl, run_test
 from routers.Authentication import get_backend_user_id
 
@@ -19,9 +19,12 @@ JIRA_CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
+MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
+
 # IMPROVEMENT: Load Base URL from ENV with a fallback for development
 # This makes deployment easier.
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000") 
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000")
 
 # --- Routers ---
 connect_router = APIRouter(prefix="/connect", tags=["Connectors"])
@@ -54,7 +57,7 @@ async def connect_to_service(
         scope = quote(" ".join(scopes))
         
         redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/jira")
-        
+
         auth_url = (
             f"https://auth.atlassian.com/authorize?"
             f"audience=api.atlassian.com&"
@@ -70,13 +73,13 @@ async def connect_to_service(
     if provider == "google":
         # Note: 'offline_access' is what gets you a refresh_token
         scopes = [
-            "https://www.googleapis.com/auth/drive.readonly", 
+            "https://www.googleapis.com/auth/drive.readonly",
             "https://www.googleapis.com/auth/userinfo.email",
             "openid"
         ]
         scope = quote(" ".join(scopes))
         redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/google")
-        
+
         auth_url = (
             f"https://accounts.google.com/o/oauth2/v2/auth?"
             f"client_id={GOOGLE_CLIENT_ID}&"
@@ -209,14 +212,14 @@ async def auth_callback(
 
         except Exception as e:
             logging.error(f"Error during {provider} callback: {e}", exc_info=True)
-            return RedirectResponse(url="http://localhost:3000")
+            return RedirectResponse(url="http://localhost:3000?error=oauth_failed")
 
 # -------------------------------------------------
 # 3. NEW MANUAL SYNC ENDPOINT
 # -------------------------------------------------
 @connect_router.post("/sync/{provider}")
 async def sync_service(
-    provider: str, 
+    provider: str,
     background_tasks: BackgroundTasks,
     ids: dict = Depends(get_backend_user_id)
 ):
@@ -224,13 +227,13 @@ async def sync_service(
     Manually triggers an ETL sync for a given provider.
     """
     user_id = ids.get('user_id')
-    
+
     if not user_id:
         logging.error("Sync attempted without valid user ID.")
         return {"error": "Authentication failed: User ID not found."}
-    
+
     logging.info(f"Sync initiated by user_id: {user_id} for provider: {provider}")
-    
+
     background_tasks.add_task(run_master_etl, user_id, provider)
-    
+
     return {"status": f"Sync scheduled for {provider} for user {user_id}."}

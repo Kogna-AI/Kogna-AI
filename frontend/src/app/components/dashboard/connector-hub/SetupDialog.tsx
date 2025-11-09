@@ -26,7 +26,10 @@ import { Input } from '../../../ui/input';
 import { Label } from '../../../ui/label';
 import { RadioGroup, RadioGroupItem } from '../../../ui/radio-group';
 import { Switch } from '../../../ui/switch';
+<<<<<<< HEAD
 >>>>>>> ce2eeb3 (connect-msft-excel)
+=======
+>>>>>>> f87cac9 (add user_id for msft excel)
 import {
   Clock,
   Zap,
@@ -49,7 +52,10 @@ import api from "@/services/api";
 import { Connector } from './types';
 import { syncModes } from './constants';
 import api from '../../../../services/api';
+<<<<<<< HEAD
 >>>>>>> ce2eeb3 (connect-msft-excel)
+=======
+>>>>>>> f87cac9 (add user_id for msft excel)
 
 interface SetupDialogProps {
   connector: Connector | null;
@@ -60,9 +66,13 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
   const [selectedSyncMode, setSelectedSyncMode] = useState("one-way");
   const [enableRealTimeSync, setEnableRealTimeSync] = useState(true);
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
   const [isConnecting, setIsConnecting] = useState(false);
 >>>>>>> ce2eeb3 (connect-msft-excel)
+=======
+  const [isConnecting, setIsConnecting] = useState(false);
+>>>>>>> f87cac9 (add user_id for msft excel)
 
   if (!connector) return null;
 
@@ -177,6 +187,7 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
             ) : (
               <div className="space-y-4">
 <<<<<<< HEAD
+<<<<<<< HEAD
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
                     1
@@ -210,6 +221,8 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                         placeholder="Enter your Jira username or email"
                       />
 =======
+=======
+>>>>>>> f87cac9 (add user_id for msft excel)
                 {connector.id === 'excel' ? (
                   // Excel OAuth-specific setup instructions
                   <div className="space-y-4">
@@ -239,7 +252,10 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                         <strong>Note:</strong> You'll need a Microsoft 365 account with Excel files stored in OneDrive or SharePoint.
                         When you click Connect, you'll be redirected to Microsoft to authorize access.
                       </p>
+<<<<<<< HEAD
 >>>>>>> ce2eeb3 (connect-msft-excel)
+=======
+>>>>>>> f87cac9 (add user_id for msft excel)
                     </div>
                   </div>
                 ) : (
@@ -283,6 +299,7 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
 
                 <div className="flex gap-2 mt-6">
 <<<<<<< HEAD
+<<<<<<< HEAD
                   {/* Buttons below*/}
                   <Button
                     className="flex-1"
@@ -297,6 +314,8 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                         alert(`Failed to connect ${connector.name}`);
                       }
 =======
+=======
+>>>>>>> f87cac9 (add user_id for msft excel)
                   <Button
                     className="flex-1"
                     onClick={handleConnect}
@@ -314,26 +333,14 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                         'google': 'https://console.cloud.google.com/apis/credentials'
                       };
                       window.open(urls[connector.id] || '#', '_blank');
+<<<<<<< HEAD
 >>>>>>> ce2eeb3 (connect-msft-excel)
+=======
+>>>>>>> f87cac9 (add user_id for msft excel)
                     }}
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Connect {connector.name}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        await api.manualSync(connector.id);
-                        alert(`Manual sync started for ${connector.name}`);
-                      } catch (err) {
-                        console.error(`Sync failed for ${connector.id}:`, err);
-                        alert(`Sync failed for ${connector.name}`);
-                      }
-                    }}
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Manual Sync
+                    View Docs
                   </Button>
                 </div>
               </div>
