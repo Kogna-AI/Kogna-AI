@@ -8,7 +8,6 @@ import { Input } from '../../../ui/input';
 import { Label } from '../../../ui/label';
 import { RadioGroup, RadioGroupItem } from '../../../ui/radio-group';
 import { Switch } from '../../../ui/switch';
->>>>>>>>> Temporary merge branch 2
 import {
   Clock,
   Zap,
@@ -24,7 +23,6 @@ import {
 import { Connector } from './types';
 import { syncModes } from './constants';
 import api from '../../../../services/api';
->>>>>>>>> Temporary merge branch 2
 
 interface SetupDialogProps {
   connector: Connector | null;
@@ -34,10 +32,7 @@ interface SetupDialogProps {
 export function SetupDialog({ connector, onClose }: SetupDialogProps) {
   const [selectedSyncMode, setSelectedSyncMode] = useState("one-way");
   const [enableRealTimeSync, setEnableRealTimeSync] = useState(true);
-<<<<<<<<< Temporary merge branch 1
-=========
   const [isConnecting, setIsConnecting] = useState(false);
->>>>>>>>> Temporary merge branch 2
 
   if (!connector) return null;
 
@@ -151,40 +146,6 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
               </div>
             ) : (
               <div className="space-y-4">
-<<<<<<<<< Temporary merge branch 1
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-                    1
-                  </div>
-                  <span className="font-medium">Authentication</span>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="api-endpoint">
-                      API Endpoint/Server URL
-                    </Label>
-                    <Input
-                      id="api-endpoint"
-                      placeholder={`Enter your ${connector.name} instance URL`}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="api-key">API Key/Token</Label>
-                    <Input
-                      id="api-key"
-                      type="password"
-                      placeholder="Enter your API key or access token"
-                    />
-                  </div>
-                  {connector.id === "jira" && (
-                    <div>
-                      <Label htmlFor="username">Username/Email</Label>
-                      <Input
-                        id="username"
-                        placeholder="Enter your Jira username or email"
-                      />
-=========
                 {connector.id === 'excel' ? (
                   // Excel OAuth-specific setup instructions
                   <div className="space-y-4">
@@ -214,7 +175,6 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                         <strong>Note:</strong> You'll need a Microsoft 365 account with Excel files stored in OneDrive or SharePoint.
                         When you click Connect, you'll be redirected to Microsoft to authorize access.
                       </p>
->>>>>>>>> Temporary merge branch 2
                     </div>
                   </div>
                 ) : (
@@ -257,21 +217,6 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                 )}
 
                 <div className="flex gap-2 mt-6">
-<<<<<<<<< Temporary merge branch 1
-                  {/* Buttons below*/}
-                  <Button
-                    className="flex-1"
-                    onClick={async () => {
-                      try {
-                        await api.getConnectUrl(connector.id);
-                      } catch (err) {
-                        console.error(
-                          `Failed to connect ${connector.id}:`,
-                          err
-                        );
-                        alert(`Failed to connect ${connector.name}`);
-                      }
-=========
                   <Button
                     className="flex-1"
                     onClick={handleConnect}
@@ -289,26 +234,10 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                         'google': 'https://console.cloud.google.com/apis/credentials'
                       };
                       window.open(urls[connector.id] || '#', '_blank');
->>>>>>>>> Temporary merge branch 2
                     }}
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Connect {connector.name}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        await api.manualSync(connector.id);
-                        alert(`Manual sync started for ${connector.name}`);
-                      } catch (err) {
-                        console.error(`Sync failed for ${connector.id}:`, err);
-                        alert(`Sync failed for ${connector.name}`);
-                      }
-                    }}
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Manual Sync
+                    View Docs
                   </Button>
                 </div>
               </div>
