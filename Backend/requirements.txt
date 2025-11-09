@@ -23,10 +23,8 @@ langgraph==0.0.20
 # LLM Providers & Integrations
 openai==1.6.1
 anthropic==0.7.8
-langchain_anthropic
 google-generativeai==0.3.2
-langchain-google-genai
-langchain_litellm
+langchain-google-genai==0.0.6
 
 # Search Tools
 google-search-results==2.4.2
