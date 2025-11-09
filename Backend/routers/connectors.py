@@ -20,6 +20,14 @@ JIRA_CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
+<<<<<<<<< Temporary merge branch 1
+# IMPROVEMENT: Load Base URL from ENV with a fallback for development
+# This makes deployment easier.
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000") 
+=========
+MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
+
 # NEW: Base URL for your app
 APP_BASE_URL = "http://127.0.0.1:8000" 
 
@@ -115,7 +123,8 @@ async def connect_to_service(provider: str):
 # -------------------------------------------------
 @callback_router.get("/auth/callback/{provider}") #CHANGED: Was "/auth/callback"
 async def auth_callback(
-    provider: str,  #NEW: We get the provider from the URL
+    provider: str,  # NEW: We get the provider from the URL
+>>>>>>>>> Temporary merge branch 2
     code: str, 
     state: str, 
     background_tasks: BackgroundTasks,
@@ -136,7 +145,9 @@ async def auth_callback(
             if provider == "jira":
                 # Exchange code for tokens
                 token_url = "https://auth.atlassian.com/oauth/token"
-                
+<<<<<<<<< Temporary merge branch 1
+=========
+
                 #CHANGED: The redirect_uri must match the one from step 1
                 redirect_uri = f"{APP_BASE_URL}/auth/callback/jira"
                 payload = {
@@ -184,6 +195,29 @@ async def auth_callback(
                 
                 logging.info("Jira connected. ETL started!")
                 return {"status": "Jira connected successfully! ETL started."}
+>>>>>>>>> Temporary merge branch 2
+
+                # Save tokens to Supabase
+                insert_response = supabase.table("user_connectors").insert({
+                    "user_id": user_id,
+                    "service": "jira",
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "cloud_id": cloud_id,
+                    "expires_at": int(time.time()) + expires_in
+                }).execute()
+
+                data = getattr(insert_response, "data", None)
+                if not data or len(data) == 0:
+                    logging.error("Failed to save Jira tokens")
+                else:
+                    logging.info(f"Jira tokens saved for user {user_id}")
+
+                # Trigger ETL regardless
+                background_tasks.add_task(run_master_etl, user_id, "jira")
+                logging.info("Jira connected. ETL started!")
+
+                return RedirectResponse(url="http://localhost:3000")
 
             elif provider == "google":
                 token_url = "https://oauth2.googleapis.com/token"
@@ -228,7 +262,56 @@ async def auth_callback(
                 logging.info("Google connected. ETL started!")
                 return {"status": "Google connected successfully! ETL started."}
             # --- END OF NEW BLOCK ---
-            
+
+            if provider == "excel":
+                # 1. Exchange code for tokens (Microsoft-specific)
+                token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                redirect_uri = f"{APP_BASE_URL}/auth/callback/excel"
+
+                payload = {
+                    "grant_type": "authorization_code",
+                    "client_id": MICROSOFT_CLIENT_ID,
+                    "client_secret": MICROSOFT_CLIENT_SECRET,
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                    "scope": "Files.Read.All Files.ReadWrite.All User.Read offline_access"
+                }
+
+                response = await client.post(token_url, data=payload)
+                response.raise_for_status()
+                token_data = response.json()
+
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+
+                # 2. Save tokens to database
+                insert_response = supabase.table("user_connectors") \
+                    .insert({
+                        "user_id": user_id,
+                        "service": "excel",
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "cloud_id": None,
+                        "expires_at": int(time.time()) + expires_in
+                    }) \
+                    .execute()
+
+                # Check if insert was successful
+                data = getattr(insert_response, "data", None)
+                if data and len(data) > 0:
+                    logging.info(f"Excel Tokens SAVED! Record ID: {data[0]['id']}")
+                else:
+                    logging.error("Failed to save Excel tokens")
+                    return {"error": "Failed to save connection"}
+
+                # 3. Trigger ETL pipeline
+                background_tasks.add_task(run_master_etl, user_id, "excel")
+
+                logging.info("Excel connected. ETL started!")
+                return {"status": "Excel connected successfully! ETL started."}
+>>>>>>>>> Temporary merge branch 2
+
             else:
                 logging.error(f"Unknown provider: {provider}")
                 return RedirectResponse(url="http://localhost:3000")

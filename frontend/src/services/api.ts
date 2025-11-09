@@ -684,11 +684,7 @@ export const api = {
       execution_mode: executionMode,
     };
 
-<<<<<<< HEAD
     const response = await fetch(`${API_BASE_URL}/api/ai/run`, {
-=======
-    const response = await fetch(`${API_BASE_URL}/chat/run`, {
->>>>>>> 70a16a1 (context)
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -723,6 +719,123 @@ export const api = {
     );
     return handleResponse<BackendUser>(response);
   },
+<<<<<<<<< Temporary merge branch 1
+  // ==================== CONNECTORS (GENERAL) ====================
+
+  /**
+   * Get authorization URL for any provider (Jira, Google, Slack, etc.)
+   * Example: const { url } = await api.getConnectUrl("jira");
+   */
+  getConnectUrl: async (provider: string) => {
+    const response = await fetch(`${API_BASE_URL}/connect/${provider}`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+    window.location.href = data.url;
+  },
+
+  /**
+   * Exchange OAuth code for access/refresh tokens (after redirect)
+   * Example: await api.exchangeCode("jira", code);
+   */
+  exchangeCode: async (provider: string, code: string) => {
+    const response = await fetch(
+      `${API_BASE_URL}/auth/exchange/${provider}?code=${encodeURIComponent(
+        code
+      )}`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
+  /**
+   * Manually trigger ETL sync for a specific provider
+   * Example: await api.manualSync("jira");
+   */
+  manualSync: async (provider: string) => {
+=========
+
+  // ==================== CONNECTORS ====================
+
+  /**
+   * Initiate OAuth flow for a connector
+   * Redirects user to the provider's authorization page
+   */
+  connectProvider: (provider: string) => {
+    // Connector routes are at /api/connect
+    window.location.href = `${API_BASE_URL}/connect/${provider}`;
+  },
+
+  /**
+   * Manually trigger sync for a connected provider
+   */
+  syncProvider: async (provider: string) => {
+>>>>>>>>> Temporary merge branch 2
+    const response = await fetch(`${API_BASE_URL}/connect/sync/${provider}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+<<<<<<<<< Temporary merge branch 1
+   * (Optional) Get all connectors linked to the current user
+   * Example: const connectors = await api.listConnections(userId);
+   */
+  listConnections: async (userId: string | number) => {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/connectors`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<
+      {
+        id: number;
+        user_id: string;
+        service: string;
+        expires_at: number;
+        created_at: string;
+      }[]
+    >(response);
+  },
+
+  /**
+   * (Optional) Disconnect a specific connector
+   * Example: await api.disconnect("jira");
+   */
+  disconnect: async (provider: string) => {
+    const response = await fetch(
+      `${API_BASE_URL}/connect/disconnect/${provider}`,
+      {
+        method: "DELETE",
+=========
+   * Get connection status for a provider
+   */
+  getConnectorStatus: async (provider: string) => {
+    const response = await fetch(
+      `${API_BASE_URL}/connectors/${provider}/status`,
+      {
+>>>>>>>>> Temporary merge branch 2
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+<<<<<<<<< Temporary merge branch 1
+=========
+
+  /**
+   * List all connected providers for current user
+   */
+  listConnectedProviders: async () => {
+    const response = await fetch(`${API_BASE_URL}/connectors/connected`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+>>>>>>>>> Temporary merge branch 2
 };
 
 export default api;
