@@ -8,7 +8,7 @@ import time
 from services.etl_pipelines import run_master_etl, run_test
 from routers.Authentication import get_backend_user_id
 
-# ⚠️ CHANGED: Import the new 'master' ETL function
+# CHANGED: Import the new 'master' ETL function
 from services.etl_pipelines import run_master_etl 
 from supabase_connect import get_supabase_manager
 supabase = get_supabase_manager().client
@@ -20,7 +20,7 @@ JIRA_CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-# ⚠️ NEW: Base URL for your app
+# NEW: Base URL for your app
 APP_BASE_URL = "http://127.0.0.1:8000" 
 
 # --- Routers ---
@@ -37,7 +37,7 @@ async def run_simple_test():
 # -------------------------------------------------
 # 1. GENERIC CONNECT ENDPOINT
 # -------------------------------------------------
-@connect_router.get("/{provider}")  # ⚠️ CHANGED: Was "/jira"
+@connect_router.get("/{provider}")  #CHANGED: Was "/jira"
 async def connect_to_service(provider: str):
     """Initiates OAuth flow for a given provider."""
     
@@ -48,7 +48,7 @@ async def connect_to_service(provider: str):
         scopes = ["read:jira-work", "read:jira-user", "offline_access"]
         scope = quote(" ".join(scopes))
         
-        # ⚠️ CHANGED: redirect_uri is now dynamic
+        #CHANGED: redirect_uri is now dynamic
         redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/jira")
         
         auth_url = (
@@ -113,9 +113,9 @@ async def connect_to_service(provider: str):
 # -------------------------------------------------
 # 2. GENERIC CALLBACK ENDPOINT
 # -------------------------------------------------
-@callback_router.get("/auth/callback/{provider}") # ⚠️ CHANGED: Was "/auth/callback"
+@callback_router.get("/auth/callback/{provider}") #CHANGED: Was "/auth/callback"
 async def auth_callback(
-    provider: str,  # ⚠️ NEW: We get the provider from the URL
+    provider: str,  #NEW: We get the provider from the URL
     code: str, 
     state: str, 
     background_tasks: BackgroundTasks,
@@ -137,7 +137,7 @@ async def auth_callback(
                 # Exchange code for tokens
                 token_url = "https://auth.atlassian.com/oauth/token"
                 
-                # ⚠️ CHANGED: The redirect_uri must match the one from step 1
+                #CHANGED: The redirect_uri must match the one from step 1
                 redirect_uri = f"{APP_BASE_URL}/auth/callback/jira"
                 payload = {
                     "grant_type": "authorization_code",
@@ -168,7 +168,7 @@ async def auth_callback(
                 insert_response = supabase.table("user_connectors") \
                     .insert({
                         "user_id": user_id,
-                        "service": "jira",  # ⚠️ We hard-code "jira" here
+                        "service": "jira",  #We hard-code "jira" here
                         "access_token": access_token,
                         "refresh_token": refresh_token,
                         "cloud_id": cloud_id,
@@ -178,11 +178,11 @@ async def auth_callback(
                 
                 # ... (rest of your insert check logic is fine) ...
                 
-                # 4. ✅ TRIGGER THE *MASTER* ETL
-                # ⚠️ CHANGED: Call the master function with the provider
+                # 4.TRIGGER THE *MASTER* ETL
+                #CHANGED: Call the master function with the provider
                 background_tasks.add_task(run_master_etl, user_id, "jira")
                 
-                logging.info("🎉 Jira connected. ETL started!")
+                logging.info("Jira connected. ETL started!")
                 return {"status": "Jira connected successfully! ETL started."}
 
             elif provider == "google":
@@ -215,19 +215,19 @@ async def auth_callback(
                     }) \
                     .execute()
                 
-                # ⬇️ This is the "insert check logic" ⬇️
+                # This is the "insert check logic" 
                 data = getattr(insert_response, "data", None)
                 if data and len(data) > 0:
-                    logging.info(f"✅ Google Tokens SAVED! Record ID: {data[0]['id']}")
+                    logging.info(f"Google Tokens SAVED! Record ID: {data[0]['id']}")
                 else:
-                    logging.error("❌ Failed to save Google tokens")
+                    logging.error("Failed to save Google tokens")
                     return {"error": "Failed to save connection"}
             
                 background_tasks.add_task(run_master_etl, user_id, "google")
                 
-                logging.info("🎉 Google connected. ETL started!")
+                logging.info("Google connected. ETL started!")
                 return {"status": "Google connected successfully! ETL started."}
-            # ⬆️ --- END OF NEW BLOCK --- ⬆️
+            # --- END OF NEW BLOCK ---
             
             else:
                 logging.error(f"Unknown provider: {provider}")
