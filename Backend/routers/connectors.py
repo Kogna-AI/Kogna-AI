@@ -7,7 +7,7 @@ import logging
 import time 
 from services.etl_pipelines import run_master_etl, run_test
 
-# ⚠️ CHANGED: Import the new 'master' ETL function
+# CHANGED: Import the new 'master' ETL function
 from services.etl_pipelines import run_master_etl 
 from supabase_connect import get_supabase_manager
 supabase = get_supabase_manager().client
@@ -19,12 +19,15 @@ JIRA_CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-# ⚠️ NEW: Base URL for your app
+MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
+
+# NEW: Base URL for your app
 APP_BASE_URL = "http://127.0.0.1:8000" 
 
 # --- Routers ---
-connect_router = APIRouter(prefix="/connect", tags=["Connectors"])
-callback_router = APIRouter(tags=["Connectors"]) # No prefix needed
+connect_router = APIRouter(prefix="/api/connect", tags=["Connectors"])
+callback_router = APIRouter(tags=["Connectors"]) # No prefix - OAuth callback at root level
 
 @connect_router.get("/test")
 async def run_simple_test():
@@ -36,7 +39,7 @@ async def run_simple_test():
 # -------------------------------------------------
 # 1. GENERIC CONNECT ENDPOINT
 # -------------------------------------------------
-@connect_router.get("/{provider}")  # ⚠️ CHANGED: Was "/jira"
+@connect_router.get("/{provider}")  #CHANGED: Was "/jira"
 async def connect_to_service(provider: str):
     """Initiates OAuth flow for a given provider."""
     
@@ -47,7 +50,7 @@ async def connect_to_service(provider: str):
         scopes = ["read:jira-work", "read:jira-user", "offline_access"]
         scope = quote(" ".join(scopes))
         
-        # ⚠️ CHANGED: redirect_uri is now dynamic
+        #CHANGED: redirect_uri is now dynamic
         redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/jira")
         
         auth_url = (
@@ -84,14 +87,37 @@ async def connect_to_service(provider: str):
         )
         return RedirectResponse(url=auth_url)
 
+    if provider == "excel":
+        # Microsoft Graph API - for Excel, OneDrive files
+        scopes = [
+            "Files.Read.All",
+            "Files.ReadWrite.All",
+            "User.Read",
+            "offline_access"
+        ]
+        scope = quote(" ".join(scopes))
+        redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/excel")
+
+        auth_url = (
+            f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
+            f"client_id={MICROSOFT_CLIENT_ID}&"
+            f"response_type=code&"
+            f"redirect_uri={redirect_uri}&"
+            f"scope={scope}&"
+            f"response_mode=query&"
+            f"state={state}&"
+            f"prompt=consent"
+        )
+        return RedirectResponse(url=auth_url)
+
     return {"error": "Unknown provider"}
 
 # -------------------------------------------------
 # 2. GENERIC CALLBACK ENDPOINT
 # -------------------------------------------------
-@callback_router.get("/auth/callback/{provider}") # ⚠️ CHANGED: Was "/auth/callback"
+@callback_router.get("/auth/callback/{provider}") #CHANGED: Was "/auth/callback"
 async def auth_callback(
-    provider: str,  # ⚠️ NEW: We get the provider from the URL
+    provider: str,  # NEW: We get the provider from the URL
     code: str, 
     state: str, 
     background_tasks: BackgroundTasks
@@ -107,8 +133,8 @@ async def auth_callback(
             if provider == "jira":
                 # 1. Exchange code for tokens (Jira-specific)
                 token_url = "https://auth.atlassian.com/oauth/token"
-                
-                # ⚠️ CHANGED: The redirect_uri must match the one from step 1
+
+                #CHANGED: The redirect_uri must match the one from step 1
                 redirect_uri = f"{APP_BASE_URL}/auth/callback/jira"
                 
                 payload = {
@@ -141,7 +167,7 @@ async def auth_callback(
                 insert_response = supabase.table("user_connectors") \
                     .insert({
                         "user_id": user_id,
-                        "service": "jira",  # ⚠️ We hard-code "jira" here
+                        "service": "jira",  #We hard-code "jira" here
                         "access_token": access_token,
                         "refresh_token": refresh_token,
                         "cloud_id": cloud_id,
@@ -151,11 +177,11 @@ async def auth_callback(
                 
                 # ... (rest of your insert check logic is fine) ...
                 
-                # 4. ✅ TRIGGER THE *MASTER* ETL
-                # ⚠️ CHANGED: Call the master function with the provider
+                # 4.TRIGGER THE *MASTER* ETL
+                # CHANGED: Call the master function with the provider
                 background_tasks.add_task(run_master_etl, user_id, "jira")
                 
-                logging.info("🎉 Jira connected. ETL started!")
+                logging.info("Jira connected. ETL started!")
                 return {"status": "Jira connected successfully! ETL started."}
 
             if provider == "google":
@@ -190,20 +216,68 @@ async def auth_callback(
                     }) \
                     .execute()
                 
-                # ⬇️ This is the "insert check logic" ⬇️
+                # ⬇This is the "insert check logic" ⬇
                 data = getattr(insert_response, "data", None)
                 if data and len(data) > 0:
-                    logging.info(f"✅ Google Tokens SAVED! Record ID: {data[0]['id']}")
+                    logging.info(f"Google Tokens SAVED! Record ID: {data[0]['id']}")
                 else:
-                    logging.error("❌ Failed to save Google tokens")
+                    logging.error("Failed to save Google tokens")
                     return {"error": "Failed to save connection"}
             
                 background_tasks.add_task(run_master_etl, user_id, "google")
                 
-                logging.info("🎉 Google connected. ETL started!")
+                logging.info("Google connected. ETL started!")
                 return {"status": "Google connected successfully! ETL started."}
-            # ⬆️ --- END OF NEW BLOCK --- ⬆️
-            
+            # --- END OF NEW BLOCK ---
+
+            if provider == "excel":
+                # 1. Exchange code for tokens (Microsoft-specific)
+                token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                redirect_uri = f"{APP_BASE_URL}/auth/callback/excel"
+
+                payload = {
+                    "grant_type": "authorization_code",
+                    "client_id": MICROSOFT_CLIENT_ID,
+                    "client_secret": MICROSOFT_CLIENT_SECRET,
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                    "scope": "Files.Read.All Files.ReadWrite.All User.Read offline_access"
+                }
+
+                response = await client.post(token_url, data=payload)
+                response.raise_for_status()
+                token_data = response.json()
+
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+
+                # 2. Save tokens to database
+                insert_response = supabase.table("user_connectors") \
+                    .insert({
+                        "user_id": user_id,
+                        "service": "excel",
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "cloud_id": None,
+                        "expires_at": int(time.time()) + expires_in
+                    }) \
+                    .execute()
+
+                # Check if insert was successful
+                data = getattr(insert_response, "data", None)
+                if data and len(data) > 0:
+                    logging.info(f"Excel Tokens SAVED! Record ID: {data[0]['id']}")
+                else:
+                    logging.error("Failed to save Excel tokens")
+                    return {"error": "Failed to save connection"}
+
+                # 3. Trigger ETL pipeline
+                background_tasks.add_task(run_master_etl, user_id, "excel")
+
+                logging.info("Excel connected. ETL started!")
+                return {"status": "Excel connected successfully! ETL started."}
+
             else:
                 return {"error": "Callback error: Unknown provider"}
             

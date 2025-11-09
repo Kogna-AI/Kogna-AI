@@ -8,11 +8,11 @@ import { Input } from '../../../ui/input';
 import { Label } from '../../../ui/label';
 import { RadioGroup, RadioGroupItem } from '../../../ui/radio-group';
 import { Switch } from '../../../ui/switch';
-import { 
-  Clock, 
-  Zap, 
-  Crown, 
-  CheckCircle, 
+import {
+  Clock,
+  Zap,
+  Crown,
+  CheckCircle,
   Sparkles,
   ExternalLink,
   ArrowLeftRight,
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Connector } from './types';
 import { syncModes } from './constants';
+import api from '../../../../services/api';
 
 interface SetupDialogProps {
   connector: Connector | null;
@@ -31,8 +32,29 @@ interface SetupDialogProps {
 export function SetupDialog({ connector, onClose }: SetupDialogProps) {
   const [selectedSyncMode, setSelectedSyncMode] = useState('one-way');
   const [enableRealTimeSync, setEnableRealTimeSync] = useState(true);
-  
+  const [isConnecting, setIsConnecting] = useState(false);
+
   if (!connector) return null;
+
+  // Handle OAuth connection
+  const handleConnect = () => {
+    if (!connector) return;
+    setIsConnecting(true);
+    // This will redirect to the OAuth flow
+    api.connectProvider(connector.id);
+  };
+
+  // Handle manual sync trigger
+  const handleSync = async () => {
+    if (!connector) return;
+    try {
+      await api.syncProvider(connector.id);
+      alert('Sync initiated successfully!');
+    } catch (error) {
+      console.error('Sync failed:', error);
+      alert('Failed to initiate sync. Please try again.');
+    }
+  };
 
   return (
     <Dialog open={!!connector} onOpenChange={onClose}>
@@ -119,45 +141,96 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-                    1
-                  </div>
-                  <span className="font-medium">Authentication</span>
-                </div>
-                
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="api-endpoint">API Endpoint/Server URL</Label>
-                    <Input 
-                      id="api-endpoint" 
-                      placeholder={`Enter your ${connector.name} instance URL`}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="api-key">API Key/Token</Label>
-                    <Input 
-                      id="api-key" 
-                      type="password"
-                      placeholder="Enter your API key or access token"
-                    />
-                  </div>
-                  {connector.id === 'jira' && (
-                    <div>
-                      <Label htmlFor="username">Username/Email</Label>
-                      <Input 
-                        id="username" 
-                        placeholder="Enter your Jira username or email"
-                      />
+                {connector.id === 'excel' ? (
+                  // Excel OAuth-specific setup instructions
+                  <div className="space-y-4">
+                    <Card className="border-blue-200 bg-blue-50">
+                      <CardContent className="pt-4">
+                        <div className="flex items-start gap-3">
+                          <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-semibold text-blue-800 mb-2">Secure OAuth Connection</p>
+                            <p className="text-sm text-blue-700 mb-3">
+                              Connect your Microsoft account to access Excel files from OneDrive and SharePoint.
+                              Your credentials are never stored - we use secure OAuth tokens.
+                            </p>
+                            <ul className="text-sm text-blue-700 space-y-1 mb-3">
+                              <li>✓ Access Excel files from OneDrive</li>
+                              <li>✓ Connect to SharePoint workbooks</li>
+                              <li>✓ Automatic sync every 15 minutes</li>
+                              <li>✓ Secure, encrypted connection</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="bg-muted p-4 rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Note:</strong> You'll need a Microsoft 365 account with Excel files stored in OneDrive or SharePoint.
+                        When you click Connect, you'll be redirected to Microsoft to authorize access.
+                      </p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  // Generic API key setup for other connectors
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+                        1
+                      </div>
+                      <span className="font-medium">Authentication</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="api-endpoint">API Endpoint/Server URL</Label>
+                        <Input
+                          id="api-endpoint"
+                          placeholder={`Enter your ${connector.name} instance URL`}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="api-key">API Key/Token</Label>
+                        <Input
+                          id="api-key"
+                          type="password"
+                          placeholder="Enter your API key or access token"
+                        />
+                      </div>
+                      {connector.id === 'jira' && (
+                        <div>
+                          <Label htmlFor="username">Username/Email</Label>
+                          <Input
+                            id="username"
+                            placeholder="Enter your Jira username or email"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <div className="flex gap-2 mt-6">
-                  <Button className="flex-1">
-                    Test Connection
+                  <Button
+                    className="flex-1"
+                    onClick={handleConnect}
+                    disabled={isConnecting}
+                  >
+                    {isConnecting ? 'Connecting...' : `Connect ${connector.name}`}
                   </Button>
-                  <Button variant="outline">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // Open provider-specific documentation
+                      const urls: Record<string, string> = {
+                        'excel': 'https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
+                        'jira': 'https://developer.atlassian.com/console/myapps/',
+                        'google': 'https://console.cloud.google.com/apis/credentials'
+                      };
+                      window.open(urls[connector.id] || '#', '_blank');
+                    }}
+                  >
                     <ExternalLink className="w-4 h-4 mr-2" />
                     Get API Key
                   </Button>

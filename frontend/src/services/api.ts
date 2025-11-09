@@ -684,6 +684,51 @@ export const api = {
     );
     return handleResponse<BackendUser>(response);
   },
+
+  // ==================== CONNECTORS ====================
+
+  /**
+   * Initiate OAuth flow for a connector
+   * Redirects user to the provider's authorization page
+   */
+  connectProvider: (provider: string) => {
+    // Connector routes are at /api/connect
+    window.location.href = `${API_BASE_URL}/connect/${provider}`;
+  },
+
+  /**
+   * Manually trigger sync for a connected provider
+   */
+  syncProvider: async (provider: string) => {
+    const response = await fetch(`${API_BASE_URL}/connect/sync/${provider}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Get connection status for a provider
+   */
+  getConnectorStatus: async (provider: string) => {
+    const response = await fetch(
+      `${API_BASE_URL}/connectors/${provider}/status`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
+  /**
+   * List all connected providers for current user
+   */
+  listConnectedProviders: async () => {
+    const response = await fetch(`${API_BASE_URL}/connectors/connected`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
 };
 
 export default api;
