@@ -3,11 +3,22 @@
  * Frontend API client for communicating with the FastAPI backend
  */
 
+// 1. Check if the code is running on the server (SSR or API Routes).
+const isServer = typeof window === "undefined";
+// 2. Define internal (server-only) and public (client) environment variables.
+// NOTE: API_URL_INTERNAL must be set in your Docker/AWS runtime environment.
+const API_URL_INTERNAL = process.env.API_URL_INTERNAL; 
 
-// 1. API_BASE_URL is clean. It does NOT include '/api'
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// NOTE: NEXT_PUBLIC_API_URL must be set in your Docker build environment.
+const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// 3. Set the base URL dynamically.
+const API_BASE_URL = isServer ? API_URL_INTERNAL : NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+  // Fallback/Warning for when variables aren't set correctly
+  console.error("API_BASE_URL is not correctly set. Check API_URL_INTERNAL and NEXT_PUBLIC_API_URL.");
+}
 import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
