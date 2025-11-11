@@ -684,11 +684,7 @@ export const api = {
       execution_mode: executionMode,
     };
 
-<<<<<<< HEAD
-    const response = await fetch(`${API_BASE_URL}/api/ai/run`, {
-=======
     const response = await fetch(`${API_BASE_URL}/chat/run`, {
->>>>>>> 70a16a1 (context)
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
