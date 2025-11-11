@@ -7,17 +7,20 @@
 const isServer = typeof window === "undefined";
 // 2. Define internal (server-only) and public (client) environment variables.
 // NOTE: API_URL_INTERNAL must be set in your Docker/AWS runtime environment.
-const API_URL_INTERNAL = process.env.API_URL_INTERNAL; 
+const API_URL_INTERNAL = process.env.API_URL_INTERNAL;
 
 // NOTE: NEXT_PUBLIC_API_URL must be set in your Docker build environment.
-const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const NEXT_PUBLIC_API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // 3. Set the base URL dynamically.
 const API_BASE_URL = isServer ? API_URL_INTERNAL : NEXT_PUBLIC_API_URL;
 
 if (!API_BASE_URL) {
   // Fallback/Warning for when variables aren't set correctly
-  console.error("API_BASE_URL is not correctly set. Check API_URL_INTERNAL and NEXT_PUBLIC_API_URL.");
+  console.error(
+    "API_BASE_URL is not correctly set. Check API_URL_INTERNAL and NEXT_PUBLIC_API_URL."
+  );
 }
 import type { BackendUser } from "../app/components/auth/UserContext";
 /**
@@ -75,11 +78,17 @@ export const api = {
         body: JSON.stringify({ email, password }),
       });
       // If fetch succeeds, but returns a non-200 HTTP status, handleResponse will throw a controlled error
-      return handleResponse(response); 
+      return handleResponse(response);
     } catch (error) {
       // CRITICAL: Catch network errors (like ECONNREFUSED or timeout) and throw a clean, controlled error.
-      if (error instanceof TypeError && (error.message.includes("Failed to fetch") || error.message.includes("network error"))) {
-        throw new Error("Network connection failed. Backend service is unavailable.");
+      if (
+        error instanceof TypeError &&
+        (error.message.includes("Failed to fetch") ||
+          error.message.includes("network error"))
+      ) {
+        throw new Error(
+          "Network connection failed. Backend service is unavailable."
+        );
       }
       throw error; // Re-throw application errors
     }
@@ -111,12 +120,9 @@ export const api = {
   // ==================== ORGANIZATIONS ====================
 
   getOrganization: async (orgId: number) => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/organizations/${orgId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
+      headers: getAuthHeaders(),
+    });
     return handleResponse(response);
   },
 
@@ -152,14 +158,11 @@ export const api = {
       project_number?: number;
     }
   ) => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/organizations/${orgId}`,
-      {
-        method: "PUT",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
     return handleResponse(response);
   },
 
