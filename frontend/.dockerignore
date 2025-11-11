@@ -1,0 +1,21 @@
+# Ignore the local node_modules folder (we install it inside the container)
+node_modules
+
+# Ignore the build output folder (it's created *inside* the container)
+.next
+
+# Ignore local environment files
+.env.local
+.env
+
+# Ignore Git and OS files
+.git
+.gitignore
+.DS_Store
+
+# Ignore TypeScript cache
+*.tsbuildinfo
+
+# Ignore local development files
+README.md
+file_architecture.txt

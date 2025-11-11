@@ -3,7 +3,22 @@
  * Frontend API client for communicating with the FastAPI backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+// 1. Check if the code is running on the server (SSR or API Routes).
+const isServer = typeof window === "undefined";
+// 2. Define internal (server-only) and public (client) environment variables.
+// NOTE: API_URL_INTERNAL must be set in your Docker/AWS runtime environment.
+const API_URL_INTERNAL = process.env.API_URL_INTERNAL; 
+
+// NOTE: NEXT_PUBLIC_API_URL must be set in your Docker build environment.
+const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// 3. Set the base URL dynamically.
+const API_BASE_URL = isServer ? API_URL_INTERNAL : NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+  // Fallback/Warning for when variables aren't set correctly
+  console.error("API_BASE_URL is not correctly set. Check API_URL_INTERNAL and NEXT_PUBLIC_API_URL.");
+}
 import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
@@ -38,7 +53,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   } catch (e) {
     // Handle empty response for methods like DELETE
     if (response.status === 204 || response.status === 200) {
-        return {} as T;
+      return {} as T;
     }
     throw new Error("Failed to parse JSON response.");
   }
@@ -51,7 +66,8 @@ export const api = {
   // ==================== AUTHENTICATION ====================
 
   login: async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    // 2. '/api' prefix is added here (and in every function below)
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -67,7 +83,7 @@ export const api = {
     role?: string;
     organization_id: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -76,7 +92,7 @@ export const api = {
   },
 
   getCurrentUser: async () => {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -85,14 +101,17 @@ export const api = {
   // ==================== ORGANIZATIONS ====================
 
   getOrganization: async (orgId: number) => {
-    const response = await fetch(`${API_BASE_URL}/organizations/${orgId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/organizations/${orgId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
   listOrganizations: async () => {
-    const response = await fetch(`${API_BASE_URL}/organizations`, {
+    const response = await fetch(`${API_BASE_URL}/api/organizations`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -105,7 +124,7 @@ export const api = {
     team?: string;
     project_number?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/organizations`, {
+    const response = await fetch(`${API_BASE_URL}/api/organizations`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -123,11 +142,14 @@ export const api = {
       project_number?: number;
     }
   ) => {
-    const response = await fetch(`${API_BASE_URL}/organizations/${orgId}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/organizations/${orgId}`,
+      {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -135,7 +157,7 @@ export const api = {
 
   getDashboard: async (orgId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/organizations/${orgId}/dashboard`,
+      `${API_BASE_URL}/api/organizations/${orgId}/dashboard`,
       {
         headers: getAuthHeaders(),
       }
@@ -146,7 +168,7 @@ export const api = {
   // ==================== USERS ====================
 
   getUser: async (userId: number) => {
-    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -154,7 +176,7 @@ export const api = {
 
   listOrganizationUsers: async (orgId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/organizations/${orgId}/users`,
+      `${API_BASE_URL}/api/organizations/${orgId}/users`,
       {
         headers: getAuthHeaders(),
       }
@@ -172,7 +194,7 @@ export const api = {
       email: string;
     }
   ) => {
-    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -183,7 +205,7 @@ export const api = {
   // ==================== TEAMS ====================
 
   getTeam: async (teamId: number) => {
-    const response = await fetch(`${API_BASE_URL}/teams/${teamId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/teams/${teamId}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -191,7 +213,7 @@ export const api = {
 
   listOrganizationTeams: async (orgId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/organizations/${orgId}/teams`,
+      `${API_BASE_URL}/api/organizations/${orgId}/teams`,
       {
         headers: getAuthHeaders(),
       }
@@ -200,7 +222,7 @@ export const api = {
   },
 
   createTeam: async (data: { organization_id: number; name: string }) => {
-    const response = await fetch(`${API_BASE_URL}/teams`, {
+    const response = await fetch(`${API_BASE_URL}/api/teams`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -215,7 +237,7 @@ export const api = {
     performance?: number;
     capacity?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/teams/members`, {
+    const response = await fetch(`${API_BASE_URL}/api/teams/members`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -226,7 +248,7 @@ export const api = {
   // ==================== OBJECTIVES ====================
 
   getObjective: async (objId: number) => {
-    const response = await fetch(`${API_BASE_URL}/objectives/${objId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/objectives/${objId}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -235,8 +257,8 @@ export const api = {
   listObjectives: async (orgId: number, filters?: { status?: string }) => {
     const params = new URLSearchParams(filters as any).toString();
     const url = params
-      ? `${API_BASE_URL}/organizations/${orgId}/objectives?${params}`
-      : `${API_BASE_URL}/organizations/${orgId}/objectives`;
+      ? `${API_BASE_URL}/api/organizations/${orgId}/objectives?${params}`
+      : `${API_BASE_URL}/api/organizations/${orgId}/objectives`;
 
     const response = await fetch(url, {
       headers: getAuthHeaders(),
@@ -251,7 +273,7 @@ export const api = {
     status?: string;
     team_responsible?: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/objectives`, {
+    const response = await fetch(`${API_BASE_URL}/api/objectives`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -268,7 +290,7 @@ export const api = {
       team_responsible?: string;
     }
   ) => {
-    const response = await fetch(`${API_BASE_URL}/objectives/${objId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/objectives/${objId}`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -283,7 +305,7 @@ export const api = {
     start_date?: string;
     end_date?: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/growth-stages`, {
+    const response = await fetch(`${API_BASE_URL}/api/growth-stages`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -296,7 +318,7 @@ export const api = {
     title: string;
     achieved?: boolean;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/milestones`, {
+    const response = await fetch(`${API_BASE_URL}/api/milestones`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -306,7 +328,7 @@ export const api = {
 
   achieveMilestone: async (milestoneId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/milestones/${milestoneId}/achieve`,
+      `${API_BASE_URL}/api/milestones/${milestoneId}/achieve`,
       {
         method: "PUT",
         headers: getAuthHeaders(),
@@ -318,7 +340,7 @@ export const api = {
   // ==================== METRICS ====================
 
   getMetric: async (metricId: number) => {
-    const response = await fetch(`${API_BASE_URL}/metrics/${metricId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/metrics/${metricId}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -334,8 +356,8 @@ export const api = {
     }).toString();
 
     const url = params
-      ? `${API_BASE_URL}/organizations/${orgId}/metrics?${params}`
-      : `${API_BASE_URL}/organizations/${orgId}/metrics`;
+      ? `${API_BASE_URL}/api/organizations/${orgId}/metrics?${params}`
+      : `${API_BASE_URL}/api/organizations/${orgId}/metrics`;
 
     const response = await fetch(url, {
       headers: getAuthHeaders(),
@@ -350,7 +372,7 @@ export const api = {
     unit?: string;
     change_from_last?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/metrics`, {
+    const response = await fetch(`${API_BASE_URL}/api/metrics`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -360,7 +382,7 @@ export const api = {
 
   getMetricTrends: async (orgId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/organizations/${orgId}/metrics/trends`,
+      `${API_BASE_URL}/api/organizations/${orgId}/metrics/trends`,
       {
         headers: getAuthHeaders(),
       }
@@ -371,7 +393,7 @@ export const api = {
   // ==================== INSIGHTS ====================
 
   getInsight: async (insightId: number) => {
-    const response = await fetch(`${API_BASE_URL}/insights/${insightId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/insights/${insightId}`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -387,8 +409,8 @@ export const api = {
   ) => {
     const params = new URLSearchParams(filters as any).toString();
     const url = params
-      ? `${API_BASE_URL}/organizations/${orgId}/insights?${params}`
-      : `${API_BASE_URL}/organizations/${orgId}/insights`;
+      ? `${API_BASE_URL}/api/organizations/${orgId}/insights?${params}`
+      : `${API_BASE_URL}/api/organizations/${orgId}/insights`;
 
     const response = await fetch(url, {
       headers: getAuthHeaders(),
@@ -404,7 +426,7 @@ export const api = {
     confidence: number;
     level: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/insights`, {
+    const response = await fetch(`${API_BASE_URL}/api/insights`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -414,7 +436,7 @@ export const api = {
 
   archiveInsight: async (insightId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/insights/${insightId}/archive`,
+      `${API_BASE_URL}/api/insights/${insightId}/archive`,
       {
         method: "PUT",
         headers: getAuthHeaders(),
@@ -426,9 +448,12 @@ export const api = {
   // ==================== RECOMMENDATIONS ====================
 
   getRecommendation: async (recId: number) => {
-    const response = await fetch(`${API_BASE_URL}/recommendations/${recId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/recommendations/${recId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -448,8 +473,8 @@ export const api = {
       params.append("min_confidence", filters.min_confidence.toString());
 
     const url = params.toString()
-      ? `${API_BASE_URL}/organizations/${orgId}/recommendations?${params}`
-      : `${API_BASE_URL}/organizations/${orgId}/recommendations`;
+      ? `${API_BASE_URL}/api/organizations/${orgId}/recommendations?${params}`
+      : `${API_BASE_URL}/api/organizations/${orgId}/recommendations`;
 
     const response = await fetch(url, {
       headers: getAuthHeaders(),
@@ -459,7 +484,7 @@ export const api = {
 
   getPendingRecommendations: async (orgId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/organizations/${orgId}/recommendations/pending`,
+      `${API_BASE_URL}/api/organizations/${orgId}/recommendations/pending`,
       {
         headers: getAuthHeaders(),
       }
@@ -469,7 +494,7 @@ export const api = {
 
   getHighPriorityRecommendations: async (orgId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/organizations/${orgId}/recommendations/high-priority`,
+      `${API_BASE_URL}/api/organizations/${orgId}/recommendations/high-priority`,
       {
         headers: getAuthHeaders(),
       }
@@ -485,7 +510,7 @@ export const api = {
     action?: string;
     created_for?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/recommendations`, {
+    const response = await fetch(`${API_BASE_URL}/api/recommendations`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -498,7 +523,7 @@ export const api = {
     status: "pending" | "acted" | "dismissed"
   ) => {
     const response = await fetch(
-      `${API_BASE_URL}/recommendations/${recId}/status?new_status=${status}`,
+      `${API_BASE_URL}/api/recommendations/${recId}/status?new_status=${status}`,
       {
         method: "PUT",
         headers: getAuthHeaders(),
@@ -518,25 +543,31 @@ export const api = {
       created_for?: number;
     }
   ) => {
-    const response = await fetch(`${API_BASE_URL}/recommendations/${recId}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/recommendations/${recId}`,
+      {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
   deleteRecommendation: async (recId: number) => {
-    const response = await fetch(`${API_BASE_URL}/recommendations/${recId}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/recommendations/${recId}`,
+      {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
   assignRecommendation: async (recId: number, userId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/recommendations/${recId}/assign?user_id=${userId}`,
+      `${API_BASE_URL}/api/recommendations/${recId}/assign?user_id=${userId}`,
       {
         method: "POST",
         headers: getAuthHeaders(),
@@ -554,7 +585,7 @@ export const api = {
     }
   ) => {
     const response = await fetch(
-      `${API_BASE_URL}/recommendations/${recId}/reasons`,
+      `${API_BASE_URL}/api/recommendations/${recId}/reasons`,
       {
         method: "POST",
         headers: getAuthHeaders(),
@@ -566,7 +597,7 @@ export const api = {
 
   getRecommendationReasons: async (recId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/recommendations/${recId}/reasons`,
+      `${API_BASE_URL}/api/recommendations/${recId}/reasons`,
       {
         headers: getAuthHeaders(),
       }
@@ -576,7 +607,7 @@ export const api = {
 
   getRecommendationStats: async (orgId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/organizations/${orgId}/recommendations/stats`,
+      `${API_BASE_URL}/api/organizations/${orgId}/recommendations/stats`,
       {
         headers: getAuthHeaders(),
       }
@@ -592,7 +623,7 @@ export const api = {
     action_taken: string;
     result?: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/actions`, {
+    const response = await fetch(`${API_BASE_URL}/api/actions`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -602,7 +633,7 @@ export const api = {
 
   getRecommendationActions: async (recId: number) => {
     const response = await fetch(
-      `${API_BASE_URL}/recommendations/${recId}/actions`,
+      `${API_BASE_URL}/api/recommendations/${recId}/actions`,
       {
         headers: getAuthHeaders(),
       }
@@ -612,7 +643,7 @@ export const api = {
 
   getUserActions: async (userId: number, limit: number = 50) => {
     const response = await fetch(
-      `${API_BASE_URL}/users/${userId}/actions?limit=${limit}`,
+      `${API_BASE_URL}/api/users/${userId}/actions?limit=${limit}`,
       {
         headers: getAuthHeaders(),
       }
@@ -624,72 +655,65 @@ export const api = {
   // ===== CHATBOT & AI (STATEFUL) - UPDATED =====
   // ================================================
 
-  /**
-   * Starts a new chat session for the authenticated user.
-   * This is the first call to make when a user starts a new chat.
-   * @returns {Promise<{id: string, user_id: string, title: string, created_at: string}>} The new session object.
-   */
-  startChatSession: async (): Promise<{id: string, user_id: string, title: string, created_at: string}> => {
-    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+  startChatSession: async (): Promise<{
+    id: string;
+    user_id: string;
+    title: string;
+    created_at: string;
+  }> => {
+    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
       method: "POST",
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
-  /**
-   * Gets a list of all past chat sessions for the authenticated user.
-   * @returns {Promise<Array<{id: string, user_id: string, title: string, created_at: string}>>} A list of session objects.
-   */
-  getUserSessions: async (): Promise<Array<{id: string, user_id: string, title: string, created_at: string}>> => {
-    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+  getUserSessions: async (): Promise<
+    Array<{ id: string; user_id: string; title: string; created_at: string }>
+  > => {
+    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
       method: "GET",
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
-  /**
-   * Gets all messages for a specific chat session.
-   * Call this when a user clicks on an old conversation to load its history.
-   * @param sessionId - The UUID of the chat session.
-   * @returns {Promise<Array<{id: string, role: string, content: string, created_at: string}>>} A list of message objects.
-   */
-  getSessionHistory: async (sessionId: string): Promise<Array<{id: string, role: string, content: string, created_at: string}>> => {
-    const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    });
+  getSessionHistory: async (
+    sessionId: string
+  ): Promise<
+    Array<{ id: string; role: string; content: string; created_at: string }>
+  > => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/chat/history/${sessionId}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
-  /**
-   * Sends a user's query to a specific chat session and gets the AI's response.
-   * This is the main endpoint for sending and receiving messages.
-   * The backend will automatically load history and save the new user/assistant messages.
-   * @param sessionId - The UUID of the session.
-   * @param userQuery - The user's new message.
-   * @param executionMode - (Optional) "auto" or "micromanage".
-   * @returns {Promise<{final_report: string, session_id: string, user_query: string}>} The AI's response.
-   */
   runAgentInSession: async (
     sessionId: string,
     userQuery: string,
     executionMode: string = "auto"
-  ): Promise<{final_report: string, session_id: string, user_query: string}> => {
-    
+  ): Promise<{
+    final_report: string;
+    session_id: string;
+    user_query: string;
+  }> => {
     const payload = {
       session_id: sessionId,
       user_query: userQuery,
       execution_mode: executionMode,
     };
 
-    const response = await fetch(`${API_BASE_URL}/chat/run`, {
+    const response = await fetch(`${API_BASE_URL}/api/chat/run`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
-    
+
     // This endpoint returns data at the root, so we handle it directly
     if (!response.ok) {
       const errorData = await response
@@ -702,10 +726,10 @@ export const api = {
     return response.json();
   },
 
-
   // ==================== HEALTH CHECK ====================
 
   healthCheck: async () => {
+    // Health checks usually live at the root, so no '/api' prefix
     const response = await fetch(`${API_BASE_URL}/health`);
     return handleResponse(response);
   },
@@ -719,27 +743,20 @@ export const api = {
     );
     return handleResponse<BackendUser>(response);
   },
+
   // ==================== CONNECTORS (GENERAL) ====================
 
-  /**
-   * Get authorization URL for any provider (Jira, Google, Slack, etc.)
-   * Example: const { url } = await api.getConnectUrl("jira");
-   */
   getConnectUrl: async (provider: string) => {
-    const response = await fetch(`${API_BASE_URL}/connect/${provider}`, {
+    const response = await fetch(`${API_BASE_URL}/api/connect/${provider}`, {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
     window.location.href = data.url;
   },
 
-  /**
-   * Exchange OAuth code for access/refresh tokens (after redirect)
-   * Example: await api.exchangeCode("jira", code);
-   */
   exchangeCode: async (provider: string, code: string) => {
     const response = await fetch(
-      `${API_BASE_URL}/auth/exchange/${provider}?code=${encodeURIComponent(
+      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(
         code
       )}`,
       {
@@ -750,26 +767,24 @@ export const api = {
     return handleResponse(response);
   },
 
-  /**
-   * Manually trigger ETL sync for a specific provider
-   * Example: await api.manualSync("jira");
-   */
   manualSync: async (provider: string) => {
-    const response = await fetch(`${API_BASE_URL}/connect/sync/${provider}`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/connect/sync/${provider}`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
-  /**
-   * (Optional) Get all connectors linked to the current user
-   * Example: const connectors = await api.listConnections(userId);
-   */
   listConnections: async (userId: string | number) => {
-    const response = await fetch(`${API_BASE_URL}/users/${userId}/connectors`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/users/${userId}/connectors`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse<
       {
         id: number;
@@ -781,13 +796,9 @@ export const api = {
     >(response);
   },
 
-  /**
-   * (Optional) Disconnect a specific connector
-   * Example: await api.disconnect("jira");
-   */
   disconnect: async (provider: string) => {
     const response = await fetch(
-      `${API_BASE_URL}/connect/disconnect/${provider}`,
+      `${API_BASE_URL}/api/connect/disconnect/${provider}`,
       {
         method: "DELETE",
         headers: getAuthHeaders(),
