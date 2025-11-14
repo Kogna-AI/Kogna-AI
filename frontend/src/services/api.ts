@@ -65,14 +65,24 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export const api = {
   // ==================== AUTHENTICATION ====================
 
+  // Modified api.login (Example)
+
   login: async (email: string, password: string) => {
-    // 2. '/api' prefix is added here (and in every function below)
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    return handleResponse(response);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      // If fetch succeeds, but returns a non-200 HTTP status, handleResponse will throw a controlled error
+      return handleResponse(response); 
+    } catch (error) {
+      // CRITICAL: Catch network errors (like ECONNREFUSED or timeout) and throw a clean, controlled error.
+      if (error instanceof TypeError && (error.message.includes("Failed to fetch") || error.message.includes("network error"))) {
+        throw new Error("Network connection failed. Backend service is unavailable.");
+      }
+      throw error; // Re-throw application errors
+    }
   },
 
   register: async (data: {

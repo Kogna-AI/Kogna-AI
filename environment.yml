@@ -346,6 +346,7 @@ dependencies:
       - greenlet==3.2.4
       - grpcio==1.75.1
       - grpcio-status==1.71.2
+      - gunicorn==23.0.0
       - h2==4.3.0
       - hf-xet==1.1.10
       - hpack==4.1.0
