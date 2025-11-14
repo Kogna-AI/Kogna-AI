@@ -19,9 +19,13 @@ JIRA_CLIENT_SECRET = os.getenv("JIRA_CLIENT_SECRET")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
+MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
+
+
 # IMPROVEMENT: Load Base URL from ENV with a fallback for development
 # This makes deployment easier.
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000") 
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000") 
 
 # --- Routers ---
 connect_router = APIRouter(prefix="/connect", tags=["Connectors"])
@@ -86,6 +90,27 @@ async def connect_to_service(
             f"access_type=offline&" # Required for refresh_token
             f"prompt=consent&"
             f"state={state}"
+        )
+        return JSONResponse({"url": auth_url})
+
+    if provider == "microsoft":
+        scopes = [
+            "User.Read",
+            "Files.Read",
+            "offline_access"
+        ]
+        scope = quote(" ".join(scopes))
+        redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/microsoft")
+
+        auth_url = (
+            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
+            f"client_id={MICROSOFT_CLIENT_ID}&"
+            f"response_type=code&"
+            f"redirect_uri={redirect_uri}&"
+            f"scope={scope}&"
+            f"response_mode=query&"
+            f"state={state}&"
+            f"prompt=consent"
         )
         return JSONResponse({"url": auth_url})
 
@@ -202,10 +227,41 @@ async def auth_callback(
                 logging.info("Google connected. ETL started!")
 
                 return RedirectResponse(url="http://localhost:3000")
+            
 
-            else:
-                logging.error(f"Unknown provider: {provider}")
+            elif provider == "microsoft":
+                token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
+
+                payload = {
+                    "client_id": MICROSOFT_CLIENT_ID,
+                    "client_secret": MICROSOFT_CLIENT_SECRET,
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                }
+
+                response = await client.post(token_url, data=payload)
+                response.raise_for_status()
+                token_data = response.json()
+
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+
+                insert_response = supabase.table("user_connectors").insert({
+                    "user_id": user_id,
+                    "service": "microsoft",
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "cloud_id": None,
+                    "expires_at": int(time.time()) + expires_in
+                }).execute()
+
+                background_tasks.add_task(run_master_etl, user_id, "microsoft")
+
                 return RedirectResponse(url="http://localhost:3000")
+
 
         except Exception as e:
             logging.error(f"Error during {provider} callback: {e}", exc_info=True)
