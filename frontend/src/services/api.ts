@@ -690,18 +690,15 @@ export const api = {
     sessionId: string,
     userQuery: string,
     executionMode: string = "auto"
-  ): Promise<{
-    final_report: string;
-    session_id: string;
-    user_query: string;
-  }> => {
+  ): Promise<{final_report: string, session_id: string, user_query: string}> => {
+
     const payload = {
       session_id: sessionId,
       user_query: userQuery,
       execution_mode: executionMode,
     };
 
-    const response = await fetch(`${API_BASE_URL}/chat/run`, {
+    const response = await fetch(`${API_BASE_URL}/ai/run`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -729,7 +726,7 @@ export const api = {
 
   getUserBySupabaseId: async (supabaseId: string): Promise<BackendUser> => {
     const response = await fetch(
-      `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
+      `${API_BASE_URL}/users/by-supabase/${supabaseId}`,
       {
         headers: getAuthHeaders(),
       }
@@ -737,40 +734,54 @@ export const api = {
     return handleResponse<BackendUser>(response);
   },
 
-  // ==================== CONNECTORS (GENERAL) ====================
+  // ==================== CONNECTORS ====================
 
-  getConnectUrl: async (provider: string) => {
-    const response = await fetch(`${API_BASE_URL}/api/connect/${provider}`, {
+  /**
+   * Initiate OAuth flow for a connector
+   * Redirects user to the provider's authorization page
+   */
+  connectProvider: (provider: string) => {
+    // Connector routes are at /api/connect
+    window.location.href = `${API_BASE_URL}/connect/${provider}`;
+  },
+
+  /**
+   * Manually trigger sync for a connected provider
+   */
+  syncProvider: async (provider: string) => {
+    const response = await fetch(`${API_BASE_URL}/connect/sync/${provider}`, {
+      method: "POST",
       headers: getAuthHeaders(),
     });
-    const data = await response.json();
-    window.location.href = data.url;
+    return handleResponse(response);
   },
 
-  exchangeCode: async (provider: string, code: string) => {
+  /**
+   * Get connection status for a provider
+   */
+  getConnectorStatus: async (provider: string) => {
     const response = await fetch(
-      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(
-        code
-      )}`,
+      `${API_BASE_URL}/connectors/${provider}/status`,
       {
-        method: "POST",
         headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
   },
 
-  manualSync: async (provider: string) => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/sync/${provider}`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-      }
-    );
+  /**
+   * List all connected providers for current user
+   */
+  listConnectedProviders: async () => {
+    const response = await fetch(`${API_BASE_URL}/connectors/connected`, {
+      headers: getAuthHeaders(),
+    });
     return handleResponse(response);
   },
 
+  /**
+   * List all connectors for a user
+   */
   listConnections: async (userId: string | number) => {
     const response = await fetch(
       `${API_BASE_URL}/api/users/${userId}/connectors`,
@@ -789,6 +800,9 @@ export const api = {
     >(response);
   },
 
+  /**
+   * Disconnect a specific connector
+   */
   disconnect: async (provider: string) => {
     const response = await fetch(
       `${API_BASE_URL}/api/connect/disconnect/${provider}`,

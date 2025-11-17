@@ -4,11 +4,12 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import quote
 import httpx
 import logging
-import time 
+import time
 from services.etl_pipelines import run_master_etl, run_test
 from routers.Authentication import get_backend_user_id
 
-from services.etl_pipelines import run_master_etl 
+# CHANGED: Import the new 'master' ETL function
+from services.etl_pipelines import run_master_etl
 from supabase_connect import get_supabase_manager
 supabase = get_supabase_manager().client
 
@@ -22,14 +23,13 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
 MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
 
-
 # IMPROVEMENT: Load Base URL from ENV with a fallback for development
 # This makes deployment easier.
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000") 
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000")
 
 # --- Routers ---
 connect_router = APIRouter(prefix="/api/connect", tags=["Connectors"])
-callback_router = APIRouter(tags=["Connectors"]) # No prefix needed
+callback_router = APIRouter(tags=["Connectors"]) # No prefix - OAuth callback at root level
 
 @connect_router.get("/test")
 async def run_simple_test():
@@ -41,17 +41,19 @@ async def run_simple_test():
 # -------------------------------------------------
 # 1. GENERIC CONNECT ENDPOINT
 # -------------------------------------------------
-@connect_router.get("/{provider}") 
-async def connect_to_service(
-    provider: str,
-    user_data: dict = Depends(get_backend_user_id)
-    ):
-    user_id = user_data.get('user_id')
-    
-    # CRITICAL FIX: The state must include the user_id for the callback to work.
-    # We use a timestamp to prevent simple CSRF attacks.
-    state = f"auth_{user_id}_{int(time.time())}"
-    
+@connect_router.get("/{provider}")  #CHANGED: Was "/jira"
+async def connect_to_service(provider: str, ids: dict = Depends(get_backend_user_id)):
+    """Initiates OAuth flow for a given provider."""
+
+    # Get user_id from authentication
+    user_id = ids.get('user_id')
+    if not user_id:
+        logging.error("Connect attempted without valid user ID.")
+        return {"error": "Authentication failed: User ID not found."}
+
+    # Include user_id in state for callback
+    state = f"oauth_{user_id}"
+
     # --- Provider-specific logic ---
     if provider == "jira":
         scopes = ["read:jira-work", "read:jira-user", "offline_access"]
@@ -74,13 +76,13 @@ async def connect_to_service(
     if provider == "google":
         # Note: 'offline_access' is what gets you a refresh_token
         scopes = [
-            "https://www.googleapis.com/auth/drive.readonly", 
+            "https://www.googleapis.com/auth/drive.readonly",
             "https://www.googleapis.com/auth/userinfo.email",
             "openid"
         ]
         scope = quote(" ".join(scopes))
         redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/google")
-        
+
         auth_url = (
             f"https://accounts.google.com/o/oauth2/v2/auth?"
             f"client_id={GOOGLE_CLIENT_ID}&"
@@ -96,6 +98,8 @@ async def connect_to_service(
     # TODO: separe microsoft project and excel.
     if provider == "microsoft-excel":
         scopes = [
+            "Files.Read.All",
+            "Files.ReadWrite.All",
             "User.Read",
             "offline_access",
             "Files.Read",
@@ -136,7 +140,7 @@ async def connect_to_service(
         redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
 
         auth_url = (
-            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
+            f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
             f"client_id={MICROSOFT_CLIENT_ID}&"
             f"response_type=code&"
             f"redirect_uri={redirect_uri}&"
@@ -153,11 +157,11 @@ async def connect_to_service(
 # -------------------------------------------------
 # 2. GENERIC CALLBACK ENDPOINT
 # -------------------------------------------------
-@callback_router.get("/auth/callback/{provider}") 
+@callback_router.get("/auth/callback/{provider}") #CHANGED: Was "/auth/callback"
 async def auth_callback(
-    provider: str,  
-    code: str, 
-    state: str, 
+    provider: str,  # NEW: We get the provider from the URL
+    code: str,
+    state: str,
     background_tasks: BackgroundTasks,
 ):
     """
@@ -176,6 +180,8 @@ async def auth_callback(
             if provider == "jira":
                 # Exchange code for tokens
                 token_url = "https://auth.atlassian.com/oauth/token"
+
+                #CHANGED: The redirect_uri must match the one from step 1
                 redirect_uri = f"{APP_BASE_URL}/auth/callback/jira"
                 payload = {
                     "grant_type": "authorization_code",
@@ -242,24 +248,76 @@ async def auth_callback(
                 refresh_token = token_data.get("refresh_token")
                 expires_in = token_data.get("expires_in", 3600)
 
-                insert_response = supabase.table("user_connectors").insert({
-                    "user_id": user_id,
-                    "service": "google",
-                    "access_token": access_token,
-                    "refresh_token": refresh_token,
-                    "cloud_id": None,
-                    "expires_at": int(time.time()) + expires_in
-                }).execute()
+                insert_response = supabase.table("user_connectors") \
+                    .insert({
+                        "user_id": user_id,
+                        "service": "google",
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "cloud_id": None,
+                        "expires_at": int(time.time()) + expires_in
+                    }) \
+                    .execute()
 
+                # This is the "insert check logic"
                 data = getattr(insert_response, "data", None)
-                if not data or len(data) == 0:
-                    logging.error("Failed to save Google tokens")
+                if data and len(data) > 0:
+                    logging.info(f"Google Tokens SAVED! Record ID: {data[0]['id']}")
                 else:
-                    logging.info(f" Google tokens saved for user {user_id}")
+                    logging.error("Failed to save Google tokens")
+                    return RedirectResponse(url="http://localhost:3000?error=failed_to_save")
 
                 background_tasks.add_task(run_master_etl, user_id, "google")
-                logging.info("Google connected. ETL started!")
 
+                logging.info("Google connected. ETL started!")
+                return RedirectResponse(url="http://localhost:3000")
+
+            elif provider == "excel":
+                # 1. Exchange code for tokens (Microsoft-specific)
+                token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                redirect_uri = f"{APP_BASE_URL}/auth/callback/excel"
+
+                payload = {
+                    "grant_type": "authorization_code",
+                    "client_id": MICROSOFT_CLIENT_ID,
+                    "client_secret": MICROSOFT_CLIENT_SECRET,
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                    "scope": "Files.Read.All Files.ReadWrite.All User.Read offline_access"
+                }
+
+                response = await client.post(token_url, data=payload)
+                response.raise_for_status()
+                token_data = response.json()
+
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+
+                # 2. Save tokens to database
+                insert_response = supabase.table("user_connectors") \
+                    .insert({
+                        "user_id": user_id,
+                        "service": "excel",
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "cloud_id": None,
+                        "expires_at": int(time.time()) + expires_in
+                    }) \
+                    .execute()
+
+                # Check if insert was successful
+                data = getattr(insert_response, "data", None)
+                if data and len(data) > 0:
+                    logging.info(f"Excel Tokens SAVED! Record ID: {data[0]['id']}")
+                else:
+                    logging.error("Failed to save Excel tokens")
+                    return RedirectResponse(url="http://localhost:3000?error=failed_to_save")
+
+                # 3. Trigger ETL pipeline
+                background_tasks.add_task(run_master_etl, user_id, "excel")
+
+                logging.info("Excel connected. ETL started!")
                 return RedirectResponse(url="http://localhost:3000")
             
 
@@ -307,14 +365,14 @@ async def auth_callback(
 
         except Exception as e:
             logging.error(f"Error during {provider} callback: {e}", exc_info=True)
-            return RedirectResponse(url="http://localhost:3000")
+            return RedirectResponse(url="http://localhost:3000?error=oauth_failed")
 
 # -------------------------------------------------
 # 3. NEW MANUAL SYNC ENDPOINT
 # -------------------------------------------------
 @connect_router.post("/sync/{provider}")
 async def sync_service(
-    provider: str, 
+    provider: str,
     background_tasks: BackgroundTasks,
     ids: dict = Depends(get_backend_user_id)
 ):
@@ -322,13 +380,13 @@ async def sync_service(
     Manually triggers an ETL sync for a given provider.
     """
     user_id = ids.get('user_id')
-    
+
     if not user_id:
         logging.error("Sync attempted without valid user ID.")
         return {"error": "Authentication failed: User ID not found."}
-    
+
     logging.info(f"Sync initiated by user_id: {user_id} for provider: {provider}")
-    
+
     background_tasks.add_task(run_master_etl, user_id, provider)
-    
+
     return {"status": f"Sync scheduled for {provider} for user {user_id}."}

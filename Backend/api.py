@@ -49,7 +49,9 @@ app.add_middleware(
 
 # include ROUTERS
 from routers.Authentication import router as auth_router
+from routers.users import router as users_router
 app.include_router(auth_router)
+app.include_router(users_router)
 
 
 # Database Connection
