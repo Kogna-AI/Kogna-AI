@@ -18,6 +18,7 @@ class OrganizationCreate(BaseModel):
 
 # ====== Users ======
 class UserCreate(BaseModel):
+    supabase_id: str
     organization_id: int
     first_name: str
     second_name: Optional[str] = None
@@ -31,15 +32,33 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     organization_id: Optional[int] = None
 
+<<<<<<< HEAD
+=======
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    second_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+    organization_id: Optional[int] = None
+
+>>>>>>> 6367e85 (fixed prefix api on fe and supabase key)
 class UserResponse(BaseModel):
     id: int
     supabase_id: str
     organization_id: int
     first_name: str
+<<<<<<< HEAD
     second_name: Optional[str] = None
     role: Optional[str] = None
     email: EmailStr
     created_at: datetime
+=======
+    second_name: Optional[str]
+    role: Optional[str]
+    email: str
+    created_at: datetime
+
+>>>>>>> 6367e85 (fixed prefix api on fe and supabase key)
 # ====== Teams ======
 class TeamCreate(BaseModel):
     organization_id: int
