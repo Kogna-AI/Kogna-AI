@@ -286,10 +286,41 @@ async def auth_callback(
 
                 logging.info("Excel connected. ETL started!")
                 return RedirectResponse(url="http://localhost:3000")
+            
 
-            else:
-                logging.error(f"Unknown provider: {provider}")
+            elif provider == "microsoft":
+                token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
+
+                payload = {
+                    "client_id": MICROSOFT_CLIENT_ID,
+                    "client_secret": MICROSOFT_CLIENT_SECRET,
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                }
+
+                response = await client.post(token_url, data=payload)
+                response.raise_for_status()
+                token_data = response.json()
+
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+
+                insert_response = supabase.table("user_connectors").insert({
+                    "user_id": user_id,
+                    "service": "microsoft",
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "cloud_id": None,
+                    "expires_at": int(time.time()) + expires_in
+                }).execute()
+
+                background_tasks.add_task(run_master_etl, user_id, "microsoft")
+
                 return RedirectResponse(url="http://localhost:3000")
+
 
         except Exception as e:
             logging.error(f"Error during {provider} callback: {e}", exc_info=True)
