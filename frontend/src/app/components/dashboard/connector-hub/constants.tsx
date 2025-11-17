@@ -154,7 +154,7 @@ export const connectors: Connector[] = [
     dataSync: "Manual/Scheduled",
   },
   {
-    id: "teams",
+    id: "microsoft-teams",
     name: "Microsoft Teams",
     description: "Integrate team communication and meeting data from Teams",
     icon: <MessageSquare className="w-6 h-6 text-purple-600" />,
