@@ -58,10 +58,9 @@ async def connect_to_service(provider: str, ids: dict = Depends(get_backend_user
     if provider == "jira":
         scopes = ["read:jira-work", "read:jira-user", "offline_access"]
         scope = quote(" ".join(scopes))
-
-        #CHANGED: redirect_uri is now dynamic
-        redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/jira")
-
+        
+        redirect_uri = f"{APP_BASE_URL}/auth/callback/jira"
+        
         auth_url = (
             f"https://auth.atlassian.com/authorize?"
             f"audience=api.atlassian.com&"
@@ -96,16 +95,49 @@ async def connect_to_service(provider: str, ids: dict = Depends(get_backend_user
         )
         return JSONResponse({"url": auth_url})
 
-    if provider == "excel":
-        # Microsoft Graph API - for Excel, OneDrive files
+    # TODO: separe microsoft project and excel.
+    if provider == "microsoft-excel":
         scopes = [
             "Files.Read.All",
             "Files.ReadWrite.All",
             "User.Read",
-            "offline_access"
+            "offline_access",
+            "Files.Read",
+            "Files.ReadWrite",
+            "Sites.Read.All"
         ]
         scope = quote(" ".join(scopes))
-        redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/excel")
+
+        state = f"auth_{user_id}_excel_{int(time.time())}"
+
+        redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
+
+        auth_url = (
+            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
+            f"client_id={MICROSOFT_CLIENT_ID}&"
+            f"response_type=code&"
+            f"redirect_uri={redirect_uri}&"
+            f"scope={scope}&"
+            f"response_mode=query&"
+            f"state={state}&"
+            f"prompt=consent"
+        )
+        return JSONResponse({"url": auth_url})
+
+
+    if provider == "microsoft-project":
+        scopes = [
+           "User.Read",
+            "offline_access",
+            "Group.Read.All",
+            "Tasks.Read",
+            "Sites.Read.All"
+        ]
+        scope = quote(" ".join(scopes))
+
+        state = f"auth_{user_id}_project_{int(time.time())}"
+
+        redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
 
         auth_url = (
             f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
@@ -118,6 +150,7 @@ async def connect_to_service(provider: str, ids: dict = Depends(get_backend_user
             f"prompt=consent"
         )
         return JSONResponse({"url": auth_url})
+
 
     return {"error": "Unknown provider"}
 
@@ -288,7 +321,12 @@ async def auth_callback(
                 return RedirectResponse(url="http://localhost:3000")
             
 
-            elif provider == "microsoft":
+            elif provider == "microsoft":  
+                # state format: auth_{user_id}_{type}_{timestamp}
+                parts = state.split("_")
+                user_id = parts[1]
+                ms_type = parts[2]  # "excel" or "project"
+
                 token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
                 redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
 
@@ -308,18 +346,21 @@ async def auth_callback(
                 refresh_token = token_data.get("refresh_token")
                 expires_in = token_data.get("expires_in", 3600)
 
-                insert_response = supabase.table("user_connectors").insert({
+                service = "microsoft-excel" if ms_type == "excel" else "microsoft-project"
+
+                supabase.table("user_connectors").insert({
                     "user_id": user_id,
-                    "service": "microsoft",
+                    "service": service,
                     "access_token": access_token,
                     "refresh_token": refresh_token,
                     "cloud_id": None,
                     "expires_at": int(time.time()) + expires_in
                 }).execute()
 
-                background_tasks.add_task(run_master_etl, user_id, "microsoft")
-
+                background_tasks.add_task(run_master_etl, user_id, service)
                 return RedirectResponse(url="http://localhost:3000")
+
+
 
 
         except Exception as e:
