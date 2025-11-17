@@ -7,75 +7,117 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { createClient, User } from "@supabase/supabase-js";
+import { createClient, User as SupabaseUser } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import api from "../../../services/api";
 
 // --- Initialize Supabase client ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// --- Define context type ---
+// --- Backend user model ---
+export interface BackendUser {
+  id: string;
+  first_name?: string;
+  second_name?: string;
+  name?: string;
+  role?: string;
+  organization_id?: number;
+  email?: string;
+  supabase_id?: string;
+}
+
+// --- Combined user type for context ---
+export type MergedUser = SupabaseUser & {
+  id: string;
+  name?: string;
+  role?: string;
+  organization_id?: number;
+};
+
+// --- UserContext type ---
 interface UserContextType {
-  user: User | null;
+  user: MergedUser | null;
   isAuthenticated: boolean;
   loading: boolean;
   logout: () => Promise<void>;
 }
 
-// --- Create context ---
+// --- Create React context ---
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<MergedUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // --- Check session on mount ---
   useEffect(() => {
-    const initSession = async () => {
+    async function initSession() {
       setLoading(true);
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
+      if (session?.access_token) {
+        // Save the JWT for the backend API client (api.ts) to use
+        localStorage.setItem("token", session.access_token); 
+      }
+
       if (session?.user) {
-        setUser(session.user);
+        const supabaseUser = session.user;
         setIsAuthenticated(true);
+        try {
+          const backendUser: BackendUser = await api.getUserBySupabaseId(
+            supabaseUser.id
+          );
+          console.log(backendUser);
+          const mergedUser: MergedUser = {
+            ...supabaseUser,
+            id: backendUser.id,
+            name: [backendUser.first_name, backendUser.second_name]
+              .filter(Boolean)
+              .join(" "),
+            role: backendUser.role || "member",
+            organization_id: backendUser.organization_id,
+          };
+          setUser(mergedUser);
+        } catch {
+          setUser(supabaseUser);
+        }
       } else {
         setUser(null);
         setIsAuthenticated(false);
       }
-
       setLoading(false);
-    };
+    }
 
     initSession();
 
-    // --- Listen to auth state changes (login/logout/refresh) ---
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
-          setUser(session.user);
-          setIsAuthenticated(true);
-          router.push("/"); // ✅ Automatically redirect after login
+          if (session.access_token) {
+            // Save the JWT for the backend API client (api.ts) to use
+            localStorage.setItem("token", session.access_token); 
+          }
+          initSession();
+          router.push("/");
         } else if (event === "SIGNED_OUT") {
           setUser(null);
           setIsAuthenticated(false);
-          router.push("/"); // 🔄 Back to login when logged out
+          router.push("/");
         }
       }
     );
 
-    // --- Cleanup on unmount ---
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, [router]);
 
   // --- Logout function ---
   const logout = async () => {
+    localStorage.removeItem("token");
     await supabase.auth.signOut();
   };
 
@@ -86,7 +128,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// --- Hook for easy access ---
+// --- Hook for convenient access ---
 export function useUser() {
   const context = useContext(UserContext);
   if (context === undefined) {

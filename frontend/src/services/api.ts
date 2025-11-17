@@ -3,15 +3,15 @@
  * Frontend API client for communicating with the FastAPI backend
  */
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
  */
 const getAuthHeaders = (): HeadersInit => {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  console.log(token);
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -30,9 +30,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
       errorData.detail || `HTTP error! status: ${response.status}`
     );
   }
-  const data = await response.json();
-  // FastAPI returns {success: true, data: {...}}
-  return data.data || data;
+  // Try to parse JSON
+  try {
+    const data = await response.json();
+    // FastAPI returns {success: true, data: {...}} or root data
+    return data.data || data;
+  } catch (e) {
+    // Handle empty response for methods like DELETE
+    if (response.status === 204 || response.status === 200) {
+        return {} as T;
+    }
+    throw new Error("Failed to parse JSON response.");
+  }
 }
 
 /**
@@ -150,21 +159,6 @@ export const api = {
         headers: getAuthHeaders(),
       }
     );
-    return handleResponse(response);
-  },
-
-  createUser: async (data: {
-    organization_id: number;
-    first_name: string;
-    second_name?: string;
-    role?: string;
-    email: string;
-  }) => {
-    const response = await fetch(`${API_BASE_URL}/users`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
     return handleResponse(response);
   },
 
@@ -626,10 +620,183 @@ export const api = {
     return handleResponse(response);
   },
 
+  // ================================================
+  // ===== CHATBOT & AI (STATEFUL) - UPDATED =====
+  // ================================================
+
+  /**
+   * Starts a new chat session for the authenticated user.
+   * This is the first call to make when a user starts a new chat.
+   * @returns {Promise<{id: string, user_id: string, title: string, created_at: string}>} The new session object.
+   */
+  startChatSession: async (): Promise<{id: string, user_id: string, title: string, created_at: string}> => {
+    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Gets a list of all past chat sessions for the authenticated user.
+   * @returns {Promise<Array<{id: string, user_id: string, title: string, created_at: string}>>} A list of session objects.
+   */
+  getUserSessions: async (): Promise<Array<{id: string, user_id: string, title: string, created_at: string}>> => {
+    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Gets all messages for a specific chat session.
+   * Call this when a user clicks on an old conversation to load its history.
+   * @param sessionId - The UUID of the chat session.
+   * @returns {Promise<Array<{id: string, role: string, content: string, created_at: string}>>} A list of message objects.
+   */
+  getSessionHistory: async (sessionId: string): Promise<Array<{id: string, role: string, content: string, created_at: string}>> => {
+    const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Sends a user's query to a specific chat session and gets the AI's response.
+   * This is the main endpoint for sending and receiving messages.
+   * The backend will automatically load history and save the new user/assistant messages.
+   * @param sessionId - The UUID of the session.
+   * @param userQuery - The user's new message.
+   * @param executionMode - (Optional) "auto" or "micromanage".
+   * @returns {Promise<{final_report: string, session_id: string, user_query: string}>} The AI's response.
+   */
+  runAgentInSession: async (
+    sessionId: string,
+    userQuery: string,
+    executionMode: string = "auto"
+  ): Promise<{final_report: string, session_id: string, user_query: string}> => {
+    
+    const payload = {
+      session_id: sessionId,
+      user_query: userQuery,
+      execution_mode: executionMode,
+    };
+
+<<<<<<< HEAD
+    const response = await fetch(`${API_BASE_URL}/api/ai/run`, {
+=======
+    const response = await fetch(`${API_BASE_URL}/chat/run`, {
+>>>>>>> 70a16a1 (context)
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    
+    // This endpoint returns data at the root, so we handle it directly
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ detail: "An error occurred" }));
+      throw new Error(
+        errorData.detail || `HTTP error! status: ${response.status}`
+      );
+    }
+    return response.json();
+  },
+
+
   // ==================== HEALTH CHECK ====================
 
   healthCheck: async () => {
     const response = await fetch(`${API_BASE_URL}/health`);
+    return handleResponse(response);
+  },
+
+  getUserBySupabaseId: async (supabaseId: string): Promise<BackendUser> => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse<BackendUser>(response);
+  },
+  // ==================== CONNECTORS (GENERAL) ====================
+
+  /**
+   * Get authorization URL for any provider (Jira, Google, Slack, etc.)
+   * Example: const { url } = await api.getConnectUrl("jira");
+   */
+  getConnectUrl: async (provider: string) => {
+    const response = await fetch(`${API_BASE_URL}/connect/${provider}`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await response.json();
+    window.location.href = data.url;
+  },
+
+  /**
+   * Exchange OAuth code for access/refresh tokens (after redirect)
+   * Example: await api.exchangeCode("jira", code);
+   */
+  exchangeCode: async (provider: string, code: string) => {
+    const response = await fetch(
+      `${API_BASE_URL}/auth/exchange/${provider}?code=${encodeURIComponent(
+        code
+      )}`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
+  /**
+   * Manually trigger ETL sync for a specific provider
+   * Example: await api.manualSync("jira");
+   */
+  manualSync: async (provider: string) => {
+    const response = await fetch(`${API_BASE_URL}/connect/sync/${provider}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * (Optional) Get all connectors linked to the current user
+   * Example: const connectors = await api.listConnections(userId);
+   */
+  listConnections: async (userId: string | number) => {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/connectors`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<
+      {
+        id: number;
+        user_id: string;
+        service: string;
+        expires_at: number;
+        created_at: string;
+      }[]
+    >(response);
+  },
+
+  /**
+   * (Optional) Disconnect a specific connector
+   * Example: await api.disconnect("jira");
+   */
+  disconnect: async (provider: string) => {
+    const response = await fetch(
+      `${API_BASE_URL}/connect/disconnect/${provider}`,
+      {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 };

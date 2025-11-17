@@ -5,17 +5,17 @@
 
 # load_dotenv()
 
-# class SupabaseManager:
-#     """
-#     Simple manager for creating and reusing a Supabase client.
-#     Reads SUPABASE_URL and SUPABASE_ANON_KEY from .env
-#     """
-#     def __init__(self):
-#         self.url = os.getenv("SUPABASE_URL")
-#         self.key = os.getenv("SUPABASE_ANON_KEY")
-#         if not self.url or not self.key:
-#             raise ValueError("Missing SUPABASE_URL or SUPABASE_ANON_KEY in environment variables.")
-#         self.client: Client = create_client(self.url, self.key)
+class SupabaseManager:
+    """
+    Simple manager for creating and reusing a Supabase client.
+    Reads SUPABASE_URL and SUPABASE_ANON_KEY from .env
+    """
+    def __init__(self):
+        self.url = os.getenv("SUPABASE_URL")
+        self.key = os.getenv("SUPABASE_ANON_KEY")
+        if not self.url or not self.key:
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_ANON_KEY in environment variables.")
+        self.client: Client = create_client(self.url, self.key)
 
 # # Singleton instance cache
 # _supabase_manager = None

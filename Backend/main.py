@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from core.config import setup_cors
+from dotenv import load_dotenv
 from routers import (
     organizations, users, teams, objectives,
-    metrics, insights, recommendations, actions,ai_pipeline, Authentication
+    metrics, insights, recommendations, actions,ai_pipeline,connectors,Authentication,chat
 )
+
+load_dotenv()
 
 app = FastAPI(
     title="KognaDash API",
@@ -17,6 +20,8 @@ app = FastAPI(
 setup_cors(app)
 
 # Register routers
+app.include_router(connectors.connect_router)   
+app.include_router(connectors.callback_router)
 app.include_router(organizations.router)
 app.include_router(users.router)
 app.include_router(teams.router)
@@ -26,7 +31,8 @@ app.include_router(insights.router)
 app.include_router(recommendations.router)
 app.include_router(actions.router)
 app.include_router(Authentication.router)
-# app.include_router(ai_pipeline.router)
+app.include_router(ai_pipeline.router)
+app.include_router(chat.router)
 
 @app.get("/")
 def root():
