@@ -23,6 +23,10 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
 MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
 
+ASANA_CLIENT_ID = os.getenv("ASANA_CLIENT_ID")
+ASANA_CLIENT_SECRET = os.getenv("ASANA_CLIENT_SECRET")
+
+
 # IMPROVEMENT: Load Base URL from ENV with a fallback for development
 # This makes deployment easier.
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
@@ -150,7 +154,30 @@ async def connect_to_service(provider: str, ids: dict = Depends(get_backend_user
             f"prompt=consent"
         )
         return JSONResponse({"url": auth_url})
+    if provider == "asana":
+        scopes = [
+        "tasks:read",
+        "projects:read",
+        "users:read",
+        "workspaces:read",
+    ]
+        scope = quote(" ".join(scopes))
 
+        state = f"oauth_{user_id}_asana_{int(time.time())}"
+
+        redirect_uri = f"{APP_BASE_URL}/auth/callback/asana"
+
+        auth_url = (
+            "https://app.asana.com/-/oauth_authorize?"
+            f"client_id={ASANA_CLIENT_ID}&"
+            f"redirect_uri={quote(redirect_uri)}&"
+            f"response_type=code&"
+            f"state={state}&"
+            f"scope={scope}&"
+            f"prompt=consent"
+        )
+
+        return JSONResponse({"url": auth_url})
 
     return {"error": "Unknown provider"}
 
@@ -360,7 +387,53 @@ async def auth_callback(
                 background_tasks.add_task(run_master_etl, user_id, service)
                 return RedirectResponse(url="http://localhost:3000")
 
+            elif provider == "asana":
 
+                # state example: oauth_{user_id}_asana_{timestamp}
+                parts = state.split("_")
+                user_id = parts[1]
+
+                token_url = "https://app.asana.com/-/oauth_token"
+
+                redirect_uri = f"{APP_BASE_URL}/auth/callback/asana"
+
+                payload = {
+                    "grant_type": "authorization_code",
+                    "client_id": ASANA_CLIENT_ID,
+                    "client_secret": ASANA_CLIENT_SECRET,
+                    "redirect_uri": redirect_uri,
+                    "code": code
+                }
+
+                response = await client.post(token_url, data=payload)
+                response.raise_for_status()
+                token_data = response.json()
+
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+
+                # Asana does NOT require cloud_id
+                insert_response = supabase.table("user_connectors").insert({
+                    "user_id": user_id,
+                    "service": "asana",
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "cloud_id": None,
+                    "expires_at": int(time.time()) + expires_in
+                }).execute()
+
+                data = getattr(insert_response, "data", None)
+                if not data:
+                    logging.error("Failed to save Asana tokens")
+                    return RedirectResponse(url="http://localhost:3000?error=failed_to_save")
+
+                logging.info(f"Asana tokens saved for user {user_id}")
+
+                background_tasks.add_task(run_master_etl, user_id, "asana")
+                logging.info("Asana ETL started!")
+
+                return RedirectResponse(url="http://localhost:3000")
 
 
         except Exception as e:
