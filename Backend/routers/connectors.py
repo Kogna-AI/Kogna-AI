@@ -123,11 +123,10 @@ async def connect_to_service(
 
     if provider == "microsoft-project":
         scopes = [
-            "User.Read",
+           "User.Read",
             "offline_access",
             "Group.Read.All",
             "Tasks.Read",
-            "Project.Read.All",
             "Sites.Read.All"
         ]
         scope = quote(" ".join(scopes))
