@@ -684,7 +684,7 @@ export const api = {
       execution_mode: executionMode,
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/ai/run`, {
+    const response = await fetch(`${API_BASE_URL}/ai/run`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -712,7 +712,7 @@ export const api = {
 
   getUserBySupabaseId: async (supabaseId: string): Promise<BackendUser> => {
     const response = await fetch(
-      `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
+      `${API_BASE_URL}/users/by-supabase/${supabaseId}`,
       {
         headers: getAuthHeaders(),
       }
@@ -728,14 +728,14 @@ export const api = {
    */
   connectProvider: (provider: string) => {
     // Connector routes are at /api/connect
-    window.location.href = `${API_BASE_URL}/api/connect/${provider}`;
+    window.location.href = `${API_BASE_URL}/connect/${provider}`;
   },
 
   /**
    * Manually trigger sync for a connected provider
    */
   syncProvider: async (provider: string) => {
-    const response = await fetch(`${API_BASE_URL}/api/connect/sync/${provider}`, {
+    const response = await fetch(`${API_BASE_URL}/connect/sync/${provider}`, {
       method: "POST",
       headers: getAuthHeaders(),
     });
