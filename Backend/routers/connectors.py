@@ -28,7 +28,7 @@ MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000") 
 
 # --- Routers ---
-connect_router = APIRouter(prefix="/connect", tags=["Connectors"])
+connect_router = APIRouter(prefix="/api/connect", tags=["Connectors"])
 callback_router = APIRouter(tags=["Connectors"]) # No prefix needed
 
 @connect_router.get("/test")
@@ -57,7 +57,7 @@ async def connect_to_service(
         scopes = ["read:jira-work", "read:jira-user", "offline_access"]
         scope = quote(" ".join(scopes))
         
-        redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/jira")
+        redirect_uri = f"{APP_BASE_URL}/auth/callback/jira"
         
         auth_url = (
             f"https://auth.atlassian.com/authorize?"
@@ -93,14 +93,20 @@ async def connect_to_service(
         )
         return JSONResponse({"url": auth_url})
 
-    if provider == "microsoft":
+    # TODO: separe microsoft project and excel.
+    if provider == "microsoft-excel":
         scopes = [
             "User.Read",
+            "offline_access",
             "Files.Read",
-            "offline_access"
+            "Files.ReadWrite",
+            "Sites.Read.All"
         ]
         scope = quote(" ".join(scopes))
-        redirect_uri = quote(f"{APP_BASE_URL}/auth/callback/microsoft")
+
+        state = f"auth_{user_id}_excel_{int(time.time())}"
+
+        redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
 
         auth_url = (
             "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
@@ -113,6 +119,35 @@ async def connect_to_service(
             f"prompt=consent"
         )
         return JSONResponse({"url": auth_url})
+
+
+    if provider == "microsoft-project":
+        scopes = [
+            "User.Read",
+            "offline_access",
+            "Group.Read.All",
+            "Tasks.Read",
+            "Project.Read.All",
+            "Sites.Read.All"
+        ]
+        scope = quote(" ".join(scopes))
+
+        state = f"auth_{user_id}_project_{int(time.time())}"
+
+        redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
+
+        auth_url = (
+            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
+            f"client_id={MICROSOFT_CLIENT_ID}&"
+            f"response_type=code&"
+            f"redirect_uri={redirect_uri}&"
+            f"scope={scope}&"
+            f"response_mode=query&"
+            f"state={state}&"
+            f"prompt=consent"
+        )
+        return JSONResponse({"url": auth_url})
+
 
     return {"error": "Unknown provider"}
 
@@ -229,7 +264,12 @@ async def auth_callback(
                 return RedirectResponse(url="http://localhost:3000")
             
 
-            elif provider == "microsoft":
+            elif provider == "microsoft":  
+                # state format: auth_{user_id}_{type}_{timestamp}
+                parts = state.split("_")
+                user_id = parts[1]
+                ms_type = parts[2]  # "excel" or "project"
+
                 token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
                 redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
 
@@ -249,18 +289,21 @@ async def auth_callback(
                 refresh_token = token_data.get("refresh_token")
                 expires_in = token_data.get("expires_in", 3600)
 
-                insert_response = supabase.table("user_connectors").insert({
+                service = "microsoft-excel" if ms_type == "excel" else "microsoft-project"
+
+                supabase.table("user_connectors").insert({
                     "user_id": user_id,
-                    "service": "microsoft",
+                    "service": service,
                     "access_token": access_token,
                     "refresh_token": refresh_token,
                     "cloud_id": None,
                     "expires_at": int(time.time()) + expires_in
                 }).execute()
 
-                background_tasks.add_task(run_master_etl, user_id, "microsoft")
-
+                background_tasks.add_task(run_master_etl, user_id, service)
                 return RedirectResponse(url="http://localhost:3000")
+
+
 
 
         except Exception as e:
