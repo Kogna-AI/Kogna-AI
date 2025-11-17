@@ -76,26 +76,6 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
 
   if (!connector) return null;
 
-  // Handle OAuth connection
-  const handleConnect = () => {
-    if (!connector) return;
-    setIsConnecting(true);
-    // This will redirect to the OAuth flow
-    api.connectProvider(connector.id);
-  };
-
-  // Handle manual sync trigger
-  const handleSync = async () => {
-    if (!connector) return;
-    try {
-      await api.syncProvider(connector.id);
-      alert('Sync initiated successfully!');
-    } catch (error) {
-      console.error('Sync failed:', error);
-      alert('Failed to initiate sync. Please try again.');
-    }
-  };
-
   return (
     <Dialog open={!!connector} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
@@ -268,34 +248,34 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                       <span className="font-medium">Authentication</span>
                     </div>
 
-                    <div className="space-y-3">
-                      <div>
-                        <Label htmlFor="api-endpoint">API Endpoint/Server URL</Label>
-                        <Input
-                          id="api-endpoint"
-                          placeholder={`Enter your ${connector.name} instance URL`}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="api-key">API Key/Token</Label>
-                        <Input
-                          id="api-key"
-                          type="password"
-                          placeholder="Enter your API key or access token"
-                        />
-                      </div>
-                      {connector.id === 'jira' && (
-                        <div>
-                          <Label htmlFor="username">Username/Email</Label>
-                          <Input
-                            id="username"
-                            placeholder="Enter your Jira username or email"
-                          />
-                        </div>
-                      )}
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="api-endpoint">
+                      API Endpoint/Server URL
+                    </Label>
+                    <Input
+                      id="api-endpoint"
+                      placeholder={`Enter your ${connector.name} instance URL`}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="api-key">API Key/Token</Label>
+                    <Input
+                      id="api-key"
+                      type="password"
+                      placeholder="Enter your API key or access token"
+                    />
+                  </div>
+                  {connector.id === "jira" && (
+                    <div>
+                      <Label htmlFor="username">Username/Email</Label>
+                      <Input
+                        id="username"
+                        placeholder="Enter your Jira username or email"
+                      />
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
 
                 <div className="flex gap-2 mt-6">
 <<<<<<< HEAD
@@ -318,10 +298,20 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
 >>>>>>> f87cac9 (add user_id for msft excel)
                   <Button
                     className="flex-1"
-                    onClick={handleConnect}
-                    disabled={isConnecting}
+                    onClick={async () => {
+                      try {
+                        await api.getConnectUrl(connector.id);
+                      } catch (err) {
+                        console.error(
+                          `Failed to connect ${connector.id}:`,
+                          err
+                        );
+                        alert(`Failed to connect ${connector.name}`);
+                      }
+                    }}
                   >
-                    {isConnecting ? 'Connecting...' : `Connect ${connector.name}`}
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Connect {connector.name}
                   </Button>
                   <Button
                     variant="outline"
@@ -339,8 +329,8 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
 >>>>>>> f87cac9 (add user_id for msft excel)
                     }}
                   >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    View Docs
+                    <Zap className="w-4 h-4 mr-2" />
+                    Manual Sync
                   </Button>
                 </div>
               </div>

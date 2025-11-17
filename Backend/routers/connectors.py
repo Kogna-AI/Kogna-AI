@@ -24,7 +24,7 @@ MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
 
 # IMPROVEMENT: Load Base URL from ENV with a fallback for development
 # This makes deployment easier.
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
 
 # --- Routers ---
 connect_router = APIRouter(prefix="/connect", tags=["Connectors"])

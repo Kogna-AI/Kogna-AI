@@ -745,7 +745,7 @@ export const api = {
 
   getUserBySupabaseId: async (supabaseId: string): Promise<BackendUser> => {
     const response = await fetch(
-      `${API_BASE_URL}/users/by-supabase/${supabaseId}`,
+      `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
       {
         headers: getAuthHeaders(),
       }
