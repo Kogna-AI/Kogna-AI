@@ -20,6 +20,8 @@ import { Badge } from '../ui/badge';
 import { Separator } from '../ui/seperator';
 import { KogniiThinkingIcon } from '../../../public/KogniiThinkingIcon';
 import { useUser } from './auth/UserContext';
+import KognaLogo from '../../../public/KognaKLetterLogo.png'
+
 
 interface SidebarProps {
   activeView: string;
@@ -46,8 +48,7 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
     { id: 'connectors', label: 'Data Connectors', icon: Database },
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'feedback', label: 'Feedback', icon: MessageSquare },
-    { id : 'insights', label: 'Insights', icon: Brain}
+    { id: 'feedback', label: 'Feedback', icon: MessageSquare }
   ];
 
   return (
@@ -58,10 +59,10 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
             <Image 
-              src="/logoImage.svg" 
+              src={KognaLogo}
               alt="KognaDash Logo" 
-              width={32}
-              height={32}
+              width={20}
+              height={20}
               className="object-contain"
             />
           </div>
@@ -79,7 +80,7 @@ export function Sidebar({ activeView, setActiveView, onKogniiToggle, onNotificat
             onClick={onKogniiToggle}
             variant="outline" 
             size="sm" 
-            className="w-full justify-start gap-2 bg-gradient-to-br from-purple-500/10 via-white/60 to-blue-500/10 backdrop-blur-md border-white/40 hover:bg-white/70 hover:shadow-md transition-all duration-300 group"
+            className="w-full justify-start gap-2 bg-gradient-to-br from-purple-500/10 via-white/60 to-blue-500/10 backdrop-blur-md border-white/10 hover:bg-white/70 hover:shadow-md transition-all duration-300 group"
           >
             <div className="p-1 rounded bg-gradient-to-br from-purple-500/20 to-blue-500/20">
               <KogniiThinkingIcon className="w-4 h-4 text-purple-600" />
