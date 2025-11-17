@@ -151,6 +151,36 @@ async def connect_to_service(
             f"prompt=consent"
         )
         return JSONResponse({"url": auth_url})
+    
+    if provider == "microsoft-teams":
+        scopes = [
+            "Team.ReadBasic.All",
+            "Group.Read.All",
+            "Channel.ReadBasic.All",
+            "ChannelMessage.Read.All",
+            "User.Read",
+            "offline_access"
+        ]
+
+        scope = quote(" ".join(scopes))
+
+        state = f"auth_{user_id}_teams_{int(time.time())}"
+
+        redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
+
+        auth_url = (
+            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
+            f"client_id={MICROSOFT_CLIENT_ID}&"
+            f"response_type=code&"
+            f"redirect_uri={quote(redirect_uri)}&"
+            f"scope={scope}&"
+            f"response_mode=query&"
+            f"state={state}&"
+            f"prompt=consent"
+        )
+
+        return JSONResponse({"url": auth_url})
+
     if provider == "asana":
         scopes = [
         "tasks:read",
@@ -270,7 +300,114 @@ async def auth_callback(
                 refresh_token = token_data.get("refresh_token")
                 expires_in = token_data.get("expires_in", 3600)
 
-                insert_response = supabase.table("user_connectors").insert({
+                insert_response = supabase.table("user_connectors") \
+                    .insert({
+                        "user_id": user_id,
+                        "service": "google",
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "cloud_id": None,
+                        "expires_at": int(time.time()) + expires_in
+                    }) \
+                    .execute()
+
+                # This is the "insert check logic"
+                data = getattr(insert_response, "data", None)
+                if data and len(data) > 0:
+                    logging.info(f"Google Tokens SAVED! Record ID: {data[0]['id']}")
+                else:
+                    logging.error("Failed to save Google tokens")
+                    return RedirectResponse(url="http://localhost:3000?error=failed_to_save")
+
+                background_tasks.add_task(run_master_etl, user_id, "google")
+
+                logging.info("Google connected. ETL started!")
+                return RedirectResponse(url="http://localhost:3000")
+
+            elif provider == "excel":
+                # 1. Exchange code for tokens (Microsoft-specific)
+                token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                redirect_uri = f"{APP_BASE_URL}/auth/callback/excel"
+
+                payload = {
+                    "grant_type": "authorization_code",
+                    "client_id": MICROSOFT_CLIENT_ID,
+                    "client_secret": MICROSOFT_CLIENT_SECRET,
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                    "scope": "Files.Read.All Files.ReadWrite.All User.Read offline_access"
+                }
+
+                response = await client.post(token_url, data=payload)
+                response.raise_for_status()
+                token_data = response.json()
+
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+
+                # 2. Save tokens to database
+                insert_response = supabase.table("user_connectors") \
+                    .insert({
+                        "user_id": user_id,
+                        "service": "excel",
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "cloud_id": None,
+                        "expires_at": int(time.time()) + expires_in
+                    }) \
+                    .execute()
+
+                # Check if insert was successful
+                data = getattr(insert_response, "data", None)
+                if data and len(data) > 0:
+                    logging.info(f"Excel Tokens SAVED! Record ID: {data[0]['id']}")
+                else:
+                    logging.error("Failed to save Excel tokens")
+                    return RedirectResponse(url="http://localhost:3000?error=failed_to_save")
+
+                # 3. Trigger ETL pipeline
+                background_tasks.add_task(run_master_etl, user_id, "excel")
+
+                logging.info("Excel connected. ETL started!")
+                return RedirectResponse(url="http://localhost:3000")
+            
+
+            elif provider == "microsoft":
+
+                # state = oauth_{userId}_{msType}_{timestamp}
+                parts = state.split("_")
+                user_id = parts[1]
+                ms_type = parts[2]   # excel / project / teams
+
+                token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
+
+                payload = {
+                    "client_id": MICROSOFT_CLIENT_ID,
+                    "client_secret": MICROSOFT_CLIENT_SECRET,
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                }
+
+                response = await client.post(token_url, data=payload)
+                response.raise_for_status()
+                token_data = response.json()
+
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+
+                # map ms_type to your user_connectors table service name
+                service_map = {
+                    "excel": "microsoft-excel",
+                    "project": "microsoft-project",
+                    "teams": "microsoft-teams"
+                }
+                service = service_map.get(ms_type, None)
+
+                supabase.table("user_connectors").insert({
                     "user_id": user_id,
                     "service": "google",
                     "access_token": access_token,
@@ -287,6 +424,44 @@ async def auth_callback(
 
                 background_tasks.add_task(run_master_etl, user_id, "google")
                 logging.info("Google connected. ETL started!")
+
+                return RedirectResponse(url="http://localhost:3000")
+
+            
+
+            elif provider == "microsoft-teams":
+                parts = state.split("_")
+                user_id = parts[1]
+
+                token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+                redirect_uri = f"{APP_BASE_URL}/auth/callback/microsoft"
+
+                payload = {
+                    "client_id": MICROSOFT_CLIENT_ID,
+                    "client_secret": MICROSOFT_CLIENT_SECRET,
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                }
+
+                response = await client.post(token_url, data=payload)
+                response.raise_for_status()
+                token_data = response.json()
+
+                access_token = token_data.get("access_token")
+                refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+
+                supabase.table("user_connectors").insert({
+                    "user_id": user_id,
+                    "service": "microsoft-teams",
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "cloud_id": None,
+                    "expires_at": int(time.time()) + expires_in
+                }).execute()
+
+                background_tasks.add_task(run_master_etl, user_id, "microsoft-teams")
 
                 return RedirectResponse(url="http://localhost:3000")
 
