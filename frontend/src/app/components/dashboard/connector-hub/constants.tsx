@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   MessageSquare,
   Database,
+  FolderKanban,
 } from "lucide-react";
 import { Connector, Category } from "./types";
 
@@ -121,11 +122,11 @@ export const connectors: Connector[] = [
     dataSync: "Every hour",
   },
   {
-    id: "sheets",
-    name: "Google Sheets",
+    id: "google",
+    name: "Google Drive",
     description: "Connect spreadsheets and data from Google Sheets",
-    icon: <FileSpreadsheet className="w-6 h-6 text-green-500" />,
-    status: "connected",
+    icon: <FolderKanban className="w-6 h-6 text-green-500" />,
+    status: "available",
     category: "storage",
     features: [
       "Data Import",
