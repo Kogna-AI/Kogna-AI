@@ -12,7 +12,7 @@ def run_ai_analysis(organization_id: int, analysis_type: str, parameters: Dict[s
         "parameters": parameters
     }
     try:
-        response = requests.post("http://localhost:4001/analyze", json=payload) 
+        response = requests.post("https://localhost:4001/analyze", json=payload) 
         return response.json()
     except Exception as e:
         return {"success": False, "error": str(e)}

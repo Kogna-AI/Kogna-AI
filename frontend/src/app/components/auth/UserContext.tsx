@@ -35,7 +35,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // --- Check session on mount ---
   useEffect(() => {
     const initSession = async () => {
-      setLoading(true);
+      //setLoading(true);
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -55,15 +55,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     // --- Listen to auth state changes (login/logout/refresh) ---
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "SIGNED_IN" && session?.user) {
+      (_event, session) => {
+        if (session?.user) {
           setUser(session.user);
           setIsAuthenticated(true);
-          router.push("/"); // ✅ Automatically redirect after login
-        } else if (event === "SIGNED_OUT") {
+         // router.push("/"); // ✅ Automatically redirect after login
+        } else{
           setUser(null);
           setIsAuthenticated(false);
-          router.push("/"); // 🔄 Back to login when logged out
+         // router.push("/"); // 🔄 Back to login when logged out
         }
       }
     );
