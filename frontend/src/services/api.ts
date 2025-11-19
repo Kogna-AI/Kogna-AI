@@ -647,7 +647,7 @@ export const api = {
     title: string;
     created_at: string;
   }> => {
-    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
       method: "POST",
       headers: getAuthHeaders(),
     });
@@ -661,7 +661,7 @@ export const api = {
   getUserSessions: async (): Promise<
     Array<{ id: string; user_id: string; title: string; created_at: string }>
   > => {
-    const response = await fetch(`${API_BASE_URL}/chat/sessions`, {
+    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
       method: "GET",
       headers: getAuthHeaders(),
     });
@@ -701,7 +701,7 @@ export const api = {
       execution_mode: executionMode,
     };
 
-    const response = await fetch(`${API_BASE_URL}/chat/run`, {
+    const response = await fetch(`${API_BASE_URL}/api/chat/run`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -737,30 +737,74 @@ export const api = {
     return handleResponse<BackendUser>(response);
   },
 
-  // ==================== CONNECTORS (GENERAL) ====================
+// ==================== CONNECTORS (GENERAL) ====================
 
-  getConnectUrl: async (provider: string) => {
+getConnectUrl: async (provider: string) => {
+  try {
     const response = await fetch(`${API_BASE_URL}/api/connect/${provider}`, {
       headers: getAuthHeaders(),
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: "Failed to get connect URL" }));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+    
     const data = await response.json();
-    window.location.href = data.url;
-  },
+    
+    if (!data.url) {
+      throw new Error('No authorization URL returned from server');
+    }
+    
+    // Return the data instead of redirecting directly
+    // This gives the calling component more control
+    return data;
+  } catch (error) {
+    console.error(`Error getting ${provider} connect URL:`, error);
+    throw error;
+  }
+},
 
-  exchangeCode: async (provider: string, code: string) => {
+// Add this new method to handle OAuth callbacks
+handleOAuthCallback: async (provider: string, code: string) => {
+  try {
+    if (!code) {
+      throw new Error('No authorization code received');
+    }
+    
     const response = await fetch(
-      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(
-        code
-      )}`,
+      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
+    
+    return handleResponse(response);
+  } catch (error) {
+    console.error(`Error handling ${provider} OAuth callback:`, error);
+    throw error;
+  }
+},
+
+exchangeCode: async (provider: string, code: string) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
       {
         method: "POST",
         headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
-  },
+  } catch (error) {
+    console.error(`Error exchanging ${provider} code:`, error);
+    throw error;
+  }
+},
 
-  manualSync: async (provider: string) => {
+manualSync: async (provider: string) => {
+  try {
     const response = await fetch(
       `${API_BASE_URL}/api/connect/sync/${provider}`,
       {
@@ -769,9 +813,14 @@ export const api = {
       }
     );
     return handleResponse(response);
-  },
+  } catch (error) {
+    console.error(`Error syncing ${provider}:`, error);
+    throw error;
+  }
+},
 
-  listConnections: async (userId: string | number) => {
+listConnections: async (userId: string | number) => {
+  try {
     const response = await fetch(
       `${API_BASE_URL}/api/users/${userId}/connectors`,
       {
@@ -787,9 +836,14 @@ export const api = {
         created_at: string;
       }[]
     >(response);
-  },
+  } catch (error) {
+    console.error('Error listing connections:', error);
+    throw error;
+  }
+},
 
-  disconnect: async (provider: string) => {
+disconnect: async (provider: string) => {
+  try {
     const response = await fetch(
       `${API_BASE_URL}/api/connect/disconnect/${provider}`,
       {
@@ -798,7 +852,27 @@ export const api = {
       }
     );
     return handleResponse(response);
-  },
+  } catch (error) {
+    console.error(`Error disconnecting ${provider}:`, error);
+    throw error;
+  }
+},
+
+// Add this to check connection status
+checkConnectionStatus: async (provider: string) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/connect/status/${provider}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse<{ connected: boolean; expires_at?: number }>(response);
+  } catch (error) {
+    console.error(`Error checking ${provider} connection status:`, error);
+    throw error;
+  }
+},
 };
 
 export default api;
