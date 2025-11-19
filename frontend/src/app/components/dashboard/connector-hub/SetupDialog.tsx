@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useState } from "react";
 import { Card, CardContent } from "../../../ui/card";
 import { Button } from "../../../ui/button";
@@ -15,21 +14,6 @@ import { Input } from "../../../ui/input";
 import { Label } from "../../../ui/label";
 import { RadioGroup, RadioGroupItem } from "../../../ui/radio-group";
 import { Switch } from "../../../ui/switch";
-=======
-import { useState } from 'react';
-import { Card, CardContent } from '../../../ui/card';
-import { Button } from '../../../ui/button';
-import { Badge } from '../../../ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../ui/tabs';
-import { Input } from '../../../ui/input';
-import { Label } from '../../../ui/label';
-import { RadioGroup, RadioGroupItem } from '../../../ui/radio-group';
-import { Switch } from '../../../ui/switch';
-<<<<<<< HEAD
->>>>>>> ce2eeb3 (connect-msft-excel)
-=======
->>>>>>> f87cac9 (add user_id for msft excel)
 import {
   Clock,
   Zap,
@@ -40,22 +24,11 @@ import {
   ArrowLeftRight,
   ArrowRight,
   Shield,
-<<<<<<< HEAD
   AlertCircle,
 } from "lucide-react";
 import { Connector } from "./types";
 import { syncModes } from "./constants";
 import api from "@/services/api";
-=======
-  AlertCircle
-} from 'lucide-react';
-import { Connector } from './types';
-import { syncModes } from './constants';
-import api from '../../../../services/api';
-<<<<<<< HEAD
->>>>>>> ce2eeb3 (connect-msft-excel)
-=======
->>>>>>> f87cac9 (add user_id for msft excel)
 
 interface SetupDialogProps {
   connector: Connector | null;
@@ -65,55 +38,8 @@ interface SetupDialogProps {
 export function SetupDialog({ connector, onClose }: SetupDialogProps) {
   const [selectedSyncMode, setSelectedSyncMode] = useState("one-way");
   const [enableRealTimeSync, setEnableRealTimeSync] = useState(true);
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-  const [isConnecting, setIsConnecting] = useState(false);
->>>>>>> ce2eeb3 (connect-msft-excel)
-=======
-  const [isConnecting, setIsConnecting] = useState(false);
->>>>>>> f87cac9 (add user_id for msft excel)
-=======
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
->>>>>>> 36db501 (update to the main)
 
   if (!connector) return null;
-
-  const handleConnect = async () => {
-    setIsConnecting(true);
-    try {
-      console.log(` Getting connect URL for ${connector.id}...`);
-      const data = await api.getConnectUrl(connector.id);
-      
-      if (!data.url) {
-        throw new Error('No authorization URL received from server');
-      }
-      
-      console.log(` Redirecting to: ${data.url}`);
-      window.location.href = data.url;
-    } catch (err) {
-      console.error(`Failed to connect ${connector.id}:`, err);
-      alert(`Failed to connect ${connector.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      setIsConnecting(false);
-    }
-  };
-
-  const handleManualSync = async () => {
-    setIsSyncing(true);
-    try {
-      console.log(` Starting manual sync for ${connector.id}...`);
-      const result = await api.manualSync(connector.id);
-      console.log(' Sync result:', result);
-      alert(`Successfully synced ${connector.name}!`);
-    } catch (err) {
-      console.error(` Sync failed for ${connector.id}:`, err);
-      alert(`Sync failed for ${connector.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   return (
     <Dialog open={!!connector} onOpenChange={onClose}>
@@ -205,8 +131,6 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
               </div>
             ) : (
               <div className="space-y-4">
-<<<<<<< HEAD
-<<<<<<< HEAD
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
                     1
@@ -239,87 +163,11 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                         id="username"
                         placeholder="Enter your Jira username or email"
                       />
-=======
-=======
->>>>>>> f87cac9 (add user_id for msft excel)
-                {connector.id === 'excel' ? (
-                  // Excel OAuth-specific setup instructions
-                  <div className="space-y-4">
-                    <Card className="border-blue-200 bg-blue-50">
-                      <CardContent className="pt-4">
-                        <div className="flex items-start gap-3">
-                          <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-semibold text-blue-800 mb-2">Secure OAuth Connection</p>
-                            <p className="text-sm text-blue-700 mb-3">
-                              Connect your Microsoft account to access Excel files from OneDrive and SharePoint.
-                              Your credentials are never stored - we use secure OAuth tokens.
-                            </p>
-                            <ul className="text-sm text-blue-700 space-y-1 mb-3">
-                              <li>✓ Access Excel files from OneDrive</li>
-                              <li>✓ Connect to SharePoint workbooks</li>
-                              <li>✓ Automatic sync every 15 minutes</li>
-                              <li>✓ Secure, encrypted connection</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <div className="bg-muted p-4 rounded-lg">
-                      <p className="text-sm text-muted-foreground">
-                        <strong>Note:</strong> You'll need a Microsoft 365 account with Excel files stored in OneDrive or SharePoint.
-                        When you click Connect, you'll be redirected to Microsoft to authorize access.
-                      </p>
-<<<<<<< HEAD
->>>>>>> ce2eeb3 (connect-msft-excel)
-=======
->>>>>>> f87cac9 (add user_id for msft excel)
-                    </div>
-                  </div>
-                ) : (
-                  // Generic API key setup for other connectors
-                  <>
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-                        1
-                      </div>
-                      <span className="font-medium">Authentication</span>
-                    </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="api-endpoint">
-                      API Endpoint/Server URL
-                    </Label>
-                    <Input
-                      id="api-endpoint"
-                      placeholder={`Enter your ${connector.name} instance URL`}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="api-key">API Key/Token</Label>
-                    <Input
-                      id="api-key"
-                      type="password"
-                      placeholder="Enter your API key or access token"
-                    />
-                  </div>
-                  {connector.id === "jira" && (
-                    <div>
-                      <Label htmlFor="username">Username/Email</Label>
-                      <Input
-                        id="username"
-                        placeholder="Enter your Jira username or email"
-                      />
                     </div>
                   )}
                 </div>
 
                 <div className="flex gap-2 mt-6">
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
                   {/* Buttons below*/}
                   <Button
                     className="flex-1"
@@ -333,58 +181,25 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                         );
                         alert(`Failed to connect ${connector.name}`);
                       }
-=======
-=======
->>>>>>> f87cac9 (add user_id for msft excel)
-                  <Button
-                    className="flex-1"
-                    onClick={async () => {
-                      try {
-                        await api.getConnectUrl(connector.id);
-                      } catch (err) {
-                        console.error(
-                          `Failed to connect ${connector.id}:`,
-                          err
-                        );
-                        alert(`Failed to connect ${connector.name}`);
-                      }
                     }}
-=======
-                  {/* Connect Button */}
-                  <Button
-                    className="flex-1"
-                    onClick={handleConnect}
-                    disabled={isConnecting || isSyncing}
->>>>>>> 36db501 (update to the main)
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    {isConnecting ? 'Connecting...' : `Connect ${connector.name}`}
+                    Connect {connector.name}
                   </Button>
-                  
-                  {/* Manual Sync Button */}
                   <Button
                     variant="outline"
-<<<<<<< HEAD
-                    onClick={() => {
-                      // Open provider-specific documentation
-                      const urls: Record<string, string> = {
-                        'excel': 'https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
-                        'jira': 'https://developer.atlassian.com/console/myapps/',
-                        'google': 'https://console.cloud.google.com/apis/credentials'
-                      };
-                      window.open(urls[connector.id] || '#', '_blank');
-<<<<<<< HEAD
->>>>>>> ce2eeb3 (connect-msft-excel)
-=======
->>>>>>> f87cac9 (add user_id for msft excel)
+                    onClick={async () => {
+                      try {
+                        await api.manualSync(connector.id);
+                        alert(`Manual sync started for ${connector.name}`);
+                      } catch (err) {
+                        console.error(`Sync failed for ${connector.id}:`, err);
+                        alert(`Sync failed for ${connector.name}`);
+                      }
                     }}
-=======
-                    onClick={handleManualSync}
-                    disabled={isConnecting || isSyncing}
->>>>>>> 36db501 (update to the main)
                   >
-                    <Zap className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Syncing...' : 'Manual Sync'}
+                    <Zap className="w-4 h-4 mr-2" />
+                    Manual Sync
                   </Button>
                 </div>
               </div>
