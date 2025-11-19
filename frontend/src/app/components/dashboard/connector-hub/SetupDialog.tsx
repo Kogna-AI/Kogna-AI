@@ -67,14 +67,53 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
   const [enableRealTimeSync, setEnableRealTimeSync] = useState(true);
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
   const [isConnecting, setIsConnecting] = useState(false);
 >>>>>>> ce2eeb3 (connect-msft-excel)
 =======
   const [isConnecting, setIsConnecting] = useState(false);
 >>>>>>> f87cac9 (add user_id for msft excel)
+=======
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+>>>>>>> 36db501 (update to the main)
 
   if (!connector) return null;
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    try {
+      console.log(` Getting connect URL for ${connector.id}...`);
+      const data = await api.getConnectUrl(connector.id);
+      
+      if (!data.url) {
+        throw new Error('No authorization URL received from server');
+      }
+      
+      console.log(` Redirecting to: ${data.url}`);
+      window.location.href = data.url;
+    } catch (err) {
+      console.error(`Failed to connect ${connector.id}:`, err);
+      alert(`Failed to connect ${connector.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setIsConnecting(false);
+    }
+  };
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      console.log(` Starting manual sync for ${connector.id}...`);
+      const result = await api.manualSync(connector.id);
+      console.log(' Sync result:', result);
+      alert(`Successfully synced ${connector.name}!`);
+    } catch (err) {
+      console.error(` Sync failed for ${connector.id}:`, err);
+      alert(`Sync failed for ${connector.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
     <Dialog open={!!connector} onOpenChange={onClose}>
@@ -280,6 +319,7 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                 <div className="flex gap-2 mt-6">
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                   {/* Buttons below*/}
                   <Button
                     className="flex-1"
@@ -309,12 +349,22 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                         alert(`Failed to connect ${connector.name}`);
                       }
                     }}
+=======
+                  {/* Connect Button */}
+                  <Button
+                    className="flex-1"
+                    onClick={handleConnect}
+                    disabled={isConnecting || isSyncing}
+>>>>>>> 36db501 (update to the main)
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Connect {connector.name}
+                    {isConnecting ? 'Connecting...' : `Connect ${connector.name}`}
                   </Button>
+                  
+                  {/* Manual Sync Button */}
                   <Button
                     variant="outline"
+<<<<<<< HEAD
                     onClick={() => {
                       // Open provider-specific documentation
                       const urls: Record<string, string> = {
@@ -328,9 +378,13 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
 =======
 >>>>>>> f87cac9 (add user_id for msft excel)
                     }}
+=======
+                    onClick={handleManualSync}
+                    disabled={isConnecting || isSyncing}
+>>>>>>> 36db501 (update to the main)
                   >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Manual Sync
+                    <Zap className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Syncing...' : 'Manual Sync'}
                   </Button>
                 </div>
               </div>
