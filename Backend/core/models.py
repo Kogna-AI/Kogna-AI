@@ -18,11 +18,36 @@ class OrganizationCreate(BaseModel):
 
 # ====== Users ======
 class UserCreate(BaseModel):
+    supabase_id: str
     organization_id: int
     first_name: str
     second_name: Optional[str] = None
     role: Optional[str] = None
     email: EmailStr
+    
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    second_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+    organization_id: Optional[int] = None
+
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    second_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+    organization_id: Optional[int] = None
+
+class UserResponse(BaseModel):
+    id: int
+    supabase_id: str
+    organization_id: int
+    first_name: str
+    second_name: Optional[str]
+    role: Optional[str]
+    email: str
+    created_at: datetime
 
 # ====== Teams ======
 class TeamCreate(BaseModel):

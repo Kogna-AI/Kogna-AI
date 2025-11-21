@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+
+  # ==================== BACKEND (FastAPI) ====================
+  backend:
+    build: 
+      context: ./backend # Path to your backend directory containing Dockerfile
+      dockerfile: Dockerfile
+    # Expose the internal port 8000 to the host's port 8000
+    ports:
+      - "8000:8000" 
+    volumes:
+      - ./backend:/app # Useful for development (optional for production)
+    # Define internal environment variables (e.g., database connection)
+      - /app/.next  # <-- PREVENTS HOST OVERWRITE OF BUILT FILES
+      - /app/node_modules # (Keeps host node_modules from interfering)
+    environment:
+      # If using a database, this is where you'd link it (e.g., db_host: postgres)
+      # DATABASE_URL: postgresql://user:password@db:5432/dbname
+      PYTHONUNBUFFERED: 1
+    # This is the service name used by other containers (e.g., frontend uses http://backend:8000)
+    container_name: backend 
+
+  # ==================== FRONTEND (Next.js) ====================
+  frontend:
+    build: 
+      context: ./frontend # Path to your frontend directory containing Dockerfile
+      dockerfile: Dockerfile
+      args:
+        # Pass build-time environment variables (NEXT_PUBLIC_API_URL is needed for the client JS bundle)
+        NEXT_PUBLIC_API_URL: http://localhost:8000 # <-- The public URL for the browser
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    # Expose the internal port 3000 to the host's port 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      # Prevents node_modules on host from interfering with container modules (optional but recommended)
+      - /app/.next
+      - /app/node_modules 
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL} 
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      # Pass runtime environment variables to the container for the 'npm start' process:
+      # 1. The public URL (needed for client-side bundle and SSR fallback)
+      NEXT_PUBLIC_API_URL: http://localhost:8000 
+      # 2. The internal URL (REQUIRED for server-side Next.js fetches)
+      API_URL_INTERNAL: http://backend:8000 # <-- The internal name (service name)
+    depends_on:
+      - backend # Ensures backend starts before frontend runs its entrypoint.sh
