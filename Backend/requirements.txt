@@ -44,3 +44,4 @@ pytest
 pytest-asyncio
 google-api-python-client==2.184.0
 gotrue==2.12.4
+gunicorn==23.0.0

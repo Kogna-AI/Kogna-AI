@@ -1,37 +1,58 @@
+# ============================================
+# AWS-Optimized FastAPI Backend Dockerfile
+# Fixed for CrewAI permissions
+# ============================================
+
 # ---- Base Image ----
-# Use an official, lightweight Python 3.11 "slim" image.
-# This provides a good balance of size and having necessary tools.
 FROM python:3.11-slim
 
 # ---- Set Working Directory ----
-# All commands will now run from inside /app
 WORKDIR /app
 
-# ---- Copy and Install Dependencies ----
-# Copy *only* the requirements file first.
-# This takes advantage of Docker's layer caching.
-# If your code changes, Docker won't need to reinstall all your libraries.
+# ---- Copy and Install Python Dependencies ----
 COPY requirements.txt .
 
-# Install the Python libraries
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+# Install dependencies as root
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ---- Create Non-Root User with Home Directory ----
+# CrewAI needs a writable home directory for ChromaDB storage
+RUN adduser --disabled-password --gecos "" appuser && \
+    mkdir -p /home/appuser/.local/share && \
+    chown -R appuser:appuser /home/appuser
 
 # ---- Copy Application Code ----
-# Now, copy all your application code (main.py, routers/, core/, etc.)
-# The .dockerignore file will make sure .env and other junk is skipped.
-COPY . .
+COPY --chown=appuser:appuser . .
+
+# ---- Switch to Non-Root User ----
+USER appuser
+
+# ---- Set Environment Variables for CrewAI ----
+# Tell CrewAI to use /app for storage instead of home directory
+ENV HOME=/home/appuser
+ENV CREWAI_STORAGE_DIR=/app/.crewai
+
+# Create CrewAI storage directory with proper permissions
+USER root
+RUN mkdir -p /app/.crewai && chown -R appuser:appuser /app/.crewai
+USER appuser
 
 # ---- Expose Port ----
-# Tell Docker that the container will listen on port 8000.
 EXPOSE 8000
 
+# ---- Health Check ----
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)" || exit 1
+
 # ---- Run Command ----
-# This is the command to run your app in production.
-# We use uvicorn to run the 'app' object from your 'main.py' file.
-#
-# --host 0.0.0.0: This is MANDATORY. It tells the app to listen for
-#     connections from *outside* the container. The default (127.0.0.1) will fail.
-# --port 8000: Matches the EXPOSE command.
-#
-# (We remove --reload because that's only for development.)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["gunicorn", "main:app", \
+     "--bind", "0.0.0.0:8000", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--workers", "4", \
+     "--timeout", "120", \
+     "--graceful-timeout", "30", \
+     "--keep-alive", "5", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "--log-level", "info"]
