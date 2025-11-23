@@ -14,5 +14,9 @@ def get_db():
     )
     try:
         yield conn
+        conn.commit() # <-- 3. Commit on success
+    except Exception:
+        conn.rollback() # <-- 4. Rollback on error
+        raise
     finally:
         conn.close()
