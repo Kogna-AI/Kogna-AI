@@ -1,37 +1,45 @@
-# ---- Base Image ----
-# Use an official, lightweight Python 3.11 "slim" image.
-# This provides a good balance of size and having necessary tools.
-FROM python:3.11-slim
+# Multi-stage build for Python FastAPI backend
+
+FROM python:3.11-slim AS base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # ---- Set Working Directory ----
 # All commands will now run from inside /app
 WORKDIR /app
 
-# ---- Copy and Install Dependencies ----
-# Copy *only* the requirements file first.
-# This takes advantage of Docker's layer caching.
-# If your code changes, Docker won't need to reinstall all your libraries.
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the requirements file first for layer caching
 COPY requirements.txt .
 
-# Install the Python libraries
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+# Install the Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# ---- Copy Application Code ----
-# Now, copy all your application code (main.py, routers/, core/, etc.)
-# The .dockerignore file will make sure .env and other junk is skipped.
+# Copy the rest of your backend application code
 COPY . .
 
-# ---- Expose Port ----
-# Tell Docker that the container will listen on port 8000.
+# Create a non-root user
+RUN useradd -m -u 1001 appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+# Expose the FastAPI port
 EXPOSE 8000
 
-# ---- Run Command ----
-# This is the command to run your app in production.
-# We use uvicorn to run the 'app' object from your 'main.py' file.
-#
-# --host 0.0.0.0: This is MANDATORY. It tells the app to listen for
-#     connections from *outside* the container. The default (127.0.0.1) will fail.
-# --port 8000: Matches the EXPOSE command.
-#
-# (We remove --reload because that's only for development.)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/api/docs')"
+
+# Default command to run the FastAPI server
+# Can be overridden for different use cases (e.g., running Orchestrator.py)
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
