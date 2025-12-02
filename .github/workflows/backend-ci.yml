@@ -1,0 +1,72 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'Backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'Backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  lint-test-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./Backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: Backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 black isort
+
+      - name: Run Black formatting check
+        run: black --check .
+
+      - name: Run isort import sorting check
+        run: isort --check-only .
+
+      - name: Run Flake8 linting
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run pytest tests
+        run: pytest -v --tb=short
+        env:
+          # Add your environment variables here as secrets
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t kogna-backend:${{ github.sha }} -f Dockerfile .
+
+      - name: Save Docker image
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker save kogna-backend:${{ github.sha }} | gzip > kogna-backend-${{ github.sha }}.tar.gz
+
+      - name: Upload Docker image artifact
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-docker-image
+          path: Backend/kogna-backend-${{ github.sha }}.tar.gz
+          retention-days: 7
