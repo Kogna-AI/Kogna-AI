@@ -14,12 +14,7 @@ from core.permissions import (
 )
 import psycopg2
 from psycopg2.extras import RealDictCursor
-<<<<<<< HEAD
 from routers.Authentication import get_current_user
-=======
-from uuid import UUID
-
->>>>>>> 851d137 (connect the team page first step - only size of the team)
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 
@@ -113,7 +108,6 @@ def create_user(user: UserCreate):
 
 
 @router.get("/by-supabase/{supabase_id}")
-<<<<<<< HEAD
 def get_user_by_supabase_id(supabase_id: str):
     """
     Get user by their Supabase authentication ID.
@@ -611,38 +605,3 @@ async def get_organization_user_stats(
                 "recent_signups": recent_signups
             }
         }
-=======
-def get_user_by_supabase_id(supabase_id: str, db=Depends(get_db)):
-    with db.cursor() as cursor:
-        cursor.execute("SELECT * FROM users WHERE supabase_id = %s", (supabase_id,))
-        user = cursor.fetchone()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return {"success": True, "data": user}
-
-
-
-@router.get("/{user_id}/team")
-def get_user_team(user_id: UUID, db=Depends(get_db)):
-    """
-    Retrieve the team that a given user belongs to.
-    """
-    query = """
-        SELECT t.id, t.name, t.organization_id
-        FROM team_members tm
-        JOIN teams t ON tm.team_id = t.id
-        WHERE tm.user_id = %s
-        LIMIT 1;
-    """
-
-    with db.cursor() as cur:
-        cur.execute(query, (str(user_id),))
-        team = cur.fetchone()
-
-    if not team:
-        raise HTTPException(status_code=404, detail="User not assigned to any team")
-
-    return {"success": True, "data": team}
->>>>>>> 851d137 (connect the team page first step - only size of the team)
