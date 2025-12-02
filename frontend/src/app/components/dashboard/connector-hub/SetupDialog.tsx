@@ -38,8 +38,44 @@ interface SetupDialogProps {
 export function SetupDialog({ connector, onClose }: SetupDialogProps) {
   const [selectedSyncMode, setSelectedSyncMode] = useState("one-way");
   const [enableRealTimeSync, setEnableRealTimeSync] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   if (!connector) return null;
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    try {
+      console.log(` Getting connect URL for ${connector.id}...`);
+      const data = await api.getConnectUrl(connector.id);
+      
+      if (!data.url) {
+        throw new Error('No authorization URL received from server');
+      }
+      
+      console.log(` Redirecting to: ${data.url}`);
+      window.location.href = data.url;
+    } catch (err) {
+      console.error(`Failed to connect ${connector.id}:`, err);
+      alert(`Failed to connect ${connector.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setIsConnecting(false);
+    }
+  };
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      console.log(` Starting manual sync for ${connector.id}...`);
+      const result = await api.manualSync(connector.id);
+      console.log(' Sync result:', result);
+      alert(`Successfully synced ${connector.name}!`);
+    } catch (err) {
+      console.error(` Sync failed for ${connector.id}:`, err);
+      alert(`Sync failed for ${connector.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
     <Dialog open={!!connector} onOpenChange={onClose}>
@@ -168,38 +204,24 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                 </div>
 
                 <div className="flex gap-2 mt-6">
-                  {/* Buttons below*/}
+                  {/* Connect Button */}
                   <Button
                     className="flex-1"
-                    onClick={async () => {
-                      try {
-                        await api.getConnectUrl(connector.id);
-                      } catch (err) {
-                        console.error(
-                          `Failed to connect ${connector.id}:`,
-                          err
-                        );
-                        alert(`Failed to connect ${connector.name}`);
-                      }
-                    }}
+                    onClick={handleConnect}
+                    disabled={isConnecting || isSyncing}
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Connect {connector.name}
+                    {isConnecting ? 'Connecting...' : `Connect ${connector.name}`}
                   </Button>
+                  
+                  {/* Manual Sync Button */}
                   <Button
                     variant="outline"
-                    onClick={async () => {
-                      try {
-                        await api.manualSync(connector.id);
-                        alert(`Manual sync started for ${connector.name}`);
-                      } catch (err) {
-                        console.error(`Sync failed for ${connector.id}:`, err);
-                        alert(`Sync failed for ${connector.name}`);
-                      }
-                    }}
+                    onClick={handleManualSync}
+                    disabled={isConnecting || isSyncing}
                   >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Manual Sync
+                    <Zap className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Syncing...' : 'Manual Sync'}
                   </Button>
                 </div>
               </div>

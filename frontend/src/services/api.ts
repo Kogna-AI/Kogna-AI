@@ -3,22 +3,9 @@
  * Frontend API client for communicating with the FastAPI backend
  */
 
-// 1. Check if the code is running on the server (SSR or API Routes).
-const isServer = typeof window === "undefined";
-// 2. Define internal (server-only) and public (client) environment variables.
-// NOTE: API_URL_INTERNAL must be set in your Docker/AWS runtime environment.
-const API_URL_INTERNAL = process.env.API_URL_INTERNAL; 
+// 1. API_BASE_URL is clean. It does NOT include '/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// NOTE: NEXT_PUBLIC_API_URL must be set in your Docker build environment.
-const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-// 3. Set the base URL dynamically.
-const API_BASE_URL = isServer ? API_URL_INTERNAL : NEXT_PUBLIC_API_URL;
-
-if (!API_BASE_URL) {
-  // Fallback/Warning for when variables aren't set correctly
-  console.error("API_BASE_URL is not correctly set. Check API_URL_INTERNAL and NEXT_PUBLIC_API_URL.");
-}
 import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
@@ -101,12 +88,9 @@ export const api = {
   // ==================== ORGANIZATIONS ====================
 
   getOrganization: async (orgId: number) => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/organizations/${orgId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
+      headers: getAuthHeaders(),
+    });
     return handleResponse(response);
   },
 
@@ -142,14 +126,11 @@ export const api = {
       project_number?: number;
     }
   ) => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/organizations/${orgId}`,
-      {
-        method: "PUT",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
     return handleResponse(response);
   },
 
@@ -655,6 +636,11 @@ export const api = {
   // ===== CHATBOT & AI (STATEFUL) - UPDATED =====
   // ================================================
 
+  /**
+   * Starts a new chat session for the authenticated user.
+   * This is the first call to make when a user starts a new chat.
+   * @returns {Promise<{id: string, user_id: string, title: string, created_at: string}>} The new session object.
+   */
   startChatSession: async (): Promise<{
     id: string;
     user_id: string;
@@ -668,6 +654,10 @@ export const api = {
     return handleResponse(response);
   },
 
+  /**
+   * Gets a list of all past chat sessions for the authenticated user.
+   * @returns {Promise<Array<{id: string, user_id: string, title: string, created_at: string}>>} A list of session objects.
+   */
   getUserSessions: async (): Promise<
     Array<{ id: string; user_id: string; title: string; created_at: string }>
   > => {
@@ -678,18 +668,21 @@ export const api = {
     return handleResponse(response);
   },
 
+  /**
+   * Gets all messages for a specific chat session.
+   * Call this when a user clicks on an old conversation to load its history.
+   * @param sessionId - The UUID of the chat session.
+   * @returns {Promise<Array<{id: string, role: string, content: string, created_at: string}>>} A list of message objects.
+   */
   getSessionHistory: async (
     sessionId: string
   ): Promise<
     Array<{ id: string; role: string; content: string; created_at: string }>
   > => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/chat/history/${sessionId}`,
-      {
-        method: "GET",
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
     return handleResponse(response);
   },
 
@@ -744,30 +737,74 @@ export const api = {
     return handleResponse<BackendUser>(response);
   },
 
-  // ==================== CONNECTORS (GENERAL) ====================
+// ==================== CONNECTORS (GENERAL) ====================
 
-  getConnectUrl: async (provider: string) => {
+getConnectUrl: async (provider: string) => {
+  try {
     const response = await fetch(`${API_BASE_URL}/api/connect/${provider}`, {
       headers: getAuthHeaders(),
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: "Failed to get connect URL" }));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+    
     const data = await response.json();
-    window.location.href = data.url;
-  },
+    
+    if (!data.url) {
+      throw new Error('No authorization URL returned from server');
+    }
+    
+    // Return the data instead of redirecting directly
+    // This gives the calling component more control
+    return data;
+  } catch (error) {
+    console.error(`Error getting ${provider} connect URL:`, error);
+    throw error;
+  }
+},
 
-  exchangeCode: async (provider: string, code: string) => {
+// Add this new method to handle OAuth callbacks
+handleOAuthCallback: async (provider: string, code: string) => {
+  try {
+    if (!code) {
+      throw new Error('No authorization code received');
+    }
+    
     const response = await fetch(
-      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(
-        code
-      )}`,
+      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
+    
+    return handleResponse(response);
+  } catch (error) {
+    console.error(`Error handling ${provider} OAuth callback:`, error);
+    throw error;
+  }
+},
+
+exchangeCode: async (provider: string, code: string) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
       {
         method: "POST",
         headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
-  },
+  } catch (error) {
+    console.error(`Error exchanging ${provider} code:`, error);
+    throw error;
+  }
+},
 
-  manualSync: async (provider: string) => {
+manualSync: async (provider: string) => {
+  try {
     const response = await fetch(
       `${API_BASE_URL}/api/connect/sync/${provider}`,
       {
@@ -776,9 +813,14 @@ export const api = {
       }
     );
     return handleResponse(response);
-  },
+  } catch (error) {
+    console.error(`Error syncing ${provider}:`, error);
+    throw error;
+  }
+},
 
-  listConnections: async (userId: string | number) => {
+listConnections: async (userId: string | number) => {
+  try {
     const response = await fetch(
       `${API_BASE_URL}/api/users/${userId}/connectors`,
       {
@@ -794,9 +836,14 @@ export const api = {
         created_at: string;
       }[]
     >(response);
-  },
+  } catch (error) {
+    console.error('Error listing connections:', error);
+    throw error;
+  }
+},
 
-  disconnect: async (provider: string) => {
+disconnect: async (provider: string) => {
+  try {
     const response = await fetch(
       `${API_BASE_URL}/api/connect/disconnect/${provider}`,
       {
@@ -805,7 +852,27 @@ export const api = {
       }
     );
     return handleResponse(response);
-  },
+  } catch (error) {
+    console.error(`Error disconnecting ${provider}:`, error);
+    throw error;
+  }
+},
+
+// Add this to check connection status
+checkConnectionStatus: async (provider: string) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/connect/status/${provider}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse<{ connected: boolean; expires_at?: number }>(response);
+  } catch (error) {
+    console.error(`Error checking ${provider} connection status:`, error);
+    throw error;
+  }
+},
 };
 
 export default api;

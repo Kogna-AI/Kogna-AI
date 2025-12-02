@@ -38,9 +38,13 @@ pyjwt==2.10.1
 bcrypt==5.0.0
 python-dateutil==2.9.0
 python-json-logger==2.0.7
-jira==3.10.5
-supabase-auth==2.22.0
-pytest
-pytest-asyncio
-google-api-python-client==2.184.0
-gotrue==2.12.4
+
+# Task Management
+jira
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# CORS (handled by FastAPI's built-in CORSMiddleware)
+# python-cors==1.0.0
