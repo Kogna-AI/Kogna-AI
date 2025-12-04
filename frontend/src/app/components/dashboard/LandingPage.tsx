@@ -1,19 +1,18 @@
-import { KogniiThinkingIcon } from '../../../../public/KogniiThinkingIcon';
-import { Button } from '../../ui/button';
-import { 
-  Brain, 
-  TrendingUp, 
-  Users, 
-  Target, 
-  Bell, 
-  BarChart3, 
-  Calendar,
-  Zap,
-  Shield,
-  Globe,
+import {
   ArrowRight,
-  Check
-} from 'lucide-react';
+  BarChart3,
+  Bell,
+  Brain,
+  Calendar,
+  Check,
+  Globe,
+  Shield,
+  Target,
+  Users,
+  Zap,
+} from "lucide-react";
+import { KogniiThinkingIcon } from "../../../../public/KogniiThinkingIcon";
+import { Button } from "../../ui/button";
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -24,33 +23,39 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     {
       icon: Brain,
       title: "AI-Powered Optimization",
-      description: "Kognii analyzes your team dynamics and suggests optimal strategies for maximum efficiency."
+      description:
+        "Kognii analyzes your team dynamics and suggests optimal strategies for maximum efficiency.",
     },
     {
       icon: Users,
       title: "Team Intelligence",
-      description: "Real-time insights into team performance, capacity, and collaboration patterns."
+      description:
+        "Real-time insights into team performance, capacity, and collaboration patterns.",
     },
     {
       icon: Target,
       title: "Strategic Planning",
-      description: "Multi-step objective creation with AI-suggested team compositions and resource allocation."
+      description:
+        "Multi-step objective creation with AI-suggested team compositions and resource allocation.",
     },
     {
       icon: BarChart3,
       title: "Advanced Analytics",
-      description: "Deep dive into performance metrics, trends, and predictive insights for better decisions."
+      description:
+        "Deep dive into performance metrics, trends, and predictive insights for better decisions.",
     },
     {
       icon: Calendar,
       title: "Meeting Management",
-      description: "Intelligent meeting scheduling and optimization to minimize disruption and maximize productivity."
+      description:
+        "Intelligent meeting scheduling and optimization to minimize disruption and maximize productivity.",
     },
     {
       icon: Bell,
       title: "Smart Notifications",
-      description: "Context-aware alerts that keep you informed without overwhelming you."
-    }
+      description:
+        "Context-aware alerts that keep you informed without overwhelming you.",
+    },
   ];
 
   const benefits = [
@@ -59,7 +64,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     "Real-time organizational intelligence",
     "Data connector hub with professional integrations",
     "Native KognaCore WBS solution",
-    "Enterprise-grade security"
+    "Enterprise-grade security",
   ];
 
   return (
@@ -71,9 +76,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             <KogniiThinkingIcon size={32} />
             <span className="text-xl font-semibold">KognaDash</span>
           </div>
-          <Button onClick={onGetStarted}>
-            Get Started
-          </Button>
+          <Button onClick={onGetStarted}>Get Started</Button>
         </div>
       </nav>
 
@@ -88,16 +91,19 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </div>
             </div>
           </div>
-          
+
           <h1 className="text-5xl font-semibold mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 bg-clip-text text-transparent">
-            Strategic Team Management<br />Powered by AI
+            Strategic Team Management
+            <br />
+            Powered by AI
           </h1>
-          
+
           <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto">
-            KognaDash combines AI-powered optimization with real-time organizational intelligence. 
-            Meet Kognii, your AI teammate that helps you make smarter decisions, faster.
+            KognaDash combines AI-powered optimization with real-time
+            organizational intelligence. Meet Kognii, your AI teammate that
+            helps you make smarter decisions, faster.
           </p>
-          
+
           <div className="flex gap-4 justify-center">
             <Button size="lg" onClick={onGetStarted} className="text-lg px-8">
               Start Free Trial
@@ -128,7 +134,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* Features Grid */}
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-semibold mb-4">Everything You Need to Scale</h2>
+          <h2 className="text-3xl font-semibold mb-4">
+            Everything You Need to Scale
+          </h2>
           <p className="text-lg text-slate-600">
             Comprehensive tools for modern team management
           </p>
@@ -138,7 +146,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           {features.map((feature) => {
             const Icon = feature.icon;
             return (
-              <div 
+              <div
                 key={feature.title}
                 className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
               >
@@ -160,17 +168,21 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             <div>
               <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-2 mb-6">
                 <Brain className="w-4 h-4" />
-                <span className="text-sm font-medium">Meet Your AI Teammate</span>
+                <span className="text-sm font-medium">
+                  Meet Your AI Teammate
+                </span>
               </div>
-              
+
               <h2 className="text-4xl font-semibold mb-6">
                 Kognii: More Than an Assistant
               </h2>
-              
+
               <p className="text-lg text-blue-100 mb-8">
-                Kognii isn't just a tool—it's a team member. Get intelligent suggestions for team 
-                composition, strategic planning, and resource optimization. Kognii learns your 
-                organization's patterns and helps you make data-driven decisions with confidence.
+                Kognii isn't just a tool—it's a team member. Get intelligent
+                suggestions for team composition, strategic planning, and
+                resource optimization. Kognii learns your organization's
+                patterns and helps you make data-driven decisions with
+                confidence.
               </p>
 
               <div className="space-y-3">
@@ -191,19 +203,22 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   <KogniiThinkingIcon size={40} />
                   <div>
                     <div className="font-medium">Kognii</div>
-                    <div className="text-sm text-blue-200">AI Strategy Assistant</div>
+                    <div className="text-sm text-blue-200">
+                      AI Strategy Assistant
+                    </div>
                   </div>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div className="bg-white/10 rounded-lg p-4">
                     <p className="text-sm text-blue-100 italic">
-                      "I've analyzed your team capacity and current workload. I recommend 
-                      bringing in 2 additional developers for Q2 to meet your strategic 
-                      objectives. Would you like me to create a hiring plan?"
+                      "I've analyzed your team capacity and current workload. I
+                      recommend bringing in 2 additional developers for Q2 to
+                      meet your strategic objectives. Would you like me to
+                      create a hiring plan?"
                     </p>
                   </div>
-                  
+
                   <div className="flex gap-2">
                     <div className="bg-white/20 rounded-lg px-4 py-2 text-sm">
                       Show Analysis
@@ -242,7 +257,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             <div className="text-slate-600">Time Savings</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-semibold text-blue-600 mb-2">100%</div>
+            <div className="text-4xl font-semibold text-blue-600 mb-2">
+              100%
+            </div>
             <div className="text-slate-600">Data-Driven</div>
           </div>
         </div>
@@ -255,10 +272,11 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             Ready to Transform Your Team Management?
           </h2>
           <p className="text-xl text-slate-300 mb-10">
-            Join leading organizations using KognaDash to make smarter, faster decisions.
+            Join leading organizations using KognaDash to make smarter, faster
+            decisions.
           </p>
-          <Button 
-            size="lg" 
+          <Button
+            size="lg"
             onClick={onGetStarted}
             className="bg-blue-600 hover:bg-blue-700 text-lg px-8"
           >
@@ -280,9 +298,15 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               <span className="font-medium">KognaDash</span>
             </div>
             <div className="flex gap-6 text-sm text-slate-600">
-              <a href="#" className="hover:text-slate-900">Privacy</a>
-              <a href="#" className="hover:text-slate-900">Terms</a>
-              <a href="#" className="hover:text-slate-900">Contact</a>
+              <a href="#" className="hover:text-slate-900">
+                Privacy
+              </a>
+              <a href="#" className="hover:text-slate-900">
+                Terms
+              </a>
+              <a href="#" className="hover:text-slate-900">
+                Contact
+              </a>
             </div>
             <div className="text-sm text-slate-500">
               © 2025 KognaDash. All rights reserved.
