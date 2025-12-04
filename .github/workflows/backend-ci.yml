@@ -38,15 +38,15 @@ jobs:
 
       - name: Run Black formatting check
         run: black --check .
-        continue-on-error: true 
+        continue-on-error: true
 
       - name: Run isort import sorting check
         run: isort --check-only .
-        continue-on-error: true 
+        continue-on-error: true
 
       - name: Run Flake8 linting
         run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        continue-on-error: true 
+        continue-on-error: true
 
       - name: Run pytest tests
         run: pytest -v --tb=short
@@ -55,15 +55,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          
           # Database
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          
           # AI APIs
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
-          
           # OAuth
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           ASANA_CLIENT_ID: ${{ secrets.ASANA_CLIENT_ID }}
@@ -73,13 +70,11 @@ jobs:
           JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
           MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
-          
           # Auth
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           ALGORITHM: ${{ secrets.ALGORITHM }}
           ACCESS_TOKEN_EXPIRE_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
           REFRESH_TOKEN_EXPIRE_DAYS: ${{ secrets.REFRESH_TOKEN_EXPIRE_DAYS }}
-          
           # Config
           ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
           ENVIRONMENT: test
