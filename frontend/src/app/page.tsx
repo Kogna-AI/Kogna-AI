@@ -1,11 +1,11 @@
 "use client";
-import { useState, useMemo } from "react";
-import { Sidebar } from "./components/sidebar";
-import { MainDashboard } from "./components/maindashboard";
-import { KogniiAssistant } from "./components/KogniiAssistant";
-import { NotificationCenter } from "./components/NotificationCenter";
-import { UserProvider, useUser } from "./components/auth/UserContext";
+import { useMemo, useState } from "react";
 import { LoginScreen } from "./components/auth/LoginScreen";
+import { UserProvider, useUser } from "./components/auth/UserContext";
+import { KogniiAssistant } from "./components/KogniiAssistant";
+import { MainDashboard } from "./components/maindashboard";
+import { NotificationCenter } from "./components/NotificationCenter";
+import { Sidebar } from "./components/sidebar";
 
 function AppContent() {
   const { isAuthenticated } = useUser();
@@ -70,7 +70,7 @@ function AppContent() {
         }));
       },
 
-      startGuidedTour: (tourType: string) => {
+      startGuidedTour: (_tourType: string) => {
         setKogniiControlState((prev) => ({
           ...prev,
           guidedTourActive: true,
@@ -89,7 +89,7 @@ function AppContent() {
         });
       },
     }),
-    []
+    [],
   ); // Empty dependency array since these functions only use setters
 
   if (!isAuthenticated) {

@@ -1,10 +1,17 @@
-import React from 'react';
-import { CardHeader, CardTitle } from '../../ui/card';
-import { Badge } from '../../ui/badge';
-import { Button } from '../../ui/button';
-import { CheckCircle, X, Bell } from 'lucide-react';
+import { Bell, CheckCircle, X } from "lucide-react";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
+import { CardHeader, CardTitle } from "../../ui/card";
 
-export default function NotificationHeader({ unreadCount, onMarkAll, onClose }: { unreadCount: number; onMarkAll: () => void; onClose: () => void }) {
+export default function NotificationHeader({
+  unreadCount,
+  onMarkAll,
+  onClose,
+}: {
+  unreadCount: number;
+  onMarkAll: () => void;
+  onClose: () => void;
+}) {
   return (
     <CardHeader className="pb-4">
       <div className="flex items-center justify-between">

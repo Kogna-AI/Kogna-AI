@@ -1,6 +1,5 @@
-import React from 'react';
-import { Card, CardContent, CardHeader } from '@mui/material';
-import LinearProgress from '@mui/material/LinearProgress';
+import { Card, CardContent, CardHeader } from "@mui/material";
+import LinearProgress from "@mui/material/LinearProgress";
 
 export default function StrategicGoals() {
   return (

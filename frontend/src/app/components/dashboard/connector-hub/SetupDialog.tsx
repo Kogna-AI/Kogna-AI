@@ -1,7 +1,18 @@
+import {
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Crown,
+  ExternalLink,
+  Shield,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import { useState } from "react";
-import { Card, CardContent } from "../../../ui/card";
-import { Button } from "../../../ui/button";
+import api from "@/services/api";
 import { Badge } from "../../../ui/badge";
+import { Button } from "../../../ui/button";
+import { Card, CardContent } from "../../../ui/card";
 import {
   Dialog,
   DialogContent,
@@ -9,26 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../ui/tabs";
 import { Input } from "../../../ui/input";
 import { Label } from "../../../ui/label";
 import { RadioGroup, RadioGroupItem } from "../../../ui/radio-group";
 import { Switch } from "../../../ui/switch";
-import {
-  Clock,
-  Zap,
-  Crown,
-  CheckCircle,
-  Sparkles,
-  ExternalLink,
-  ArrowLeftRight,
-  ArrowRight,
-  Shield,
-  AlertCircle,
-} from "lucide-react";
-import { Connector } from "./types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../ui/tabs";
 import { syncModes } from "./constants";
-import api from "@/services/api";
+import type { Connector } from "./types";
 
 interface SetupDialogProps {
   connector: Connector | null;
@@ -48,16 +46,18 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
     try {
       console.log(` Getting connect URL for ${connector.id}...`);
       const data = await api.getConnectUrl(connector.id);
-      
+
       if (!data.url) {
-        throw new Error('No authorization URL received from server');
+        throw new Error("No authorization URL received from server");
       }
-      
+
       console.log(` Redirecting to: ${data.url}`);
       window.location.href = data.url;
     } catch (err) {
       console.error(`Failed to connect ${connector.id}:`, err);
-      alert(`Failed to connect ${connector.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      alert(
+        `Failed to connect ${connector.name}: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
       setIsConnecting(false);
     }
   };
@@ -67,11 +67,13 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
     try {
       console.log(` Starting manual sync for ${connector.id}...`);
       const result = await api.manualSync(connector.id);
-      console.log(' Sync result:', result);
+      console.log(" Sync result:", result);
       alert(`Successfully synced ${connector.name}!`);
     } catch (err) {
       console.error(` Sync failed for ${connector.id}:`, err);
-      alert(`Sync failed for ${connector.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      alert(
+        `Sync failed for ${connector.name}: ${err instanceof Error ? err.message : "Unknown error"}`,
+      );
     } finally {
       setIsSyncing(false);
     }
@@ -211,17 +213,21 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                     disabled={isConnecting || isSyncing}
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    {isConnecting ? 'Connecting...' : `Connect ${connector.name}`}
+                    {isConnecting
+                      ? "Connecting..."
+                      : `Connect ${connector.name}`}
                   </Button>
-                  
+
                   {/* Manual Sync Button */}
                   <Button
                     variant="outline"
                     onClick={handleManualSync}
                     disabled={isConnecting || isSyncing}
                   >
-                    <Zap className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Syncing...' : 'Manual Sync'}
+                    <Zap
+                      className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
+                    />
+                    {isSyncing ? "Syncing..." : "Manual Sync"}
                   </Button>
                 </div>
               </div>

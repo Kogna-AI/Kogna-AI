@@ -1,27 +1,36 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
-import { Badge } from '../../ui/badge';
-import { Button } from '../../ui/button';
-import { Progress } from '../../ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
-import { 
-  Users, 
-  TrendingUp, 
-  AlertTriangle, 
-  Bot, 
-  BarChart3,
-  DollarSign,
+import {
+  AlertTriangle,
+  Bot,
   Calendar,
-  Target,
-  Zap,
   Shield,
-  CheckCircle
-} from 'lucide-react';
-import { KogniiThinkingIcon } from '../../../../public/KogniiThinkingIcon';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { growthStages, projectionsData } from './team-scale/constants';
-import { generateContextualRecommendations, getUrgencyColor, type Objective } from './team-scale/utils';
-import { RoleDetailModal } from './team-scale/RoleDetailModal';
+  Target,
+  TrendingUp,
+  Users,
+  Zap,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Area,
+  AreaChart,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { KogniiThinkingIcon } from "../../../../public/KogniiThinkingIcon";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { Progress } from "../../ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
+import { growthStages, projectionsData } from "./team-scale/constants";
+import { RoleDetailModal } from "./team-scale/RoleDetailModal";
+import {
+  generateContextualRecommendations,
+  getUrgencyColor,
+  type Objective,
+} from "./team-scale/utils";
 
 interface TeamScaleSimulationProps {
   objectives: Objective[];
@@ -31,7 +40,9 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
   const [currentStage, setCurrentStage] = useState(0);
   const [selectedRole, setSelectedRole] = useState<any>(null);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-  const [contextualRecommendations, setContextualRecommendations] = useState<any[]>([]);
+  const [contextualRecommendations, setContextualRecommendations] = useState<
+    any[]
+  >([]);
 
   useEffect(() => {
     const recommendations = generateContextualRecommendations(objectives);
@@ -91,23 +102,31 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
                   </Button>
                 ))}
               </div>
-              
+
               <div className="bg-muted/30 p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h3 className="font-semibold">{currentStageData.stage}</h3>
-                    <p className="text-sm text-muted-foreground">{currentStageData.description}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {currentStageData.description}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold">{currentStageData.teamSize}</div>
-                    <div className="text-sm text-muted-foreground">employees</div>
+                    <div className="text-2xl font-bold">
+                      {currentStageData.teamSize}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      employees
+                    </div>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm">{currentStageData.monthsToReach} months</span>
+                    <span className="text-sm">
+                      {currentStageData.monthsToReach} months
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-green-600" />
@@ -115,7 +134,9 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
                   </div>
                   <div className="flex items-center gap-2">
                     <Target className="w-4 h-4 text-purple-600" />
-                    <span className="text-sm">{currentStageData.keyMilestones.length} milestones</span>
+                    <span className="text-sm">
+                      {currentStageData.keyMilestones.length} milestones
+                    </span>
                   </div>
                 </div>
 
@@ -154,8 +175,14 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
                         <Badge variant="outline" className="text-xs">
                           {role.count}x
                         </Badge>
-                        <Badge 
-                          variant={role.urgency === 'critical' ? 'destructive' : role.urgency === 'high' ? 'default' : 'secondary'}
+                        <Badge
+                          variant={
+                            role.urgency === "critical"
+                              ? "destructive"
+                              : role.urgency === "high"
+                                ? "default"
+                                : "secondary"
+                          }
                           className="text-xs"
                         >
                           {role.urgency}
@@ -164,7 +191,11 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {role.skills.slice(0, 2).map((skill, skillIndex) => (
-                        <Badge key={skillIndex} variant="outline" className="text-xs">
+                        <Badge
+                          key={skillIndex}
+                          variant="outline"
+                          className="text-xs"
+                        >
                           {skill}
                         </Badge>
                       ))}
@@ -198,33 +229,56 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">{rec.objectiveTitle}</h4>
                     <div className="flex items-center gap-2">
-                      <Progress value={rec.objectiveProgress} className="w-20" />
-                      <span className="text-sm text-muted-foreground">{rec.objectiveProgress}%</span>
+                      <Progress
+                        value={rec.objectiveProgress}
+                        className="w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {rec.objectiveProgress}%
+                      </span>
                     </div>
                   </div>
-                  
-                  <p className="text-sm text-muted-foreground">{rec.reasoning}</p>
-                  
+
+                  <p className="text-sm text-muted-foreground">
+                    {rec.reasoning}
+                  </p>
+
                   <div className="space-y-2">
                     <div>
-                      <span className="text-sm font-medium">Immediate needs:</span>
+                      <span className="text-sm font-medium">
+                        Immediate needs:
+                      </span>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {rec.immediateNeeds.map((need: string, needIndex: number) => (
-                          <Badge key={needIndex} variant="destructive" className="text-xs">
-                            {need}
-                          </Badge>
-                        ))}
+                        {rec.immediateNeeds.map(
+                          (need: string, needIndex: number) => (
+                            <Badge
+                              key={needIndex}
+                              variant="destructive"
+                              className="text-xs"
+                            >
+                              {need}
+                            </Badge>
+                          ),
+                        )}
                       </div>
                     </div>
-                    
+
                     <div>
-                      <span className="text-sm font-medium">Future considerations:</span>
+                      <span className="text-sm font-medium">
+                        Future considerations:
+                      </span>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {rec.futureNeeds.map((need: string, needIndex: number) => (
-                          <Badge key={needIndex} variant="outline" className="text-xs">
-                            {need}
-                          </Badge>
-                        ))}
+                        {rec.futureNeeds.map(
+                          (need: string, needIndex: number) => (
+                            <Badge
+                              key={needIndex}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {need}
+                            </Badge>
+                          ),
+                        )}
                       </div>
                     </div>
                   </div>
@@ -245,11 +299,11 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
                   <AreaChart data={projectionsData}>
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Area 
-                      type="monotone" 
-                      dataKey="employees" 
-                      stroke="#3b82f6" 
-                      fill="#3b82f6" 
+                    <Area
+                      type="monotone"
+                      dataKey="employees"
+                      stroke="#3b82f6"
+                      fill="#3b82f6"
                       fillOpacity={0.1}
                     />
                   </AreaChart>
@@ -266,8 +320,18 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
                   <LineChart data={projectionsData}>
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} />
-                    <Line type="monotone" dataKey="deliveries" stroke="#f59e0b" strokeWidth={2} />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="deliveries"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -285,18 +349,30 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 border rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">2-3</div>
-                  <div className="text-sm text-muted-foreground">Hires per month</div>
-                  <div className="text-xs text-muted-foreground mt-1">Current Stage</div>
+                  <div className="text-sm text-muted-foreground">
+                    Hires per month
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Current Stage
+                  </div>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
                   <div className="text-2xl font-bold text-green-600">5-7</div>
-                  <div className="text-sm text-muted-foreground">Hires per month</div>
-                  <div className="text-xs text-muted-foreground mt-1">Growth Phase</div>
+                  <div className="text-sm text-muted-foreground">
+                    Hires per month
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Growth Phase
+                  </div>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
                   <div className="text-2xl font-bold text-purple-600">10+</div>
-                  <div className="text-sm text-muted-foreground">Hires per month</div>
-                  <div className="text-xs text-muted-foreground mt-1">Scale Phase</div>
+                  <div className="text-sm text-muted-foreground">
+                    Hires per month
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Scale Phase
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -316,19 +392,23 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
                 <div className="border-l-4 border-blue-500 pl-4">
                   <h4 className="font-medium">Technical Talent Priority</h4>
                   <p className="text-sm text-muted-foreground">
-                    Focus on robotics and ML engineers first. The complexity of autonomous delivery requires deep technical expertise before scaling operations.
+                    Focus on robotics and ML engineers first. The complexity of
+                    autonomous delivery requires deep technical expertise before
+                    scaling operations.
                   </p>
                 </div>
                 <div className="border-l-4 border-green-500 pl-4">
                   <h4 className="font-medium">Regional Scaling Strategy</h4>
                   <p className="text-sm text-muted-foreground">
-                    Each new city requires 3-5 dedicated operations staff. Plan hiring 2 months before market entry.
+                    Each new city requires 3-5 dedicated operations staff. Plan
+                    hiring 2 months before market entry.
                   </p>
                 </div>
                 <div className="border-l-4 border-orange-500 pl-4">
                   <h4 className="font-medium">Quality Assurance Critical</h4>
                   <p className="text-sm text-muted-foreground">
-                    Robotic systems require specialized QA. Hire QA engineers with robotics experience early in the process.
+                    Robotic systems require specialized QA. Hire QA engineers
+                    with robotics experience early in the process.
                   </p>
                 </div>
               </CardContent>
@@ -345,19 +425,22 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                   <h4 className="font-medium text-red-800">Critical Risk</h4>
                   <p className="text-sm text-red-700">
-                    Technical talent shortage in robotics. Start recruiting 6+ months in advance.
+                    Technical talent shortage in robotics. Start recruiting 6+
+                    months in advance.
                   </p>
                 </div>
                 <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
                   <h4 className="font-medium text-orange-800">Medium Risk</h4>
                   <p className="text-sm text-orange-700">
-                    Regulatory compliance varies by city. Legal expertise needed for each expansion.
+                    Regulatory compliance varies by city. Legal expertise needed
+                    for each expansion.
                   </p>
                 </div>
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <h4 className="font-medium text-blue-800">Opportunity</h4>
                   <p className="text-sm text-blue-700">
-                    Remote work possible for 40% of roles. Access to global talent pool.
+                    Remote work possible for 40% of roles. Access to global
+                    talent pool.
                   </p>
                 </div>
               </CardContent>
@@ -366,7 +449,7 @@ export function TeamScaleSimulation({ objectives }: TeamScaleSimulationProps) {
         </TabsContent>
       </Tabs>
 
-      <RoleDetailModal 
+      <RoleDetailModal
         selectedRole={selectedRole}
         isOpen={isRoleModalOpen}
         onClose={() => setIsRoleModalOpen(false)}

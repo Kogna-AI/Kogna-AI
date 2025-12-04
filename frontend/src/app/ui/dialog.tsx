@@ -1,15 +1,15 @@
 "use client";
 
-import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
+import * as React from "react";
 
-import { cn } from '../ui/utils';
+import { cn } from "../ui/utils";
 
 const Dialog = React.forwardRef<
   React.ElementRef<any>,
   React.ComponentProps<typeof DialogPrimitive.Root>
->(({ ...props }, ref) => {
+>(({ ...props }, _ref) => {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 });
 Dialog.displayName = "Dialog";
@@ -18,14 +18,16 @@ const DialogTrigger = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Trigger>,
   React.ComponentProps<typeof DialogPrimitive.Trigger>
 >(({ ...props }, ref) => {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" ref={ref} {...props} />;
+  return (
+    <DialogPrimitive.Trigger data-slot="dialog-trigger" ref={ref} {...props} />
+  );
 });
 DialogTrigger.displayName = "DialogTrigger";
 
 const DialogPortal = React.forwardRef<
   React.ElementRef<any>,
   React.ComponentProps<typeof DialogPrimitive.Portal>
->(({ ...props }, ref) => {
+>(({ ...props }, _ref) => {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 });
 DialogPortal.displayName = "DialogPortal";
@@ -34,7 +36,9 @@ const DialogClose = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Close>,
   React.ComponentProps<typeof DialogPrimitive.Close>
 >(({ ...props }, ref) => {
-  return <DialogPrimitive.Close data-slot="dialog-close" ref={ref} {...props} />;
+  return (
+    <DialogPrimitive.Close data-slot="dialog-close" ref={ref} {...props} />
+  );
 });
 DialogClose.displayName = "DialogClose";
 

@@ -1,6 +1,13 @@
 "use client";
 
+import { createClient } from "@supabase/supabase-js";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Alert, AlertDescription } from "../../ui/alert";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
 import {
   Card,
   CardContent,
@@ -8,24 +15,17 @@ import {
   CardHeader,
   CardTitle,
 } from "../../ui/card";
-import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
-import { Alert, AlertDescription } from "../../ui/alert";
-import { Badge } from "../../ui/badge";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 
 // --- Initialize Supabase client ---
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 export function LoginScreen() {
-  const router = useRouter();
+  const _router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
