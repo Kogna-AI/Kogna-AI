@@ -71,7 +71,7 @@ For each secret below, follow these steps:
 - **Where to find it:**
   - Supabase Dashboard → Settings → API
   - Copy the **service_role** key (under "Project API keys")
-  - ⚠️ **Warning:** This is a sensitive key with admin privileges. Keep it secret!
+  - **Warning:** This is a sensitive key with admin privileges. Keep it secret!
 
 #### 6. DATABASE_URL
 - **Name:** `DATABASE_URL`
@@ -135,7 +135,7 @@ For each secret below, follow these steps:
   - Click **Create access key**
   - Select **Use case:** "Application running on AWS compute service" or "Other"
   - Download the CSV file or copy the Access Key ID
-  - ⚠️ **Note:** Create a dedicated IAM user for CI/CD with limited permissions (not your root account)
+  - **Note:** Create a dedicated IAM user for CI/CD with limited permissions (not your root account)
 
 #### 12. AWS_SECRET_ACCESS_KEY
 - **Name:** `AWS_SECRET_ACCESS_KEY`
@@ -143,7 +143,7 @@ For each secret below, follow these steps:
 - **Where to find it:**
   - Same process as above
   - Copy the **Secret Access Key** when creating the access key
-  - ⚠️ **Important:** You can only view this once! Save it securely.
+  - **Important:** You can only view this once! Save it securely.
   - If you lose it, you'll need to create a new access key
 
 ---
