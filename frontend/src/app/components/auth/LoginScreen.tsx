@@ -1,11 +1,6 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Alert, AlertDescription } from "../../ui/alert";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import {
