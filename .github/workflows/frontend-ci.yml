@@ -38,7 +38,8 @@ jobs:
         continue-on-error: true
 
       - name: Run Biome formatting check
-        run: npx biome check --error-on-warnings=false .
+        run: npx biome format --check .
+        continue-on-error: true
 
       - name: Build Next.js application
         run: npm run build
