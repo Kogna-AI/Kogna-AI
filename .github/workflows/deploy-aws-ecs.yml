@@ -17,13 +17,13 @@ on:
 
 env:
   AWS_REGION: us-east-1  # Change to your preferred region
-  ECR_REPOSITORY_BACKEND: kogna-backend
-  ECR_REPOSITORY_FRONTEND: kogna-frontend
+  ECR_REPOSITORY_BACKEND: backend
+  ECR_REPOSITORY_FRONTEND: frontend
   ECS_SERVICE_BACKEND: kogna-backend-service
   ECS_SERVICE_FRONTEND: kogna-frontend-service
-  ECS_CLUSTER: kogna-cluster
-  BACKEND_CONTAINER_NAME: kogna-backend
-  FRONTEND_CONTAINER_NAME: kogna-frontend
+  ECS_CLUSTER: Kogna-Fargate-Cluster
+  BACKEND_CONTAINER_NAME:  backend-app  
+  FRONTEND_CONTAINER_NAME: frontend-app
 
 jobs:
   build-and-push-backend:
