@@ -24,6 +24,13 @@ class UserCreate(BaseModel):
     second_name: Optional[str] = None
     role: Optional[str] = None
     email: EmailStr
+    
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    second_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+    organization_id: Optional[int] = None
 
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None

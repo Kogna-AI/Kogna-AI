@@ -67,7 +67,7 @@ class VectorSearchTool(BaseTool):
                 "match_document_chunks",
                 {
                     "query_embedding": query_embedding,
-                    "match_threshold": 0.7,  # Similarity threshold
+                    "match_threshold": 0.5,  # Similarity threshold
                     "match_count": 10,       # Get top 10 chunks
                     "p_user_id": self.user_id  # Pass the user ID
                 }

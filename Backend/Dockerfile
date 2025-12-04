@@ -8,7 +8,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Set the working directory inside the container
+# ---- Set Working Directory ----
+# All commands will now run from inside /app
 WORKDIR /app
 
 # Install system dependencies

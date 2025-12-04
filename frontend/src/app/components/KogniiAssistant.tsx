@@ -299,10 +299,15 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
 
       } catch (error) {
         console.error("Failed to start chat session:", error);
+
+        let errorMessage = "An unknown error occurred";
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        }
         setMessages([{
           id: 'error-1',
           type: 'assistant',
-          content: `Sorry, I couldn't connect to the AI. Please try again.\n\n**Error:** ${error.message}`,
+          content: `Sorry, I couldn't connect to the AI. Please try again.\n\n**Error:** ${errorMessage}`,
           timestamp: new Date()
         }]);
       } finally {
@@ -413,10 +418,15 @@ export function KogniiAssistant({ onClose, strategySessionMode = false, activeVi
     } catch (error) {
       // 5. This catches network/server errors (like 500s or 400s)
       console.error("Failed to send message:", error);
+      let errorString = "An unknown error occurred";
+        if (error instanceof Error) {
+          errorString = error.message;
+        }
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: `Sorry, I couldn't connect to the AI. Please try again.\n\n**Error:** ${error.message}`,
+        content: `Sorry, I couldn't connect to the AI. Please try again.\n\n**Error:** ${errorString}`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);

@@ -15,22 +15,50 @@ const initialObjectives = [
   { id: 4, title: 'Talent Development', progress: 85, status: 'on-track', owner: 'HR Team', category: 'HR', priority: 'High' }
 ];
 
+// --- FIX: Define a type for your team members ---
+type TeamMember = {
+  id: string;
+  name: string;
+  role: string;
+  department: string;
+  skills: string[];
+  currentWorkload: number;
+  expertise: string[];
+  collaborationHistory: string[];
+};
+
 interface StrategyHubProps {
   kogniiControlState?: any;
   onKogniiActionComplete?: () => void;
 }
 
+// REMOVED THE DANGEROUS LINE: const globalWindow = window as any;
+
+
+// Helper function for safe window access
+function getKogniiContext() {
+    if (typeof window !== 'undefined' && (window as any).KogniiContext) {
+        return (window as any).KogniiContext;
+    }
+    return null;
+}
+
+
 export function StrategyHub({ kogniiControlState, onKogniiActionComplete }: StrategyHubProps = {}) {
   const [objectives, setObjectives] = useState(initialObjectives);
   const [isCreatingObjective, setIsCreatingObjective] = useState(false);
-  const [aiSuggestedTeam, setAiSuggestedTeam] = useState(null);
+  
+  // --- FIX: Explicitly type the useState hook ---
+  const [aiSuggestedTeam, setAiSuggestedTeam] = useState<TeamMember[] | null>(null);
 
   // Handle Kognii control actions
   useEffect(() => {
+    const KogniiContext = getKogniiContext();
+    
     if (kogniiControlState?.shouldOpenObjectiveCreation) {
       setIsCreatingObjective(true);
-      if (window.KogniiContext) {
-        window.KogniiContext.setObjectiveCreationActive(true);
+      if (KogniiContext) {
+        KogniiContext.setObjectiveCreationActive(true);
       }
       // Clear the control state after action
       if (onKogniiActionComplete) {
@@ -39,8 +67,8 @@ export function StrategyHub({ kogniiControlState, onKogniiActionComplete }: Stra
     }
   }, [kogniiControlState?.shouldOpenObjectiveCreation, onKogniiActionComplete]);
 
-  // Sample team data for AI suggestions
-  const teamMembers = [
+  // --- FIX: Apply the new type to the sample data ---
+  const teamMembers: TeamMember[] = [
     {
       id: '1',
       name: 'Sarah Chen',
@@ -84,14 +112,17 @@ export function StrategyHub({ kogniiControlState, onKogniiActionComplete }: Stra
   ];
 
   const handleNewObjective = () => {
+    const KogniiContext = getKogniiContext();
     setIsCreatingObjective(true);
     // Notify that objective creation has started
-    if (window.KogniiContext) {
-      window.KogniiContext.setObjectiveCreationActive(true);
+    if (KogniiContext) {
+      KogniiContext.setObjectiveCreationActive(true);
     }
   };
 
   const handleObjectiveCreated = (newObjective: any) => {
+    const KogniiContext = getKogniiContext();
+    
     setObjectives(prev => [...prev, {
       ...newObjective,
       owner: `${newObjective.assignedTeam.length} team members`
@@ -100,25 +131,28 @@ export function StrategyHub({ kogniiControlState, onKogniiActionComplete }: Stra
     setAiSuggestedTeam(null);
     
     // Notify that objective creation has completed
-    if (window.KogniiContext) {
-      window.KogniiContext.setObjectiveCreationActive(false);
+    if (KogniiContext) {
+      KogniiContext.setObjectiveCreationActive(false);
     }
   };
 
   const handleRequestTeamSuggestion = (objectiveData: any) => {
+    const KogniiContext = getKogniiContext();
+
     // AI logic to suggest optimal team based on objective requirements
     const suggestedTeam = generateTeamSuggestion(objectiveData);
-    setAiSuggestedTeam(suggestedTeam);
+    setAiSuggestedTeam(suggestedTeam); // This is now type-safe
     
     // Notify Kognii Assistant about the team suggestion
-    if (window.KogniiContext) {
-      window.KogniiContext.setTeamSuggestion(suggestedTeam, objectiveData);
+    if (KogniiContext) {
+      KogniiContext.setTeamSuggestion(suggestedTeam, objectiveData);
     }
   };
 
-  const generateTeamSuggestion = (objectiveData: any) => {
+  // --- FIX: Add return type to the function ---
+  const generateTeamSuggestion = (objectiveData: any): TeamMember[] => {
     // Simple AI logic for team suggestion based on category and requirements
-    let suggestedMembers = [];
+    let suggestedMembers: TeamMember[] = []; // Apply type
     
     switch (objectiveData.category) {
       case 'Product':
@@ -155,12 +189,14 @@ export function StrategyHub({ kogniiControlState, onKogniiActionComplete }: Stra
   };
 
   const handleCloseCreation = () => {
+    const KogniiContext = getKogniiContext();
+
     setIsCreatingObjective(false);
     setAiSuggestedTeam(null);
     
     // Notify that objective creation has been cancelled
-    if (window.KogniiContext) {
-      window.KogniiContext.setObjectiveCreationActive(false);
+    if (KogniiContext) {
+      KogniiContext.setObjectiveCreationActive(false);
     }
   };
 
@@ -214,7 +250,7 @@ export function StrategyHub({ kogniiControlState, onKogniiActionComplete }: Stra
         isOpen={isCreatingObjective}
         onClose={handleCloseCreation}
         onObjectiveCreated={handleObjectiveCreated}
-        aiSuggestedTeam={aiSuggestedTeam}
+        aiSuggestedTeam={aiSuggestedTeam|| []}
         onRequestTeamSuggestion={handleRequestTeamSuggestion}
         kogniiPrefillData={kogniiControlState?.objectiveFormData}
       />
