@@ -7,36 +7,33 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { createClient, User as SupabaseUser } from "@supabase/supabase-js";
+import { User as SupabaseUser } from "@supabase/supabase-js";
+import { supabase } from "../../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import api from "../../../services/api";
 
-// --- Initialize Supabase client ---
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Supabase client is imported from `src/lib/supabaseClient`
 
-// --- Backend user model ---
+// Backend user type
 export interface BackendUser {
   id: string;
   first_name?: string;
   second_name?: string;
-  name?: string;
   role?: string;
   organization_id?: number;
   email?: string;
   supabase_id?: string;
 }
 
-// --- Combined user type for context ---
+// Combined User type
 export type MergedUser = SupabaseUser & {
-  id: string;
+  id: string; // Backend user ID
   name?: string;
   role?: string;
   organization_id?: number;
 };
 
-// --- UserContext type ---
+// Context interface
 interface UserContextType {
   user: MergedUser | null;
   isAuthenticated: boolean;
@@ -44,98 +41,167 @@ interface UserContextType {
   logout: () => Promise<void>;
 }
 
-// --- Create React context ---
+// Create context
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+
   const [user, setUser] = useState<MergedUser | null>(null);
-  const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function initSession() {
-      setLoading(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const init = async () => {
+      try {
+        console.debug("[UserContext] init - checking supabase session...");
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (session?.access_token) {
-        // Save the JWT for the backend API client (api.ts) to use
-        localStorage.setItem("token", session.access_token); 
-      }
+        console.debug("[UserContext] init - session:", session);
 
-      if (session?.user) {
-        const supabaseUser = session.user;
-        setIsAuthenticated(true);
-        try {
-          const backendUser: BackendUser = await api.getUserBySupabaseId(
-            supabaseUser.id
-          );
-          console.log(backendUser);
-          const mergedUser: MergedUser = {
-            ...supabaseUser,
-            id: backendUser.id,
-            name: [backendUser.first_name, backendUser.second_name]
-              .filter(Boolean)
-              .join(" "),
-            role: backendUser.role || "member",
-            organization_id: backendUser.organization_id,
-          };
-          setUser(mergedUser);
-        } catch {
-          setUser(supabaseUser);
+        if (!session?.user) {
+          console.debug("[UserContext] init - no session -> unauthenticated");
+          setIsAuthenticated(false);
+          setUser(null);
+          setLoading(false);
+          return;
         }
-      } else {
-        setUser(null);
+
+        // Supabase session exists → store token
+        if (session.access_token) {
+          console.debug("[UserContext] init - storing access token (length):", session.access_token?.length);
+          localStorage.setItem("token", session.access_token);
+        }
+
+        // Mark as authenticated BEFORE loading backend profile
+        setIsAuthenticated(true);
+
+        // Load backend user profile
+        await loadBackendUser(session.user);
+
+        setLoading(false);
+      } catch (err) {
+        console.error("[UserContext] init - error while getting session:", err);
         setIsAuthenticated(false);
+        setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
-    }
+    };
 
-    initSession();
+    init();
+  }, []);
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+  useEffect(() => {
+    console.debug("[UserContext] setting up auth state change subscription");
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.debug("[UserContext] auth event:", event, session);
+
+        const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+
         if (event === "SIGNED_IN" && session?.user) {
+          // Store token
           if (session.access_token) {
-            // Save the JWT for the backend API client (api.ts) to use
-            localStorage.setItem("token", session.access_token); 
+            console.debug("[UserContext] SIGNED_IN - storing access token (len):", session.access_token?.length);
+            localStorage.setItem("token", session.access_token);
           }
-          initSession();
-          router.push("/");
-        } else if (event === "SIGNED_OUT") {
+
+          setIsAuthenticated(true);
+          await loadBackendUser(session.user);
+
+          // Only redirect if NOT already on home
+          if (currentPath !== "/") {
+            console.debug(`[UserContext] SIGNED_IN - redirecting from ${currentPath} to /`);
+            router.push("/");
+          } else {
+            console.debug("[UserContext] SIGNED_IN - already on home, skipping redirect");
+          }
+        }
+
+        if (event === "SIGNED_OUT") {
+          console.debug("[UserContext] SIGNED_OUT - clearing token and user");
+          localStorage.removeItem("token");
           setUser(null);
           setIsAuthenticated(false);
-          router.push("/");
+
+          // Only redirect if not already on home
+          if (currentPath !== "/") {
+            console.debug(`[UserContext] SIGNED_OUT - redirecting from ${currentPath} to /`);
+            router.push("/");
+          } else {
+            console.debug("[UserContext] SIGNED_OUT - already on home, skipping redirect");
+          }
         }
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      console.debug("[UserContext] unsubscribing auth state change");
+      try {
+        subscription.subscription.unsubscribe();
+      } catch (err) {
+        console.warn("[UserContext] error unsubscribing:", err);
+      }
+    };
   }, [router]);
 
-  // --- Logout function ---
+  const loadBackendUser = async (supabaseUser: SupabaseUser) => {
+    try {
+      console.debug("[UserContext] loadBackendUser - fetching backend user for supabase id:", supabaseUser.id);
+      const backendUser: BackendUser = await api.getUserBySupabaseId(supabaseUser.id);
+      console.debug("[UserContext] loadBackendUser - backend user:", backendUser);
+
+      const mergedUser: MergedUser = {
+        ...supabaseUser,
+        id: backendUser.id,
+        name: [backendUser.first_name, backendUser.second_name]
+          .filter(Boolean)
+          .join(" "),
+        role: backendUser.role,
+        organization_id: backendUser.organization_id,
+      };
+
+      setUser(mergedUser);
+    } catch (err) {
+      console.warn("[UserContext] loadBackendUser - failed to get backend user, falling back to supabase-only user:", err);
+      setUser({
+        ...supabaseUser,
+        id: supabaseUser.id,
+        name: supabaseUser.email ?? "",
+        role: "member",
+      });
+    }
+  };
+
+  // Logout
   const logout = async () => {
+    console.debug("[UserContext] logout - signing out");
     localStorage.removeItem("token");
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("[UserContext] logout - signOut error:", err);
+    }
   };
 
   return (
-    <UserContext.Provider value={{ user, isAuthenticated, loading, logout }}>
+    <UserContext.Provider
+      value={{ user, isAuthenticated, loading, logout }}
+    >
       {children}
     </UserContext.Provider>
   );
 }
 
-// --- Hook for convenient access ---
+// Hook for consuming context
 export function useUser() {
-  const context = useContext(UserContext);
-  if (context === undefined) {
-    throw new Error("useUser must be used within a UserProvider");
-  }
-  return context;
+  const ctx = useContext(UserContext);
+  if (!ctx) throw new Error("useUser must be used within a UserProvider");
+  return ctx;
 }
+
 
 //old one
 

@@ -3,7 +3,7 @@ import {Sidebar} from './components/sidebar';
 import { MainDashboard } from './components/MainDashboard';
 import { KogniiAssistant } from './components/kognii/KogniiAssistant';
 import { NotificationCenter } from './components/NotificationCenter';
-import { UserProvider, useUser } from './components/auth/UserContext';
+import { useUser } from './components/auth/UserContext';
 import { LoginScreen } from './components/auth/LoginPage';
 
 export default function AppContent() {

@@ -1,5 +1,5 @@
 "use client";
-import { UserProvider, useUser } from "./components/auth/UserContext";
+import { useUser } from "./components/auth/UserContext";
 import { LandingPage } from "./components/dashboard/LandingPage";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -17,13 +17,12 @@ export default function HomePage() {
   }, [isAuthenticated, router]);
 
   return (
-    <UserProvider>
+    <>
       {process.env.NEXT_PUBLIC_DEV_AUTH === "true" ? (
-        <AppContent></AppContent>
+        <AppContent />
       ) : (
         <LandingPage onGetStarted={() => router.push("/login")} />
       )}
-      
-    </UserProvider>
+    </>
   );
 }
