@@ -38,6 +38,13 @@ interface UserContextType {
   user: MergedUser | null;
   isAuthenticated: boolean;
   loading: boolean;
+  signup:(data:{
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+    organization: string;
+  }) => Promise<{success: boolean; error?: string}>;
   logout: () => Promise<void>;
 }
 
@@ -137,6 +144,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     );
 
+
     return () => {
       console.debug("[UserContext] unsubscribing auth state change");
       try {
@@ -174,7 +182,56 @@ export function UserProvider({ children }: { children: ReactNode }) {
       });
     }
   };
+  //Signup 
+  const signup = async ({
+  name,
+  email,
+  password,
+  role,
+  organization,
+}: {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  organization: string;
+}) => {
+  try {
+    console.debug("[UserContext] signup - Creating Org");
+    const org = await api.createOrganization({name: organization}) as {id:number;};
+    console.debug("[UserContext] signup - Org created: ", org);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
+    if (error || !data.user) {
+      throw new Error(error?.message || "Supabase signup failed");
+    }
+
+    const supabaseUser = data.user;
+
+    // Create backend user
+    console.debug("[UserContext] signup - creating backend user");
+    const [first_name, ...rest] = name.trim().split(" ");
+    await api.createUser({
+      supabase_id: supabaseUser.id,
+      email,
+      first_name,
+      second_name: rest.join(" ") || undefined,
+      role,
+      organization_id: org.id,
+    });
+
+    return { success: true };
+  } catch (err) {
+    console.error("[UserContext] signup - unexpected error:", err);
+    return {
+      success: false,
+      error: "Unable to create account. Please try again.",
+    };
+  }
+};
   // Logout
   const logout = async () => {
     console.debug("[UserContext] logout - signing out");
@@ -188,7 +245,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   return (
     <UserContext.Provider
-      value={{ user, isAuthenticated, loading, logout }}
+      value={{ user, isAuthenticated, loading, signup, logout }}
     >
       {children}
     </UserContext.Provider>

@@ -61,7 +61,21 @@ export const api = {
     });
     return handleResponse(response);
   },
-
+  createUser: async (data: {
+    supabase_id: string;
+    email: string;
+    first_name: string;
+    second_name?: string;
+    role?: string;
+    organization_id: number;
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/api/users`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
   register: async (data: {
     email: string;
     password: string;

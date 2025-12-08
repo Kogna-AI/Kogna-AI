@@ -13,19 +13,25 @@ import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { Alert, AlertDescription } from "../../ui/alert";
 import { Badge } from "../../ui/badge";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, UserPlus } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
+import { useUser } from './UserContext';
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-export function LoginScreen() {
+interface LoginScreenProps{
+  onCreateAccount?:()=>void;
+}
+
+export function LoginScreen({onCreateAccount}:LoginScreenProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
 
   // --- Handle login submission ---
   const handleSubmit = async (e: React.FormEvent) => {
@@ -203,6 +209,17 @@ export function LoginScreen() {
             </p>
           </CardContent>
         </Card>
+         {onCreateAccount && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mt-4"
+            onClick={onCreateAccount}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Create Account
+          </Button>
+        )}    
       </div>
     </div>
   );
