@@ -11,7 +11,7 @@ Thumbs.db
 # Env / Secrets
 .env
 .env.*
-!.env.example
+.env.example
 .python-version
 
 # Node / JS
@@ -52,12 +52,9 @@ venv/
 # Project-specific extras
 Backend/Ai_agents/node_modules/
 Backend/Ai_agents/pipeline_data.db
-<<<<<<<<< Temporary merge branch 1
-Backend/pipeline_data.db# 
-=========
 Backend/pipeline_data.db
+
 # ===========================================
->>>>>>>>> Temporary merge branch 2
 # Kogna-AI Project .gitignore
 # ===========================================
 
@@ -147,10 +144,25 @@ secrets/
 *.key
 *.crt
 
-<<<<<<<<< Temporary merge branch 1
-=========
+# Local-only database setup files
+Backend/migrations/001_create_rbac_tables.sql
+
+# Local-only documentation files
+ci-cd-quick-reference.md
+
+# ===========================================
+# Docker & CI/CD
+# ===========================================
+
+# Docker volumes and data
+docker-compose.override.yml
+*.tar.gz
+.dockerignore
+
+# Task definition files (generated during deployment)
+task-definition-*.json
+
 # ===========================================
 
 **/.claude/
 **/settings.local.json
->>>>>>>>> Temporary merge branch 2

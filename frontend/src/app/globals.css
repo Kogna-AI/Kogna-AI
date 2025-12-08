@@ -1,9 +1,7 @@
 @custom-variant dark (&:is(.dark *));
-@import "tailwindcss/preflight";  
-@import "tailwindcss/utilities"; 
+@import "tailwindcss/preflight";
+@import "tailwindcss/utilities";
 @import "tailwindcss/theme";
-
-
 
 :root {
   font-family: var(--font-work-sans), sans-serif;

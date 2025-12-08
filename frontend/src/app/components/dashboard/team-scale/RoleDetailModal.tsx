@@ -1,8 +1,14 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../ui/dialog';
-import { Badge } from '../../../ui/badge';
-import { Button } from '../../../ui/button';
-import { ArrowRight } from 'lucide-react';
-import { getRoleResponsibilities } from './utils';
+import { ArrowRight } from "lucide-react";
+import { Badge } from "../../../ui/badge";
+import { Button } from "../../../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../../../ui/dialog";
+import { getRoleResponsibilities } from "./utils";
 
 interface RoleDetailModalProps {
   selectedRole: any;
@@ -10,7 +16,11 @@ interface RoleDetailModalProps {
   onClose: () => void;
 }
 
-export function RoleDetailModal({ selectedRole, isOpen, onClose }: RoleDetailModalProps) {
+export function RoleDetailModal({
+  selectedRole,
+  isOpen,
+  onClose,
+}: RoleDetailModalProps) {
   if (!selectedRole) return null;
 
   const responsibilities = getRoleResponsibilities(selectedRole.role);
@@ -36,7 +46,13 @@ export function RoleDetailModal({ selectedRole, isOpen, onClose }: RoleDetailMod
                 </div>
                 <div className="flex justify-between">
                   <span>Urgency:</span>
-                  <Badge variant={selectedRole.urgency === 'critical' ? 'destructive' : 'default'}>
+                  <Badge
+                    variant={
+                      selectedRole.urgency === "critical"
+                        ? "destructive"
+                        : "default"
+                    }
+                  >
                     {selectedRole.urgency}
                   </Badge>
                 </div>
@@ -46,7 +62,7 @@ export function RoleDetailModal({ selectedRole, isOpen, onClose }: RoleDetailMod
                 </div>
               </div>
             </div>
-            
+
             <div>
               <h4 className="font-medium mb-2">Required Skills</h4>
               <div className="flex flex-wrap gap-1">

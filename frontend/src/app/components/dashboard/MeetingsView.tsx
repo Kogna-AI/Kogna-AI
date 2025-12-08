@@ -1,37 +1,78 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
-import { Input } from '../../ui/input';
-import { Label } from '../../ui/label';
-import { Textarea } from '../../ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
-import { Checkbox } from '../../ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../ui/dialog';
-import { Calendar, Clock, Users, Video, Bot, UserPlus, Zap } from 'lucide-react';
+import { Bot, Calendar, Users, Video } from "lucide-react";
+import { useState } from "react";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { Checkbox } from "../../ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../ui/dialog";
+import { Input } from "../../ui/input";
+import { Label } from "../../ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../ui/select";
+import { Textarea } from "../../ui/textarea";
 
 const upcomingMeetings = [
-  { 
-    id: 0, 
-    title: 'Meeting with Kognii', 
-    subtitle: 'Competitor analysis, emerging tech companies',
-    time: '9:00 AM', 
-    attendees: 1, 
-    type: 'ai-strategy',
-    isKogniiMeeting: true 
+  {
+    id: 0,
+    title: "Meeting with Kognii",
+    subtitle: "Competitor analysis, emerging tech companies",
+    time: "9:00 AM",
+    attendees: 1,
+    type: "ai-strategy",
+    isKogniiMeeting: true,
   },
-  { id: 1, title: 'Q2 Strategic Review', time: '10:00 AM', attendees: 8, type: 'strategic' },
-  { id: 2, title: 'Product Roadmap Discussion', time: '2:00 PM', attendees: 5, type: 'product' },
-  { id: 3, title: 'Team Performance Review', time: '4:00 PM', attendees: 12, type: 'team' }
+  {
+    id: 1,
+    title: "Q2 Strategic Review",
+    time: "10:00 AM",
+    attendees: 8,
+    type: "strategic",
+  },
+  {
+    id: 2,
+    title: "Product Roadmap Discussion",
+    time: "2:00 PM",
+    attendees: 5,
+    type: "product",
+  },
+  {
+    id: 3,
+    title: "Team Performance Review",
+    time: "4:00 PM",
+    attendees: 12,
+    type: "team",
+  },
 ];
 
 const teamMembers = [
-  { id: 'sarah', name: 'Sarah Chen', role: 'Product Manager', available: true },
-  { id: 'marcus', name: 'Marcus Rodriguez', role: 'Engineering Lead', available: true },
-  { id: 'elena', name: 'Elena Vasquez', role: 'UX Designer', available: false },
-  { id: 'david', name: 'David Kim', role: 'Data Analyst', available: true },
-  { id: 'priya', name: 'Priya Patel', role: 'Marketing Director', available: true },
-  { id: 'james', name: 'James Wilson', role: 'Sales Lead', available: true }
+  { id: "sarah", name: "Sarah Chen", role: "Product Manager", available: true },
+  {
+    id: "marcus",
+    name: "Marcus Rodriguez",
+    role: "Engineering Lead",
+    available: true,
+  },
+  { id: "elena", name: "Elena Vasquez", role: "UX Designer", available: false },
+  { id: "david", name: "David Kim", role: "Data Analyst", available: true },
+  {
+    id: "priya",
+    name: "Priya Patel",
+    role: "Marketing Director",
+    available: true,
+  },
+  { id: "james", name: "James Wilson", role: "Sales Lead", available: true },
 ];
 
 interface MeetingFormData {
@@ -48,60 +89,62 @@ interface MeetingFormData {
 function MeetingSchedulingDialog() {
   const [isOpen, setIsOpen] = useState(false);
   const [meetingData, setMeetingData] = useState<MeetingFormData>({
-    title: '',
-    description: '',
-    date: '',
-    time: '',
-    duration: '30',
-    type: 'general',
+    title: "",
+    description: "",
+    date: "",
+    time: "",
+    duration: "30",
+    type: "general",
     attendees: [],
-    includeKognii: false
+    includeKognii: false,
   });
 
-  const handlePresetSelection = (preset: 'kognii-1on1' | 'team-with-kognii') => {
-    if (preset === 'kognii-1on1') {
+  const handlePresetSelection = (
+    preset: "kognii-1on1" | "team-with-kognii",
+  ) => {
+    if (preset === "kognii-1on1") {
       setMeetingData({
         ...meetingData,
-        title: '1:1 Strategy Session with Kognii',
-        description: 'Personal strategy discussion and AI insights',
-        type: 'ai-strategy',
+        title: "1:1 Strategy Session with Kognii",
+        description: "Personal strategy discussion and AI insights",
+        type: "ai-strategy",
         attendees: [],
-        includeKognii: true
+        includeKognii: true,
       });
     } else {
       setMeetingData({
         ...meetingData,
-        title: 'Team Strategy Meeting',
-        description: 'Team meeting with AI strategic insights from Kognii',
-        type: 'strategic',
-        includeKognii: true
+        title: "Team Strategy Meeting",
+        description: "Team meeting with AI strategic insights from Kognii",
+        type: "strategic",
+        includeKognii: true,
       });
     }
   };
 
   const handleAttendeeToggle = (memberId: string) => {
-    setMeetingData(prev => ({
+    setMeetingData((prev) => ({
       ...prev,
       attendees: prev.attendees.includes(memberId)
-        ? prev.attendees.filter(id => id !== memberId)
-        : [...prev.attendees, memberId]
+        ? prev.attendees.filter((id) => id !== memberId)
+        : [...prev.attendees, memberId],
     }));
   };
 
   const handleSubmit = () => {
     // Here you would typically save the meeting to your backend
-    console.log('Meeting scheduled:', meetingData);
+    console.log("Meeting scheduled:", meetingData);
     setIsOpen(false);
     // Reset form
     setMeetingData({
-      title: '',
-      description: '',
-      date: '',
-      time: '',
-      duration: '30',
-      type: 'general',
+      title: "",
+      description: "",
+      date: "",
+      time: "",
+      duration: "30",
+      type: "general",
       attendees: [],
-      includeKognii: false
+      includeKognii: false,
     });
   };
 
@@ -130,7 +173,7 @@ function MeetingSchedulingDialog() {
                 type="button"
                 variant="outline"
                 className="h-auto p-4 flex flex-col items-start gap-2"
-                onClick={() => handlePresetSelection('kognii-1on1')}
+                onClick={() => handlePresetSelection("kognii-1on1")}
               >
                 <div className="flex items-center gap-2">
                   <Bot className="w-4 h-4 text-blue-600" />
@@ -144,7 +187,7 @@ function MeetingSchedulingDialog() {
                 type="button"
                 variant="outline"
                 className="h-auto p-4 flex flex-col items-start gap-2"
-                onClick={() => handlePresetSelection('team-with-kognii')}
+                onClick={() => handlePresetSelection("team-with-kognii")}
               >
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-green-600" />
@@ -164,7 +207,9 @@ function MeetingSchedulingDialog() {
               <Input
                 id="title"
                 value={meetingData.title}
-                onChange={(e) => setMeetingData(prev => ({ ...prev, title: e.target.value }))}
+                onChange={(e) =>
+                  setMeetingData((prev) => ({ ...prev, title: e.target.value }))
+                }
                 placeholder="Enter meeting title"
               />
             </div>
@@ -174,7 +219,12 @@ function MeetingSchedulingDialog() {
               <Textarea
                 id="description"
                 value={meetingData.description}
-                onChange={(e) => setMeetingData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setMeetingData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
                 placeholder="Meeting agenda and objectives"
                 rows={3}
               />
@@ -186,7 +236,9 @@ function MeetingSchedulingDialog() {
                 id="date"
                 type="date"
                 value={meetingData.date}
-                onChange={(e) => setMeetingData(prev => ({ ...prev, date: e.target.value }))}
+                onChange={(e) =>
+                  setMeetingData((prev) => ({ ...prev, date: e.target.value }))
+                }
               />
             </div>
 
@@ -196,13 +248,20 @@ function MeetingSchedulingDialog() {
                 id="time"
                 type="time"
                 value={meetingData.time}
-                onChange={(e) => setMeetingData(prev => ({ ...prev, time: e.target.value }))}
+                onChange={(e) =>
+                  setMeetingData((prev) => ({ ...prev, time: e.target.value }))
+                }
               />
             </div>
 
             <div>
               <Label htmlFor="duration">Duration (minutes)</Label>
-              <Select value={meetingData.duration} onValueChange={(value) => setMeetingData(prev => ({ ...prev, duration: value }))}>
+              <Select
+                value={meetingData.duration}
+                onValueChange={(value) =>
+                  setMeetingData((prev) => ({ ...prev, duration: value }))
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -219,7 +278,12 @@ function MeetingSchedulingDialog() {
 
             <div>
               <Label htmlFor="type">Meeting Type</Label>
-              <Select value={meetingData.type} onValueChange={(value) => setMeetingData(prev => ({ ...prev, type: value }))}>
+              <Select
+                value={meetingData.type}
+                onValueChange={(value) =>
+                  setMeetingData((prev) => ({ ...prev, type: value }))
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -240,7 +304,12 @@ function MeetingSchedulingDialog() {
             <Checkbox
               id="includeKognii"
               checked={meetingData.includeKognii}
-              onCheckedChange={(checked) => setMeetingData(prev => ({ ...prev, includeKognii: !!checked }))}
+              onCheckedChange={(checked) =>
+                setMeetingData((prev) => ({
+                  ...prev,
+                  includeKognii: !!checked,
+                }))
+              }
             />
             <Label htmlFor="includeKognii" className="flex items-center gap-2">
               <Bot className="w-4 h-4 text-blue-600" />
@@ -253,7 +322,10 @@ function MeetingSchedulingDialog() {
             <Label>Team Members</Label>
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
               {teamMembers.map((member) => (
-                <div key={member.id} className="flex items-center space-x-2 p-2 border rounded">
+                <div
+                  key={member.id}
+                  className="flex items-center space-x-2 p-2 border rounded"
+                >
                   <Checkbox
                     id={member.id}
                     checked={meetingData.attendees.includes(member.id)}
@@ -261,16 +333,20 @@ function MeetingSchedulingDialog() {
                     disabled={!member.available}
                   />
                   <div className="flex-1 min-w-0">
-                    <Label 
-                      htmlFor={member.id} 
-                      className={`text-sm ${!member.available ? 'text-muted-foreground' : ''}`}
+                    <Label
+                      htmlFor={member.id}
+                      className={`text-sm ${!member.available ? "text-muted-foreground" : ""}`}
                     >
                       {member.name}
                     </Label>
-                    <p className="text-xs text-muted-foreground">{member.role}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {member.role}
+                    </p>
                   </div>
                   {!member.available && (
-                    <Badge variant="secondary" className="text-xs">Busy</Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      Busy
+                    </Badge>
                   )}
                 </div>
               ))}
@@ -279,13 +355,19 @@ function MeetingSchedulingDialog() {
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsOpen(false)}
+            >
               Cancel
             </Button>
-            <Button 
-              type="button" 
+            <Button
+              type="button"
               onClick={handleSubmit}
-              disabled={!meetingData.title || !meetingData.date || !meetingData.time}
+              disabled={
+                !meetingData.title || !meetingData.date || !meetingData.time
+              }
             >
               Schedule Meeting
             </Button>
@@ -302,7 +384,9 @@ export function MeetingsView() {
       <div className="flex items-center justify-between">
         <div>
           <h1>Meetings</h1>
-          <p className="text-muted-foreground">Schedule and manage strategic meetings</p>
+          <p className="text-muted-foreground">
+            Schedule and manage strategic meetings
+          </p>
         </div>
         <MeetingSchedulingDialog />
       </div>
@@ -314,7 +398,10 @@ export function MeetingsView() {
         <CardContent>
           <div className="space-y-4">
             {upcomingMeetings.map((meeting) => (
-              <div key={meeting.id} className="flex items-center justify-between p-3 border rounded-lg">
+              <div
+                key={meeting.id}
+                className="flex items-center justify-between p-3 border rounded-lg"
+              >
                 <div className="flex items-center gap-3">
                   {meeting.isKogniiMeeting ? (
                     <Bot className="w-4 h-4 text-blue-600" />
@@ -325,12 +412,20 @@ export function MeetingsView() {
                     <h4 className="font-medium">{meeting.title}</h4>
                     <p className="text-sm text-muted-foreground">
                       {meeting.subtitle && `${meeting.subtitle} • `}
-                      {meeting.time} • {meeting.attendees} {meeting.attendees === 1 ? 'attendee' : 'attendees'}
+                      {meeting.time} • {meeting.attendees}{" "}
+                      {meeting.attendees === 1 ? "attendee" : "attendees"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={meeting.isKogniiMeeting ? 'border-blue-600 text-blue-600' : ''}>
+                  <Badge
+                    variant="outline"
+                    className={
+                      meeting.isKogniiMeeting
+                        ? "border-blue-600 text-blue-600"
+                        : ""
+                    }
+                  >
                     {meeting.type}
                   </Badge>
                   <Button variant="outline" size="sm">
