@@ -3,8 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import logging # Added logging
+from core.database import get_db 
+from psycopg2.extras import RealDictCursor 
+from gotrue import User as SupabaseUser
 
-print(dotenv_values(".env"))
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
 load_dotenv()
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
@@ -13,7 +19,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError("❌ Missing SUPABASE_URL or SUPABASE_KEY in environment variables")
+    raise RuntimeError(" Missing SUPABASE_URL or SUPABASE_KEY in environment variables")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 security = HTTPBearer()

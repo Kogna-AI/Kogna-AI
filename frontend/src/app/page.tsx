@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { LoginScreen } from "./components/auth/LoginPage";
 import { UserProvider, useUser } from "./components/auth/UserContext";
 import { KogniiAssistant } from "./components/KogniiAssistant";
-import { MainDashboard } from "./components/maindashboard";
+import { MainDashboard } from "./components/MainDashboard";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { Sidebar } from "./components/sidebar";
 

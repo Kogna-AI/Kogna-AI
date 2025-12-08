@@ -8,16 +8,21 @@ export default function LoginPage() {
   const { isAuthenticated } = useUser();
   const router = useRouter();
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
       router.push('/dashboard');
     }
   }, [isAuthenticated, router]);
 
+  //  ADD THIS - Handle navigation to signup page
+  const handleCreateAccount = () => {
+    router.push('/signup');
+  };
+
   if (isAuthenticated) {
-    return null; // Will redirect to dashboard
+    return null;
   }
 
-  return <LoginScreen />;
+  //  UPDATE THIS - Pass onCreateAccount prop
+  return <LoginScreen onCreateAccount={handleCreateAccount} />;
 }

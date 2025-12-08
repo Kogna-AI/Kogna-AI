@@ -25,24 +25,6 @@ interface LoginScreenProps {
   onCreateAccount?: () => void;
 }
 
-const demoAccounts = [
-  {
-    name: "Sarah Chen",
-    email: "sarah@example.com",
-    role: "founder" as const,
-  },
-  {
-    name: "Michael Park",
-    email: "michael@example.com",
-    role: "executive" as const,
-  },
-  {
-    name: "Emma Wilson",
-    email: "emma@example.com",
-    role: "manager" as const,
-  },
-];
-
 export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -51,6 +33,14 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Handle signup navigation
+  const handleSignupClick = () => {
+    if (onCreateAccount) {
+      onCreateAccount();
+    } else {
+      router.push("/signup");
+    }
+  };
 
   // --- Handle login submission ---
   const handleSubmit = async (e: React.FormEvent) => {
@@ -181,54 +171,21 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
           </CardContent>
         </Card>
 
-        {/* Demo accounts section */}
-        <Card className="border-blue-200 bg-blue-50/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-blue-900">
-              Demo Accounts
-            </CardTitle>
-            <CardDescription className="text-blue-700">
-              Use these accounts to explore KognaDash
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {demoAccounts.map((account, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-white rounded-lg border cursor-pointer hover:border-blue-300 transition-colors"
-                onClick={() => {
-                  setEmail(account.email);
-                  setPassword("demo123");
-                }}
-              >
-                <div>
-                  <div className="font-medium text-sm">{account.name}</div>
-                  <div className="text-xs text-gray-600">{account.email}</div>
-                </div>
-                <Badge
-                  variant={account.role === "founder" ? "default" : "secondary"}
-                >
-                  {account.role}
-                </Badge>
-              </div>
-            ))}
-            <p className="text-xs text-blue-600 mt-2">
-              Password for all demo accounts:{" "}
-              <code className="bg-blue-100 px-1 rounded">demo123</code>
-            </p>
-          </CardContent>
-        </Card>
-         {onCreateAccount && (
+        {/* Sign up section */}
+        <div className="text-center space-y-3">
+          <p className="text-sm text-gray-600">
+            Don't have an account yet?
+          </p>
           <Button
             type="button"
             variant="outline"
-            className="w-full mt-4"
-            onClick={onCreateAccount}
+            className="w-full h-11 border-gray-300 hover:bg-gray-50"
+            onClick={handleSignupClick}
           >
             <UserPlus className="h-4 w-4 mr-2" />
-            Create Account
+            Sign up for free
           </Button>
-        )}    
+        </div>
       </div>
     </div>
   );
