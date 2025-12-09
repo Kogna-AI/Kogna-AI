@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status,Depends
 from core.database import get_db
 from core.models import OrganizationCreate
-from routers.Authentication import get_current_user
+from auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/organizations", tags=["Organizations"])
 

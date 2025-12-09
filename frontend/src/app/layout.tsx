@@ -2,7 +2,11 @@ import "./globals.css";
 import { UserProvider } from "./components/auth/UserContext";
 
 export const metadata = {
+<<<<<<< HEAD
   title: "KognaAI",
+=======
+  title: "Kogna",
+>>>>>>> auth
   description: "Layout with sans-serif variable",
 };
 

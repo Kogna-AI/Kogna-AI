@@ -882,6 +882,8 @@ export const api = {
         throw new Error("No authorization URL returned from server");
       }
 
+      // Return the data instead of redirecting directly
+      // This gives the calling component more control
       return data;
     } catch (error) {
       console.error(`Error getting ${provider} connect URL:`, error);
@@ -889,6 +891,7 @@ export const api = {
     }
   },
 
+  // Add this new method to handle OAuth callbacks
   handleOAuthCallback: async (provider: string, code: string) => {
     try {
       if (!code) {
