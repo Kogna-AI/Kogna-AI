@@ -36,13 +36,14 @@ interface UserContextType {
   user: MergedUser | null;
   isAuthenticated: boolean;
   loading: boolean;
-  signup:(data:{
-    name: string;
+  signup: (data: {
+    first_name: string;
+    second_name: string;
     email: string;
     password: string;
     role: string;
     organization: string;
-  }) => Promise<{success: boolean; error?: string}>;
+  }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -76,7 +77,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         // Supabase session exists → store token
         if (session.access_token) {
-          console.debug("[UserContext] init - storing access token (length):", session.access_token?.length);
+          console.debug(
+            "[UserContext] init - storing access token (length):",
+            session.access_token?.length
+          );
           localStorage.setItem("token", session.access_token);
         }
 
@@ -101,12 +105,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         console.debug("[UserContext] auth event:", event, session);
 
-        const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+        const currentPath =
+          typeof window !== "undefined" ? window.location.pathname : "";
 
         if (event === "SIGNED_IN" && session?.user) {
           // Store token
           if (session.access_token) {
-            console.debug("[UserContext] SIGNED_IN - storing access token (len):", session.access_token?.length);
+            console.debug(
+              "[UserContext] SIGNED_IN - storing access token (len):",
+              session.access_token?.length
+            );
             localStorage.setItem("token", session.access_token);
           }
 
@@ -115,10 +123,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
           // Only redirect if NOT already on home
           if (currentPath !== "/") {
-            console.debug(`[UserContext] SIGNED_IN - redirecting from ${currentPath} to /`);
+            console.debug(
+              `[UserContext] SIGNED_IN - redirecting from ${currentPath} to /`
+            );
             router.push("/");
           } else {
-            console.debug("[UserContext] SIGNED_IN - already on home, skipping redirect");
+            console.debug(
+              "[UserContext] SIGNED_IN - already on home, skipping redirect"
+            );
           }
         }
 
@@ -130,15 +142,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
           // Only redirect if not already on home
           if (currentPath !== "/") {
-            console.debug(`[UserContext] SIGNED_OUT - redirecting from ${currentPath} to /`);
+            console.debug(
+              `[UserContext] SIGNED_OUT - redirecting from ${currentPath} to /`
+            );
             router.push("/");
           } else {
-            console.debug("[UserContext] SIGNED_OUT - already on home, skipping redirect");
+            console.debug(
+              "[UserContext] SIGNED_OUT - already on home, skipping redirect"
+            );
           }
         }
-      },
+      }
     );
-
 
     return () => {
       console.debug("[UserContext] unsubscribing auth state change");
@@ -152,9 +167,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const loadBackendUser = async (supabaseUser: SupabaseUser) => {
     try {
-      console.debug("[UserContext] loadBackendUser - fetching backend user for supabase id:", supabaseUser.id);
-      const backendUser: BackendUser = await api.getUserBySupabaseId(supabaseUser.id);
-      console.debug("[UserContext] loadBackendUser - backend user:", backendUser);
+      console.debug(
+        "[UserContext] loadBackendUser - fetching backend user for supabase id:",
+        supabaseUser.id
+      );
+      const backendUser: BackendUser = await api.getUserBySupabaseId(
+        supabaseUser.id
+      );
+      console.debug(
+        "[UserContext] loadBackendUser - backend user:",
+        backendUser
+      );
 
       const mergedUser: MergedUser = {
         ...supabaseUser,
@@ -169,7 +192,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setUser(mergedUser);
       setLoading(false);
     } catch (err) {
-      console.warn("[UserContext] loadBackendUser - failed to get backend user, falling back to supabase-only user:", err);
+      console.warn(
+        "[UserContext] loadBackendUser - failed to get backend user, falling back to supabase-only user:",
+        err
+      );
       setUser({
         ...supabaseUser,
         id: supabaseUser.id,
@@ -179,56 +205,44 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   };
+
   // Signup
   const signup = async ({
-  name,
-  email,
-  password,
-  role,
-  organization,
-}: {
-  name: string;
-  email: string;
-  password: string;
-  role: string;
-  organization: string;
-}) => {
-  try {
-    console.debug("[UserContext] signup - Creating Org");
-    const org = await api.createOrganization({name: organization}) as {id:number;};
-    console.debug("[UserContext] signup - Org created: ", org);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    first_name,
+    second_name,
+    email,
+    password,
+    role,
+    organization,
+  }: {
+    first_name: string;
+    second_name: string;
+    email: string;
+    password: string;
+    role: string;
+    organization: string;
+  }) => {
+    try {
+      // Create backend user
+      console.debug("[UserContext] signup - creating backend user");
+      await api.createUser({
+        email,
+        first_name,
+        second_name,
+        role,
+        organization: organization,
+        password,
+      });
 
-    if (error || !data.user) {
-      throw new Error(error?.message || "Supabase signup failed");
+      return { success: true };
+    } catch (err) {
+      console.error("[UserContext] signup - unexpected error:", err);
+      return {
+        success: false,
+        error: "Unable to create account. Please try again.",
+      };
     }
-
-    const supabaseUser = data.user;
-
-    // Create backend user
-    console.debug("[UserContext] signup - creating backend user");
-    const [first_name, ...rest] = name.trim().split(" ");
-    await api.createUser({
-      supabase_id: supabaseUser.id,
-      email,
-      first_name,
-      second_name: rest.join(" ") || undefined,
-      role,
-      organization_id: org.id,
-    });
-
-    return { success: true };
-  } catch (err) {
-    console.error("[UserContext] signup - unexpected error:", err);
-    return {
-      success: false,
-      error: "Unable to create account. Please try again.",
-    };
-  }
-};
+  };
 
   // Logout
   const logout = async () => {

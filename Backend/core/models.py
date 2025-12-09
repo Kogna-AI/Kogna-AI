@@ -18,12 +18,12 @@ class OrganizationCreate(BaseModel):
 
 # ====== Users ======
 class UserCreate(BaseModel):
-    supabase_id: str
-    organization_id: int
     first_name: str
-    second_name: Optional[str] = None
-    role: Optional[str] = None
-    email: EmailStr
+    second_name: str
+    email: str
+    password: str
+    role: str
+    organization: str
     
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None

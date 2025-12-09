@@ -74,10 +74,10 @@ async function handleResponse<T>(response: Response): Promise<T> {
     }
 
     throw new Error(
-      errorData.detail || `HTTP error! status: ${response.status}`,
+      errorData.detail || `HTTP error! status: ${response.status}`
     );
   }
-  
+
   // Try to parse JSON
   try {
     const data = await response.json();
@@ -107,16 +107,16 @@ export const api = {
     return handleResponse(response);
   },
   createUser: async (data: {
-    supabase_id: string;
     email: string;
     first_name: string;
     second_name?: string;
     role?: string;
-    organization_id: number;
+    organization: string;
+    password: string;
   }) => {
     const response = await fetch(`${API_BASE_URL}/api/users`, {
       method: "POST",
-      headers: getAuthHeaders(),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -195,7 +195,7 @@ export const api = {
       team_due?: number;
       team?: string;
       project_number?: number;
-    },
+    }
   ) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}`,
@@ -215,7 +215,7 @@ export const api = {
       `${API_BASE_URL}/api/organizations/${orgId}/dashboard`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -237,7 +237,7 @@ export const api = {
       `${API_BASE_URL}/api/organizations/${orgId}/users`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -250,7 +250,7 @@ export const api = {
       second_name?: string;
       role?: string;
       email: string;
-    },
+    }
   ) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/users/${userId}`,
@@ -280,7 +280,7 @@ export const api = {
       `${API_BASE_URL}/api/organizations/${orgId}/teams`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -326,7 +326,7 @@ export const api = {
 
   listObjectives: async (orgId: number, filters?: { status?: string }) => {
     const params = new URLSearchParams(
-      filters as Record<string, string>,
+      filters as Record<string, string>
     ).toString();
     const url = params
       ? `${API_BASE_URL}/api/organizations/${orgId}/objectives?${params}`
@@ -360,7 +360,7 @@ export const api = {
       progress?: number;
       status?: string;
       team_responsible?: string;
-    },
+    }
   ) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/objectives/${objId}`,
@@ -410,7 +410,7 @@ export const api = {
       {
         method: "PUT",
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -429,7 +429,7 @@ export const api = {
 
   listMetrics: async (
     orgId: number,
-    filters?: { name?: string; limit?: number },
+    filters?: { name?: string; limit?: number }
   ) => {
     const params = new URLSearchParams({
       ...(filters?.name && { name: filters.name }),
@@ -466,7 +466,7 @@ export const api = {
       `${API_BASE_URL}/api/organizations/${orgId}/metrics/trends`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -489,10 +489,10 @@ export const api = {
       category?: string;
       level?: string;
       status?: string;
-    },
+    }
   ) => {
     const params = new URLSearchParams(
-      filters as Record<string, string>,
+      filters as Record<string, string>
     ).toString();
     const url = params
       ? `${API_BASE_URL}/api/organizations/${orgId}/insights?${params}`
@@ -526,7 +526,7 @@ export const api = {
       {
         method: "PUT",
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -538,7 +538,7 @@ export const api = {
       `${API_BASE_URL}/api/recommendations/${recId}`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -549,7 +549,7 @@ export const api = {
       status?: string;
       created_for?: number;
       min_confidence?: number;
-    },
+    }
   ) => {
     const params = new URLSearchParams();
     if (filters?.status) params.append("status", filters.status);
@@ -573,7 +573,7 @@ export const api = {
       `${API_BASE_URL}/api/organizations/${orgId}/recommendations/pending`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -583,7 +583,7 @@ export const api = {
       `${API_BASE_URL}/api/organizations/${orgId}/recommendations/high-priority`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -609,14 +609,14 @@ export const api = {
 
   updateRecommendationStatus: async (
     recId: number,
-    status: "pending" | "acted" | "dismissed",
+    status: "pending" | "acted" | "dismissed"
   ) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/status?new_status=${status}`,
       {
         method: "PUT",
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -630,7 +630,7 @@ export const api = {
       confidence: number;
       action?: string;
       created_for?: number;
-    },
+    }
   ) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}`,
@@ -638,7 +638,7 @@ export const api = {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -649,7 +649,7 @@ export const api = {
       {
         method: "DELETE",
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -660,7 +660,7 @@ export const api = {
       {
         method: "POST",
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -671,7 +671,7 @@ export const api = {
       recommendation_id: number;
       reason: string;
       evidence_datasets_id?: number | null;
-    },
+    }
   ) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/reasons`,
@@ -679,7 +679,7 @@ export const api = {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -689,7 +689,7 @@ export const api = {
       `${API_BASE_URL}/api/recommendations/${recId}/reasons`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -699,7 +699,7 @@ export const api = {
       `${API_BASE_URL}/api/organizations/${orgId}/recommendations/stats`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -725,7 +725,7 @@ export const api = {
       `${API_BASE_URL}/api/recommendations/${recId}/actions`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -735,7 +735,7 @@ export const api = {
       `${API_BASE_URL}/api/users/${userId}/actions?limit=${limit}`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse(response);
   },
@@ -789,7 +789,7 @@ export const api = {
    * @returns {Promise<Array<{id: string, role: string, content: string, created_at: string}>>} A list of message objects.
    */
   getSessionHistory: async (
-    sessionId: string,
+    sessionId: string
   ): Promise<
     Array<{ id: string; role: string; content: string; created_at: string }>
   > => {
@@ -807,7 +807,7 @@ export const api = {
   runAgentInSession: async (
     sessionId: string,
     userQuery: string,
-    executionMode: string = "auto",
+    executionMode: string = "auto"
   ): Promise<{
     final_report: string;
     session_id: string;
@@ -831,7 +831,7 @@ export const api = {
         .json()
         .catch(() => ({ detail: "An error occurred" }));
       throw new Error(
-        errorData.detail || `HTTP error! status: ${response.status}`,
+        errorData.detail || `HTTP error! status: ${response.status}`
       );
     }
     return response.json();
@@ -851,7 +851,7 @@ export const api = {
       `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse<BackendUser>(response);
   },
