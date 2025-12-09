@@ -14,7 +14,7 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-def get_allowed_origins() -> List[str]:
+def get_allowed_origins() -> list[str]:
     """Get allowed CORS origins from environment variable."""
     env_origins = os.getenv(
         "ALLOWED_ORIGINS", 

@@ -225,7 +225,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try {
       // Create backend user
       console.debug("[UserContext] signup - creating backend user");
-      await api.createUser({
+      await api.register({
         email,
         first_name,
         second_name,

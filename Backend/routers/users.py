@@ -5,7 +5,7 @@ Users Router - Handles user management with Supabase authentication and RBAC
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List, Optional
 from core.database import get_db
-from core.models import UserCreate, UserUpdate, UserResponse
+from core.models import UserUpdate, CreateUserRequest
 from core.permissions import (
     get_user_context,
     UserContext,
@@ -18,154 +18,61 @@ from auth.dependencies import get_current_user
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 
+
 # ============================================
 # PUBLIC ENDPOINTS (No Auth Required)
 # ============================================
 @router.post("", status_code=201)
-def create_user(user: UserCreate):
-    print("====== DEBUG: /api/users called ======")
-    print("Incoming UserCreate payload:", user)
+def create_user(data: CreateUserRequest, db=Depends(get_db)):
+    """
+    Create an internal team member.
+    - No password
+    - No supabase_id
+    - Belongs to an existing organization
+    """
 
-    with get_db() as conn:
-        cursor = conn.cursor()
+    with db as conn:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        try:
-            print("\n[1] Checking if user already exists…")
-            print("SQL params:", user.first_name, user.second_name, user.email)
+        # 1. Organization must exist
+        cursor.execute("SELECT id FROM organizations WHERE id = %s", (data.organization_id,))
+        if not cursor.fetchone():
+            raise HTTPException(404, "Organization not found")
 
-            cursor.execute(
-                """
-                SELECT id FROM users 
-                WHERE (first_name = %s AND second_name = %s)
-                   OR email = %s
-                """,
-                (user.first_name, user.second_name, user.email),
-            )
-            existing = cursor.fetchone()
-            print("Existing user lookup result:", existing)
-
-            if existing:
-                print("ERROR: User already exists")
-                raise HTTPException(400, "User already exists")
-
-            print("\n[2] Looking up organization by NAME…")
-            print("SQL param (organization name):", user.organization)
-
-            cursor.execute(
-                "SELECT id FROM organizations WHERE name = %s",
-                (user.organization,)
-            )
-            org = cursor.fetchone()
-            print("Organization lookup result:", org)
-
-            if not org:
-                print("ERROR: Organization NOT found → 404")
-                raise HTTPException(
-                    404,
-                    f"Organization '{user.organization}' not found"
-                )
-
-            organization_id = org.get("id")
-
-            print("Organization ID found:", organization_id)
-
-            print("\n[3] Inserting user into database…")
-            print("Insert params:", (
+        # 2. Insert internal team member
+        cursor.execute("""
+            INSERT INTO users (
+                id,
                 organization_id,
-                user.first_name,
-                user.second_name,
-                user.role,
-                user.email,
-                user.password,
-            ))
-
-            cursor.execute(
-                """
-                INSERT INTO users 
-                    (organization_id, first_name, second_name, role, email, password_hash)
-                VALUES 
-                    (%s, %s, %s, %s, %s, crypt(%s, gen_salt('bf')))
-                RETURNING id, organization_id, first_name, second_name, role, email, created_at
-                """,
-                (
-                    organization_id,
-                    user.first_name,
-                    user.second_name,
-                    user.role,
-                    user.email,
-                    user.password,
-                ),
+                first_name,
+                second_name,
+                role,
+                email
             )
+            VALUES (
+                gen_random_uuid(),
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            RETURNING id, first_name, second_name, role, email
+        """, (
+            data.organization_id,
+            data.first_name,
+            data.second_name,
+            data.role,
+            data.email,
+        ))
 
-            result = cursor.fetchone()
-            conn.commit()
+        new_user = cursor.fetchone()
+        conn.commit()
 
-            print("\n[4] USER CREATED SUCCESSFULLY:", result)
-            print("====== END DEBUG ======")
-
-            return {"success": True, "data": result}
-
-        except Exception as e:
-            conn.rollback()
-
-            print("\n====== DEBUG ERROR ======")
-            print("Exception type:", type(e))
-            print("Exception message:", str(e))
-            print("====== END ERROR ======")
-
-            raise HTTPException(500, f"Failed to create user: {e}")
-
-# @router.post("", status_code=201)
-# def create_user(user: UserCreate):
-#     print(user)
-#     with get_db() as conn:
-#         cursor = conn.cursor()
-#         try:
-#             # Check if user already exists
-#             # Convert organization name → ID (create if missing)
-#             cursor.execute(
-#                 "SELECT id FROM organizations WHERE name = %s",
-#                 (user.organization,)
-#             )
-#             org = cursor.fetchone()
-
-#             if not org:
-#                 cursor.execute(
-#                     "INSERT INTO organizations (name) VALUES (%s) RETURNING id",
-#                     (user.organization,)
-#                 )
-#                 org = cursor.fetchone()
-
-#             organization_id = org[0]
-
-
-#             # Insert user
-#             cursor.execute(
-#                 """
-#                 INSERT INTO users 
-#                     (organization_id, first_name, second_name, role, email, password_hash)
-#                 VALUES 
-#                     (%s, %s, %s, %s, %s, crypt(%s, gen_salt('bf')))
-#                 RETURNING id, organization_id, first_name, second_name, role, email, created_at
-#                 """,
-#                 (
-#                     organization_id,
-#                     user.first_name,
-#                     user.second_name,
-#                     user.role,
-#                     user.email,
-#                     user.password,
-#                 ),
-#             )
-
-#             result = cursor.fetchone()
-#             conn.commit()
-
-#             return {"success": True, "data": result}
-
-#         except Exception as e:
-#             conn.rollback()
-#             raise HTTPException(500, f"Failed to create user: {e}")
+        return {
+            "success": True,
+            "data": new_user
+        }
 
 
 

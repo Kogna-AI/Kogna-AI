@@ -6,6 +6,9 @@ from psycopg2.extras import RealDictCursor
 from core.security import create_access_token
 from core.database import get_db
 from auth.dependencies import get_current_user
+from core.models import RegisterRequest, LoginRequest
+from argon2 import PasswordHasher
+ph = PasswordHasher()
 
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
@@ -16,78 +19,101 @@ pwd_context = CryptContext(
 )
 
 
-
-# ------------------------------
-# Request Models
-# ------------------------------
-class RegisterRequest(BaseModel):
-    email: str
-    password: str
-    organization_id: str
-    first_name: str
-    second_name: str | None = None
-    role: str | None = None
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
 # ------------------------------
 # POST /register
 # ------------------------------
+from argon2 import PasswordHasher
+
+ph = PasswordHasher()
+
 @router.post("/register")
 async def register(data: RegisterRequest, db=Depends(get_db)):
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Check if email exists
-        cursor.execute("SELECT id FROM users WHERE email = %s", (data.email,))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Email already registered")
+        try:
+            # 1. Email uniqueness check
+            cursor.execute(
+                "SELECT id FROM users WHERE email = %s",
+                (data.email,)
+            )
+            if cursor.fetchone():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Email already registered"
+                )
 
-        hashed_password = pwd_context.hash(data.password)
+            # 2. Find or create organization
+            cursor.execute(
+                "SELECT id FROM organizations WHERE name = %s",
+                (data.organization,)
+            )
+            org = cursor.fetchone()
 
-        cursor.execute("""
-            INSERT INTO users (
-                id,
+            if not org:
+                cursor.execute(
+                    """
+                    INSERT INTO organizations (id, name)
+                    VALUES (gen_random_uuid(), %s)
+                    RETURNING id
+                    """,
+                    (data.organization,)
+                )
+                org = cursor.fetchone()
+
+            organization_id = org["id"]
+
+            # 3. Hash password using Argon2
+            hashed_password = ph.hash(data.password)
+
+            # 4. Create user (auth user)
+            cursor.execute("""
+                INSERT INTO users (
+                    id,
+                    organization_id,
+                    first_name,
+                    second_name,
+                    role,
+                    email,
+                    password_hash,
+                    supabase_id
+                )
+                VALUES (
+                    gen_random_uuid(),
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    gen_random_uuid()
+                )
+                RETURNING id, supabase_id
+            """, (
                 organization_id,
-                first_name,
-                second_name,
-                role,
-                email,
-                password_hash,
-                supabase_id
-            )
-            VALUES (
-                gen_random_uuid(),
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                %s,
-                gen_random_uuid()
-            )
-            RETURNING id, supabase_id
-        """, (
-            data.organization_id,
-            data.first_name,
-            data.second_name,
-            data.role,
-            data.email,
-            hashed_password
-        ))
+                data.first_name,
+                data.second_name,
+                data.role,
+                data.email,
+                hashed_password
+            ))
 
-        user = cursor.fetchone()
-        conn.commit()
+            user = cursor.fetchone()
+            conn.commit()
 
-        return {
-            "success": True,
-            "user_id": user["id"],
-            "supabase_id": user["supabase_id"]
-        }
+            return {
+                "success": True,
+                "user_id": user["id"],
+                "supabase_id": user["supabase_id"],
+                "organization_id": organization_id
+            }
+
+        except Exception as e:
+            conn.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to register: {str(e)}"
+            )
 
 
 

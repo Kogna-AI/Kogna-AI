@@ -10,12 +10,7 @@ import logging
 
 from routers import (
     organizations, users, teams, objectives,
-<<<<<<< HEAD
-    metrics, insights, recommendations, actions,
-    ai_pipeline, connectors, Authentication, chat
-=======
     metrics, insights, recommendations, actions,ai_pipeline,connectors,chat, auth
->>>>>>> auth
 )
 
 # Load environment variables

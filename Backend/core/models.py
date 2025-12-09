@@ -24,6 +24,25 @@ class UserCreate(BaseModel):
     password: str
     role: str
     organization: str
+
+
+class UserInfo(BaseModel):
+    id: str
+    email: str
+    first_name: str
+    second_name: str
+    role: str
+    organization_id: str
+    supabase_id: str | None = None
+
+
+
+class CreateUserRequest(BaseModel):
+    organization_id: str  # UUID
+    first_name: str
+    second_name: str
+    email: str
+    role: str
     
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -131,21 +150,28 @@ class SuccessResponse(BaseModel):
     success: bool = True
     message: str
     data: Optional[Any] = None
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    second_name: str
+    role: str
+    organization: str  # <-- name, not id
+
+
 
 # Authentication
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str
-    first_name: str
-    second_name: Optional[str] = None
-    role: Optional[str] = None
-    organization_id: int
+
 
 class AuthResponse(BaseModel):
     success: bool = True
-    token: str
-    user: Dict[str, Any]
+    access_token: str
+    refresh_token: str
+    user: UserInfo
+
+
+

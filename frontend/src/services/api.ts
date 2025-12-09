@@ -106,13 +106,12 @@ export const api = {
     });
     return handleResponse(response);
   },
-  createUser: async (data: {
-    email: string;
+  CreateUser: async (data: {
+    organization_id: string;
     first_name: string;
-    second_name?: string;
-    role?: string;
-    organization: string;
-    password: string;
+    second_name: string;
+    email: string;
+    role: string;
   }) => {
     const response = await fetch(`${API_BASE_URL}/api/users`, {
       method: "POST",
@@ -121,13 +120,14 @@ export const api = {
     });
     return handleResponse(response);
   },
+
   register: async (data: {
     email: string;
-    password: string;
     first_name: string;
     second_name?: string;
     role?: string;
-    organization_id: number;
+    organization: string;
+    password: string;
   }) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/auth/register`,

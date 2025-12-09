@@ -2,11 +2,7 @@ import "./globals.css";
 import { UserProvider } from "./components/auth/UserContext";
 
 export const metadata = {
-<<<<<<< HEAD
-  title: "KognaAI",
-=======
   title: "Kogna",
->>>>>>> auth
   description: "Layout with sans-serif variable",
 };
 
@@ -22,10 +18,8 @@ export default function RootLayout({
   return (
     <html lang="en" style={rootStyle}>
       <body style={{ fontFamily: "var(--font-sans)" }}>
-        <UserProvider>
-        {children}
-        </UserProvider>
-        </body>
+        <UserProvider>{children}</UserProvider>
+      </body>
     </html>
   );
 }
