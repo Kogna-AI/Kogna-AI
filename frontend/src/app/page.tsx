@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { LoginScreen } from "./components/auth/LoginPage";
 import { UserProvider, useUser } from "./components/auth/UserContext";
 import { KogniiAssistant } from "./components/KogniiAssistant";
-import { MainDashboard } from "./components/MainDashboard";
+import { MainDashboard } from "./components/Maindashboard";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { Sidebar } from "./components/sidebar";
 
@@ -89,7 +89,7 @@ function AppContent() {
         });
       },
     }),
-    [],
+    []
   ); // Empty dependency array since these functions only use setters
 
   if (!isAuthenticated) {

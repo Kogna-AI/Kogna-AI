@@ -1,45 +1,4 @@
 "use client";
-<<<<<<< HEAD
-import {
-  Award,
-  Bot,
-  Calendar,
-  Clock,
-  MessageSquare,
-  Star,
-  Target,
-  TrendingUp,
-  UserPlus,
-  Users,
-} from "lucide-react";
-import { useState } from "react";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
-import { Badge } from "../../ui/badge";
-import { Button } from "../../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
-import { Checkbox } from "../../ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../ui/dialog";
-import { Input } from "../../ui/input";
-import { Label } from "../../ui/label";
-import { Progress } from "../../ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../ui/select";
-import { Textarea } from "../../ui/textarea";
-
-=======
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Badge } from "../../ui/badge";
@@ -90,7 +49,6 @@ import {
 import api from "@/services/api";
 import { useUser } from "@/app/components/auth/UserContext";
 import type { Team, TeamMember } from "@/types/backend";
->>>>>>> auth
 const teamMembers = [
   {
     id: 1,
@@ -191,11 +149,7 @@ function OneOnOneSchedulingDialog() {
   });
 
   const handlePresetSelection = (
-<<<<<<< HEAD
-    preset: "kognii-1on1" | "team-member-1on1",
-=======
     preset: "kognii-1on1" | "team-member-1on1"
->>>>>>> auth
   ) => {
     if (preset === "kognii-1on1") {
       setMeetingData({
@@ -236,11 +190,7 @@ function OneOnOneSchedulingDialog() {
   };
 
   const availableMembers = teamMembers.filter(
-<<<<<<< HEAD
-    (member) => member.status === "available",
-=======
     (member) => member.status === "available"
->>>>>>> auth
   );
 
   return (
@@ -318,15 +268,11 @@ function OneOnOneSchedulingDialog() {
                     >
                       <div className="flex items-center gap-2">
                         <div
-<<<<<<< HEAD
-                          className={`w-2 h-2 rounded-full ${member.status === "available" ? "bg-green-500" : "bg-yellow-500"}`}
-=======
                           className={`w-2 h-2 rounded-full ${
                             member.status === "available"
                               ? "bg-green-500"
                               : "bg-yellow-500"
                           }`}
->>>>>>> auth
                         />
                         <span>{member.name}</span>
                         <span className="text-xs text-muted-foreground">
@@ -530,20 +476,12 @@ export function TeamOverview() {
 
   const averagePerformance = Math.round(
     teamMembers.reduce((sum, member) => sum + member.performance, 0) /
-<<<<<<< HEAD
-      teamMembers.length,
-=======
       teamMembers.length
->>>>>>> auth
   );
 
   const averageCapacity = Math.round(
     teamMembers.reduce((sum, member) => sum + member.capacity, 0) /
-<<<<<<< HEAD
-      teamMembers.length,
-=======
       teamMembers.length
->>>>>>> auth
   );
 
   return (
@@ -647,13 +585,9 @@ export function TeamOverview() {
                         </AvatarFallback>
                       </Avatar>
                       <div
-<<<<<<< HEAD
-                        className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(member.status)} rounded-full border-2 border-background`}
-=======
                         className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
                           member.status
                         )} rounded-full border-2 border-background`}
->>>>>>> auth
                       />
                     </div>
                     <div>

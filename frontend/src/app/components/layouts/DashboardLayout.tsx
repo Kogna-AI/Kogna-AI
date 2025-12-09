@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import { Sidebar } from "../sidebar";
-import { MainDashboard } from "../MainDashboard";
+import { MainDashboard } from "../Maindashboard";
 import { KogniiAssistant } from "../kognii/KogniiAssistant";
 import { NotificationCenter } from "../NotificationCenter";
 import { useUser } from "../auth/UserContext";
@@ -31,7 +31,7 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
   // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push('/login');
+      router.push("/login");
     }
   }, [isAuthenticated, router]);
 
@@ -59,7 +59,7 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
       },
 
       openObjectiveCreation: (prefillData?: any) => {
-        router.push('/strategy');
+        router.push("/strategy");
         setKogniiControlState((prev) => ({
           ...prev,
           shouldOpenObjectiveCreation: true,

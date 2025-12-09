@@ -9,7 +9,7 @@ from auth.dependencies import get_current_user
 from core.models import RegisterRequest, LoginRequest
 from argon2 import PasswordHasher
 ph = PasswordHasher()
-
+from argon2.exceptions import VerifyMismatchError
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
@@ -120,6 +120,7 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
 # ------------------------------
 # POST /login
 # ------------------------------
+
 @router.post("/login")
 async def login(data: LoginRequest, db=Depends(get_db)):
     with db as conn:
@@ -136,11 +137,15 @@ async def login(data: LoginRequest, db=Depends(get_db)):
         if not user or not user["password_hash"]:
             raise HTTPException(status_code=401, detail="Incorrect email or password")
 
-        if not pwd_context.verify(data.password, user["password_hash"]):
+        # --- Password verification using Argon2 ---
+        try:
+            ph.verify(user["password_hash"], data.password)
+        except VerifyMismatchError:
             raise HTTPException(status_code=401, detail="Incorrect email or password")
 
+        # --- Create JWT token ---
         token_data = {
-            "sub": user["supabase_id"],
+            "sub": user["supabase_id"],              # Keep your original JWT subject
             "email": user["email"],
             "organization_id": user["organization_id"]
         }
@@ -157,6 +162,7 @@ async def login(data: LoginRequest, db=Depends(get_db)):
                 "organization_id": user["organization_id"]
             }
         }
+
 
 
 

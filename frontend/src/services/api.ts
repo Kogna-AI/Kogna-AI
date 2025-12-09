@@ -10,8 +10,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 // AWS: Request timeout configuration
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
-import type { BackendUser } from "../app/components/auth/UserContext";
-
 /**
  * Fetch with timeout for AWS reliability
  * Prevents hanging requests in AWS infrastructure
@@ -98,36 +96,35 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export const api = {
   // ==================== AUTHENTICATION ====================
 
+  // ==================== AUTHENTICATION (JWT ONLY) ====================
+
   login: async (email: string, password: string) => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    return handleResponse(response);
-  },
-  CreateUser: async (data: {
-    organization_id: string;
-    first_name: string;
-    second_name: string;
-    email: string;
-    role: string;
-  }) => {
-    const response = await fetch(`${API_BASE_URL}/api/users`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return handleResponse(response);
+
+    const data = await handleResponse<{
+      access_token: string;
+      user: any;
+    }>(response);
+
+    // Save token
+    if (data.access_token) {
+      localStorage.setItem("token", data.access_token);
+    }
+
+    return data;
   },
 
   register: async (data: {
     email: string;
+    password: string;
     first_name: string;
     second_name?: string;
     role?: string;
-    organization: string;
-    password: string;
+    organization: string; // name
   }) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/auth/register`,
@@ -137,13 +134,20 @@ export const api = {
         body: JSON.stringify(data),
       }
     );
-    return handleResponse(response);
+
+    const result = await handleResponse<{
+      user_id: string;
+      organization_id: string;
+    }>(response);
+
+    return result;
   },
 
   getCurrentUser: async () => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/me`, {
       headers: getAuthHeaders(),
     });
+
     return handleResponse(response);
   },
 
@@ -265,20 +269,23 @@ export const api = {
 
   // ==================== TEAMS ====================
 
-  getTeam: async (teamId: number) => {
+  getUserTeam: async (userId: number | string) => {
     const response = await fetchWithTimeout(
-      `${API_BASE_URL}/api/teams/${teamId}`,
+      `${API_BASE_URL}/api/users/${userId}/team`,
       {
+        method: "GET",
         headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
   },
 
-  listOrganizationTeams: async (orgId: number) => {
+  // List all members in a team by team_id
+  listTeamMembers: async (teamId: number | string) => {
     const response = await fetchWithTimeout(
-      `${API_BASE_URL}/api/organizations/${orgId}/teams`,
+      `${API_BASE_URL}/api/teams/${teamId}/members`,
       {
+        method: "GET",
         headers: getAuthHeaders(),
       }
     );
@@ -844,16 +851,6 @@ export const api = {
     // If your backend has /api/health instead, change this to: `${API_BASE_URL}/api/health`
     const response = await fetchWithTimeout(`${API_BASE_URL}/health`);
     return handleResponse(response);
-  },
-
-  getUserBySupabaseId: async (supabaseId: string): Promise<BackendUser> => {
-    const response = await fetchWithTimeout(
-      `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse<BackendUser>(response);
   },
 
   // ==================== CONNECTORS (GENERAL) ====================

@@ -17,7 +17,7 @@ import { Eye, EyeOff, AlertCircle, UserPlus } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
-import { useUser } from './UserContext';
+import { useUser } from "./UserContext";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -43,37 +43,23 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
   };
 
   // --- Handle login submission ---
+  const { login } = useUser();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      // Attempt to sign in with Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const success = await login(email, password);
 
-      if (error || !data.session) {
-        setError("Invalid email or password");
+      if (!success) {
+        setError("Login failed");
         return;
       }
 
-      // Store the Supabase access token locally
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      localStorage.setItem("token", data.session?.access_token);
-      // Optional: call FastAPI backend to verify the token
-      const response = await fetch(`${BASE_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log(await response.json());
-
-      // Redirect user to dashboard after successful login
-      // router.push("/mainDashboard");
+      // Redirect to dashboard
+      router.push("/dashboard");
     } catch (err) {
       console.error(err);
       setError("An unexpected error occurred");
@@ -173,9 +159,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
 
         {/* Sign up section */}
         <div className="text-center space-y-3">
-          <p className="text-sm text-gray-600">
-            Don't have an account yet?
-          </p>
+          <p className="text-sm text-gray-600">Don't have an account yet?</p>
           <Button
             type="button"
             variant="outline"
