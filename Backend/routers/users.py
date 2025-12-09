@@ -24,57 +24,44 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate):
-    """
-    Create a new user in the database (called after Supabase signup).
-
-    This endpoint is typically called by your frontend after a successful
-    Supabase signup to create the corresponding user in your database.
-
-    Flow:
-    1. Frontend calls supabase.auth.signUp()
-    2. Frontend gets back Supabase user with ID
-    3. Frontend calls this endpoint with supabase_id
-    4. User is created in your database with link to Supabase
-    """
     with get_db() as conn:
         cursor = conn.cursor()
         try:
             # Check if user already exists
             cursor.execute(
-                "SELECT id FROM users WHERE supabase_id = %s OR email = %s",
-                (user.supabase_id, user.email)
+                "SELECT id FROM users WHERE (first_name = %s AND second_name = %s) OR (email = %s)",
+                (user.first_name, user.second_name, user.email)
             )
             existing_user = cursor.fetchone()
 
             if existing_user:
                 raise HTTPException(
                     status_code=400,
-                    detail="User with this Supabase ID or email already exists"
+                    detail="User with this ID or email already exists"
                 )
 
             # Check if organization exists
             cursor.execute(
-                "SELECT id FROM organizations WHERE id = %s",
-                (user.organization_id,)
+                "SELECT id FROM organizations WHERE name = %s",
+                (user.organization, )
             )
-            if not cursor.fetchone():
+            organization = cursor.fetchone()  
+            if not organization_id:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Organization with ID {user.organization_id} not found"
+                    detail=f"Organization with name {user.organization} not found"
                 )
+
+            organization_id = organization[0]
 
             # Create user
             cursor.execute("""
-                INSERT INTO users (
-                    supabase_id, organization_id, first_name,
-                    second_name, role, email
-                )
+                INSERT INTO users (organization_id, first_name, second_name, role, email)
                 VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id, supabase_id, organization_id, first_name,
+                RETURNING id, organization_id, first_name,
                           second_name, role, email, created_at
             """, (
-                user.supabase_id,
-                user.organization_id,
+                organization_id,
                 user.first_name,
                 user.second_name,
                 user.role,
