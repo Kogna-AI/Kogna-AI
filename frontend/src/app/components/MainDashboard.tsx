@@ -1,12 +1,13 @@
-import { useUser } from "./auth/UserContext";
-import { AnalyticsView } from "./dashboard/AnalyticsView";
-import { DataConnectorHub } from "./dashboard/DataConnectorHub";
 import { DashboardOverview } from "./dashboard/dashboardoverview";
-import { FeedbackView } from "./dashboard/FeedbackView";
-import { MeetingsView } from "./dashboard/MeetingsView";
-import { SettingsView } from "./dashboard/SettingsView";
-import { StrategyHub } from "./dashboard/StrategyHub";
 import { TeamOverview } from "./dashboard/TeamOverview";
+import { StrategyHub } from "./dashboard/StrategyHub";
+
+import { DataConnectorHub } from "./dashboard/DataConnectorHub";
+import { MeetingsView } from "./dashboard/MeetingsView";
+import { AnalyticsView } from "./dashboard/AnalyticsView";
+import { FeedbackView } from "./dashboard/FeedbackView";
+import { SettingsView } from "./dashboard/SettingsView";
+import { useUser } from "./auth/UserContext";
 
 interface MainDashboardProps {
   activeView: string;
@@ -63,9 +64,5 @@ export function MainDashboard({
     }
   };
 
-  return (
-    <div className="flex-1 overflow-auto">
-      {renderView()}
-    </div>
-  );
+  return <div className="flex-1 overflow-auto">{renderView()}</div>;
 }

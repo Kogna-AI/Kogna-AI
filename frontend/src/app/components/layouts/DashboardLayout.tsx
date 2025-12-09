@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
 import { Sidebar } from "../sidebar";
-import { MainDashboard } from "../Maindashboard";
+import { MainDashboard } from "../MainDashboard";
 import { KogniiAssistant } from "../kognii/KogniiAssistant";
 import { NotificationCenter } from "../NotificationCenter";
 import { useUser } from "../auth/UserContext";
