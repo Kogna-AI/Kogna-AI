@@ -42,11 +42,7 @@ export function DashboardOverview({
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-<<<<<<< HEAD
-          <h1>Good morning, {user?.name || "Allen"}</h1>
-=======
           <h1>Good morning, {user?.name}</h1>
->>>>>>> auth
           <p className="text-muted-foreground">
             Here's your strategic overview and AI-powered insights
           </p>
