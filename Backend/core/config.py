@@ -3,10 +3,18 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 import os
-from typing import List
+load_dotenv()
 
-def get_allowed_origins() -> List[str]:
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY is not found")
+
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+def get_allowed_origins() -> list[str]:
     """Get allowed CORS origins from environment variable."""
     env_origins = os.getenv(
         "ALLOWED_ORIGINS", 

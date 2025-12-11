@@ -1,7 +1,8 @@
 import "./globals.css";
+import { UserProvider } from "./components/auth/UserContext";
 
 export const metadata = {
-  title: "My App",
+  title: "Kogna",
   description: "Layout with sans-serif variable",
 };
 
@@ -16,7 +17,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" style={rootStyle}>
-      <body style={{ fontFamily: "var(--font-sans)" }}>{children}</body>
+      <body style={{ fontFamily: "var(--font-sans)" }}>
+        <UserProvider>{children}</UserProvider>
+      </body>
     </html>
   );
 }

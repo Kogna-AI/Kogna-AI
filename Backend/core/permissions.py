@@ -7,7 +7,7 @@ import os
 from typing import List, Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
-from routers.Authentication import get_current_user, security
+from auth.dependencies import get_current_user
 from core.database import get_db
 from supabase import create_client, Client
 from dotenv import load_dotenv
