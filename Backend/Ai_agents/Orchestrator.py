@@ -9,6 +9,7 @@ import logging
 from langchain_litellm import ChatLiteLLM
 import re
 from .prompt import TRIAGE_PROMPT, GENERAL_ANSWER_PROMPT
+from .retry_utils import retry_with_backoff, RetryConfig, retry_llm_call
 
 load_dotenv()
 
@@ -28,6 +29,23 @@ from Ai_agents.reasearch_agent import create_research_crew
 from Ai_agents.synthesize_agent import create_synthesis_crew
 from Ai_agents.communication_agent import create_communication_crew
 
+# --- Configure retry settings for different operations ---
+LLM_RETRY_CONFIG = RetryConfig(
+    max_retries=5,
+    initial_delay=1.0,
+    max_delay=60.0,
+    exponential_base=2.0,
+    jitter=True
+)
+
+CREW_RETRY_CONFIG = RetryConfig(
+    max_retries=3,
+    initial_delay=2.0,
+    max_delay=90.0,
+    exponential_base=2.0,
+    jitter=True
+)
+
 # --- 1. Define the State for the Graph (UPDATED) ---
 class WorkflowState(TypedDict):
     user_id: str
@@ -45,8 +63,9 @@ class WorkflowState(TypedDict):
     human_feedback: Optional[str] 
 
 # -----------------------------------------------------------------
-# --- NEW: Supabase Helper Function ---
+# --- NEW: Supabase Helper Function with Retry ---
 # -----------------------------------------------------------------
+@retry_with_backoff(RetryConfig(max_retries=3, initial_delay=0.5, max_delay=10.0))
 def fetch_chat_history_for_session(session_id: str) -> List[str]:
     """
     Fetches past messages for a given session from Supabase and formats them
@@ -56,28 +75,23 @@ def fetch_chat_history_for_session(session_id: str) -> List[str]:
         logging.error("Supabase client not available.")
         return []
     
-    try:
-        # We query the 'messages' table, filtered by session_id, ordered by creation time
-        response = supabase.table("messages") \
-            .select("role, content") \
-            .eq("session_id", session_id) \
-            .order("created_at", desc=False) \
-            .execute()
-        
-        history = response.data
-        
-        # Format the history for the LLM
-        formatted_history = [
-            f"{msg['role']}: {msg['content']}" 
-            for msg in history
-        ]
-        
-        logging.info(f"Loaded {len(formatted_history)} history items for session {session_id}.")
-        return formatted_history
-        
-    except Exception as e:
-        logging.error(f"Error fetching chat history for session {session_id}: {e}")
-        return []
+    # This will retry on connection errors, timeouts, etc.
+    response = supabase.table("messages") \
+        .select("role, content") \
+        .eq("session_id", session_id) \
+        .order("created_at", desc=False) \
+        .execute()
+    
+    history = response.data
+    
+    # Format the history for the LLM
+    formatted_history = [
+        f"{msg['role']}: {msg['content']}" 
+        for msg in history
+    ]
+    
+    logging.info(f"Loaded {len(formatted_history)} history items for session {session_id}.")
+    return formatted_history
 
 # -----------------------------------------------------------------
 # --- NEW NODE: Loads Chat History ---
@@ -87,36 +101,52 @@ def node_load_history(state: WorkflowState) -> dict:
     session_id = state.get("session_id")
     
     if session_id:
-        history = fetch_chat_history_for_session(session_id)
-        # We only pass the history, and then move to the next step
-        return {"chat_history": history}
+        try:
+            history = fetch_chat_history_for_session(session_id)
+            return {"chat_history": history}
+        except Exception as e:
+            logging.error(f"Failed to load chat history after retries: {e}")
+            print("--- [Info] Failed to load history. Starting with empty chat history. ---")
+            return {"chat_history": []}
     
     print("--- [Info] No session_id found. Starting with empty chat history. ---")
     return {"chat_history": []}
 
 
-# --- EXISTING NODE: Triage Query (Unchanged, but now uses history from state) ---
+# -----------------------------------------------------------------
+# --- Helper function for LLM calls with retry ---
+# -----------------------------------------------------------------
+@retry_llm_call
+def call_llm_with_retry(model: str, api_key: str, prompt: str, temperature: float = 0.0) -> str:
+    """
+    Wrapper function for LLM calls with automatic retry logic.
+    """
+    llm = ChatLiteLLM(
+        model=model,
+        api_key=api_key,
+        temperature=temperature
+    )
+    response = llm.invoke(prompt)
+    return response.content.strip()
+
+
+# --- UPDATED NODE: Triage Query (with retry) ---
 def node_triage_query(state: WorkflowState) -> dict:
     print("\n--- [Node] Triaging Query ---")
     user_query = state['user_query']
-    # Uses history loaded in node_load_history
     chat_history = state.get("chat_history", []) 
     history_str = "\n".join(chat_history)
 
-    # ... (rest of the triage node logic is the same) ...
-
     try:
-        llm = ChatLiteLLM(
+        prompt = TRIAGE_PROMPT.format(history_str=history_str, user_query=user_query)
+        
+        # This will automatically retry on timeouts/rate limits
+        classification = call_llm_with_retry(
             model="gemini/gemini-2.0-flash",
             api_key=os.getenv("GOOGLE_API_KEY"),
+            prompt=prompt,
             temperature=0.0
-        )
-
-        # --- USE IMPORTED PROMPT ---
-        prompt = TRIAGE_PROMPT.format(history_str=history_str, user_query=user_query)
-
-        response = llm.invoke(prompt)
-        classification = response.content.strip().lower()
+        ).lower()
 
         if "general_conversation" in classification:
             print("--- [Info] Query classified as: general_conversation ---")
@@ -126,31 +156,34 @@ def node_triage_query(state: WorkflowState) -> dict:
             return {"query_classification": "data_request"}
 
     except Exception as e:
-        print(f"--- [Error] Triage failed: {e}. Defaulting to data_request. ---")
+        print(f"--- [Error] Triage failed after retries: {e}. Defaulting to data_request. ---")
+        logging.error(f"Triage error: {e}", exc_info=True)
         return {"query_classification": "data_request"}
 
 
-# --- EXISTING NODES (Rest of your nodes remain the same) ---
+# --- UPDATED NODE: Answer General Query (with retry) ---
 def node_answer_general_query(state: WorkflowState) -> dict:
     print("\n--- [Node] Answering General Query ---")
     user_query = state['user_query']
 
     try:
-        llm = ChatLiteLLM(
+        prompt = GENERAL_ANSWER_PROMPT.format(user_query=user_query)
+        
+        # This will automatically retry on timeouts/rate limits
+        response = call_llm_with_retry(
             model="gemini/gemini-2.0-flash",
             api_key=os.getenv("GOOGLE_API_KEY"),
+            prompt=prompt,
             temperature=0.7
         )
-
-        # --- USE IMPORTED PROMPT ---
-        prompt = GENERAL_ANSWER_PROMPT.format(user_query=user_query)
-
-        response = llm.invoke(prompt)
-        return {"final_report": response.content.strip()}
+        
+        return {"final_report": response}
 
     except Exception as e:
-        print(f"--- [Error] General chat failed: {e} ---")
-        return {"final_report": f"Sorry, I had an error trying to respond: {e}"}
+        print(f"--- [Error] General chat failed after retries: {e} ---")
+        logging.error(f"General chat error: {e}", exc_info=True)
+        return {"final_report": f"I'm having trouble connecting to the AI service right now. Please try again in a moment."}
+
 
 # --- EXISTING DECISION FUNCTION (Unchanged) ---
 def decide_after_triage(state: WorkflowState) -> str:
@@ -161,35 +194,68 @@ def decide_after_triage(state: WorkflowState) -> str:
     else:
         return "start_data_workflow"
 
-# --- EXISTING NODE: Internal Analyst (Unchanged) ---
-def node_internal_analyst(state: WorkflowState) -> dict:
-    print("\n--- [Node] Executing Internal Analyst Crew (RAG) ---")
+
+# --- UPDATED NODE: Internal Analyst (with retry) ---
+@retry_with_backoff(CREW_RETRY_CONFIG)
+def _run_internal_analyst_crew(user_id: str, user_query: str, chat_history_str: str):
+    """Helper function to run the internal analyst crew with retry logic."""
     google_key = os.getenv("GOOGLE_API_KEY")
-    user_id = state.get("user_id")
     
-    if not user_id:
-        print("--- [Error] user_id is missing from state in node_internal_analyst ---")
-        return {"internal_analysis_report": "Error: user_id is missing."}
-    
-    # 1. Call the updated function with the user_id
     internal_analyst_crew = create_internal_analyst_crew(
         gemini_api_key=google_key,
         user_id=user_id
     )
     
     inputs = {
-        'user_query': state['user_query'],
-        'chat_history_str': "\n".join(state.get("chat_history", []))
+        'user_query': user_query,
+        'chat_history_str': chat_history_str
     }
+    
     analysis_result = internal_analyst_crew.kickoff(inputs=inputs)
+    return analysis_result.raw
+
+
+def node_internal_analyst(state: WorkflowState) -> dict:
+    print("\n--- [Node] Executing Internal Analyst Crew (RAG) ---")
+    user_id = state.get("user_id")
     
-    print(f"--- [Node] Internal Analyst finished. ---")
+    if not user_id:
+        print("--- [Error] user_id is missing from state in node_internal_analyst ---")
+        return {"internal_analysis_report": "Error: user_id is missing."}
     
-    # 3. Return only the report
-    return {
-        "internal_analysis_report": analysis_result.raw
-    }
-# --- EXISTING NODES (Researcher, Synthesizer, Communicator, Error Handler, Human Approval) ---
+    try:
+        chat_history_str = "\n".join(state.get("chat_history", []))
+        
+        # This will retry the crew execution if it times out
+        analysis_report = _run_internal_analyst_crew(
+            user_id=user_id,
+            user_query=state['user_query'],
+            chat_history_str=chat_history_str
+        )
+        
+        print(f"--- [Node] Internal Analyst finished. ---")
+        return {"internal_analysis_report": analysis_report}
+        
+    except Exception as e:
+        error_msg = f"Internal analysis failed after retries: {str(e)[:200]}"
+        print(f"--- [Error] {error_msg} ---")
+        logging.error(f"Internal analyst error: {e}", exc_info=True)
+        return {"internal_analysis_report": f"Error: {error_msg}"}
+
+
+# --- UPDATED NODE: Researcher (with retry) ---
+@retry_with_backoff(CREW_RETRY_CONFIG)
+def _run_research_with_validation(user_query: str, google_api_key: str, serper_api_key: str):
+    """Helper function to run research with retry logic."""
+    from Ai_agents.reasearch_agent import run_research_with_validation
+    
+    return run_research_with_validation(
+        user_query=user_query,
+        google_api_key=google_api_key,
+        serper_api_key=serper_api_key,
+        max_validation_retries=2
+    )
+
 
 def node_researcher(state: WorkflowState) -> dict:
     """
@@ -205,14 +271,11 @@ def node_researcher(state: WorkflowState) -> dict:
         return {"business_research_findings": "Research step skipped due to missing API keys."}
 
     try:
-        from Ai_agents.reasearch_agent import run_research_with_validation
-        
-        # This now has rate limit retry built in
-        research_findings = run_research_with_validation(
+        # This now has both internal retry AND exponential backoff retry
+        research_findings = _run_research_with_validation(
             user_query=state['user_query'],
             google_api_key=google_key,
-            serper_api_key=serper_key,
-            max_validation_retries=2
+            serper_api_key=serper_key
         )
         
         print(f"--- [Node] Research completed. Length: {len(research_findings)} chars ---")
@@ -225,7 +288,7 @@ def node_researcher(state: WorkflowState) -> dict:
             
     except Exception as e:
         error_str = str(e)
-        print(f"--- [Node] Research error: {error_str[:200]}... ---")
+        print(f"--- [Node] Research error after retries: {error_str[:200]}... ---")
         logging.error(f"Research error: {e}", exc_info=True)
         
         # Check if it's a rate limit that couldn't be resolved
@@ -233,55 +296,101 @@ def node_researcher(state: WorkflowState) -> dict:
             return {
                 "business_research_findings": (
                     "Research temporarily unavailable due to API rate limits. "
-                    "The system is making too many requests. Please try again in a few minutes."
+                    "Please try again in a few minutes."
                 )
             }
         
-        return {"business_research_findings": f"Error during web research: {error_str[:500]}"}
-    
+        return {"business_research_findings": f"Research service temporarily unavailable. Please try again."}
+
+
+# --- UPDATED NODE: Synthesizer (with retry) ---
+@retry_with_backoff(CREW_RETRY_CONFIG)
+def _run_synthesis_crew(internal_analysis_report: str, internal_sources: Optional[List[str]], 
+                       business_research_findings: str, google_api_key: str, human_feedback: Optional[str]):
+    """Helper function to run synthesis crew with retry logic."""
+    synthesizer_crew = create_synthesis_crew(
+        internal_analysis_report=internal_analysis_report,
+        internal_sources=internal_sources,
+        business_research_findings=business_research_findings,
+        google_api_key=google_api_key,
+        human_feedback=human_feedback
+    )
+    synthesis_result = synthesizer_crew.kickoff()
+    return synthesis_result.raw
+
+
 def node_synthesizer(state: WorkflowState) -> dict:
     print("\n--- [Node] Executing Synthesizer Crew ---")
     google_key = os.getenv("GOOGLE_API_KEY")
-    serper_key = os.getenv("SERPAPI_API_KEY")
     
     human_feedback = state.get("human_feedback")
     if human_feedback:
         print(f"--- [Info] Synthesizer is re-running with human feedback: '{human_feedback}' ---")
     
-    synthesizer_crew = create_synthesis_crew(
-        internal_analysis_report=state['internal_analysis_report'],
-        internal_sources=state.get('internal_sources'), 
-        business_research_findings=state['business_research_findings'],
-        google_api_key=google_key,
-        human_feedback=human_feedback
+    try:
+        synthesis_report = _run_synthesis_crew(
+            internal_analysis_report=state['internal_analysis_report'],
+            internal_sources=state.get('internal_sources'),
+            business_research_findings=state['business_research_findings'],
+            google_api_key=google_key,
+            human_feedback=human_feedback
+        )
+        
+        return {"synthesis_report": synthesis_report, "human_feedback": None}
+        
+    except Exception as e:
+        error_msg = f"Synthesis failed after retries: {str(e)[:200]}"
+        print(f"--- [Error] {error_msg} ---")
+        logging.error(f"Synthesis error: {e}", exc_info=True)
+        return {
+            "synthesis_report": f"Error during synthesis: {error_msg}",
+            "human_feedback": None
+        }
+
+
+# --- UPDATED NODE: Communicator (with retry) ---
+@retry_with_backoff(CREW_RETRY_CONFIG)
+def _run_communication_crew(synthesis_context: str, user_query: str, google_api_key: str):
+    """Helper function to run communication crew with retry logic."""
+    communications_crew = create_communication_crew(
+        synthesis_context=synthesis_context,
+        user_query=user_query,
+        google_api_key=google_api_key,
     )
-    synthesis_result = synthesizer_crew.kickoff()
-    
-    return {"synthesis_report": synthesis_result.raw, "human_feedback": None} # Clear feedback after use
+    final_report_result = communications_crew.kickoff()
+    return final_report_result.raw
+
 
 def node_communicator(state: WorkflowState) -> dict:
+    print("\n--- [Node] Executing Communicator Crew ---")
+    
     try:
         google_key = os.getenv("GOOGLE_API_KEY")
-        serper_key = os.getenv("SERPAPI_API_KEY")
         
-        if not serper_key or not google_key:
-            raise ValueError("SERPAPI_API_KEY or GOOGLE_API_KEY not found in .env file.")
+        if not google_key:
+            raise ValueError("GOOGLE_API_KEY not found in .env file.")
 
-        communications_crew = create_communication_crew(
-            synthesis_context=state['synthesis_report'], 
+        final_report = _run_communication_crew(
+            synthesis_context=state['synthesis_report'],
             user_query=state['user_query'],
-            google_api_key=google_key, 
+            google_api_key=google_key
         )
-        final_report_result = communications_crew.kickoff()
-        return {"final_report": final_report_result.raw}
+        
+        return {"final_report": final_report}
+        
     except Exception as e:
-        return {"final_report": f"Error in node_communicator: {str(e)}"}
+        error_msg = f"Communication failed after retries: {str(e)[:200]}"
+        print(f"--- [Error] {error_msg} ---")
+        logging.error(f"Communication error: {e}", exc_info=True)
+        return {"final_report": "I encountered an issue generating the final response. Please try again."}
+
     
 def node_error_handler(state: WorkflowState) -> dict:
     print("\n--- [Node] Executing Error Handler ---")
     error_reason = state.get('internal_analysis_report', 'Unknown error in analysis')
     error_report = f"Workflow failed.\nReason: {error_reason}"
     return {"error_message": error_report}
+
 
 def node_human_approval(state: WorkflowState) -> dict:
     print("\n--- [Node] Human Approval Required ---")
@@ -299,6 +408,7 @@ def node_human_approval(state: WorkflowState) -> dict:
     
     return {"human_feedback": None} # Approved, no feedback needed
 
+
 # --- EXISTING DECISION FUNCTIONS (Unchanged) ---
 def decide_next_step_after_analysis(state: WorkflowState) -> str:
     print("\n--- [Decision] Evaluating Internal Analysis Report ---")
@@ -308,8 +418,8 @@ def decide_next_step_after_analysis(state: WorkflowState) -> str:
     if (
         report.startswith("Error:") 
         or "user_id is missing" in report
-        
         or "Error during vector search" in report
+        or "failed after retries" in report.lower()
     ):
         print(f"--- [Decision] Genuine error detected. Routing to error handler. ---")
         return "handle_error"
@@ -317,11 +427,13 @@ def decide_next_step_after_analysis(state: WorkflowState) -> str:
     print("--- [Decision] Analysis successful. Proceeding to research. ---")
     return "proceed_to_research"
 
+
 def decide_if_human_approval_is_needed(state: WorkflowState) -> str:
     print("\n--- [Decision] Checking Execution Mode ---")
     if state.get("execution_mode") == "micromanage":
         return "request_approval"
     return "skip_approval"
+
         
 def decide_after_approval(state: WorkflowState) -> str:
     print("\n--- [Decision] Evaluating Human Input ---")
@@ -332,8 +444,8 @@ def decide_after_approval(state: WorkflowState) -> str:
         print("--- [Decision] Approved. Proceeding to communications. ---")
         return "proceed_to_comms"
 
-# --- 4. Build the Graph (UPDATED) ---
 
+# --- 4. Build the Graph (UPDATED) ---
 def get_compiled_app():
     """
     Builds and compiles the LangGraph workflow.
@@ -341,7 +453,7 @@ def get_compiled_app():
     workflow = StateGraph(WorkflowState)
 
     # --- Add all your nodes ---
-    workflow.add_node("load_history_node", node_load_history) # <-- NEW NODE
+    workflow.add_node("load_history_node", node_load_history)
     workflow.add_node("triage_node", node_triage_query)
     workflow.add_node("answer_general_query_node", node_answer_general_query)
     workflow.add_node("internal_analyst_node", node_internal_analyst)
@@ -351,14 +463,12 @@ def get_compiled_app():
     workflow.add_node("communicator_node", node_communicator)
     workflow.add_node("error_handler_node", node_error_handler)
 
-    # --- Set the entry point (UPDATED) ---
+    # --- Set the entry point ---
     workflow.set_entry_point("load_history_node")
 
-    # --- Add all your edges (UPDATED) ---
-    # 1. Load history runs, then proceeds to triage
+    # --- Add all your edges ---
     workflow.add_edge("load_history_node", "triage_node")
     
-    # 2. Triage decides based on the query (which now includes history)
     workflow.add_conditional_edges(
         "triage_node",
         decide_after_triage,
@@ -390,125 +500,3 @@ def get_compiled_app():
 
     # --- Compile the app ---
     return workflow.compile()
-
-
-# # --- Main execution block for Continuous Chat ---
-# if __name__ == "__main__":
-
-#     logging.basicConfig(
-#         level=logging.INFO,
-#         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-#         filename='kogna_ai.log', # This file will store all the process logs
-#         filemode='w' # 'w' overwrites the log each time, 'a' appends
-#     )
-#     logging.getLogger("LiteLLM").setLevel(logging.WARNING)
-#     print("--- Welcome to the Kogna AI Orchestrator (Chat Mode) ---")
-#     print("Type 'quit' or 'exit' to end the conversation.")
-
-#     # --- Compile the graph ONCE at the start ---
-#     load_dotenv() # Ensure env vars are loaded before compiling
-#     try:
-#         # This call will now succeed
-#         app = get_compiled_app()
-#         print("--- LangGraph App Compiled ---")
-#     except Exception as e:
-#         print(f"FATAL ERROR: Could not compile LangGraph app: {e}")
-#         # exit() # Removed exit() so you can debug if needed
-
-#     # --- Initialize chat history ---
-#     chat_history = []
-
-#     # --- Start the conversation loop ---
-#     while True:
-#         # 1. Get user input
-#         query = input("\nYou: ")
-#         if query.lower() in ["quit", "exit"]:
-#             print("\nKogna AI: Goodbye!")
-#             break
-#         if not query.strip(): # Check for empty input
-#             continue
-            
-#         # -----------------------------------------------------------------
-#         # --- FIX 2: Add your trial user_id to the initial state ---
-#         # -----------------------------------------------------------------
-#         # 2. Set up initial state for this turn
-#         initial_state = {
-#             "user_id": user_id, # <-- ADD THIS LINE
-#             "user_query": query,
-#             "chat_history": chat_history.copy(), # Pass current history
-#             "execution_mode": "autonomous", # Keep it simple for chat
-#             # Initialize all state keys to None or default values
-#             "query_classification": None,
-#             "internal_analysis_report": None,
-#             "internal_sources": None,
-#             "business_research_findings": None,
-#             "synthesis_report": None,
-#             "final_report": None,
-#             "error_message": None,
-#             "human_feedback": None,
-#         }
-#         # -----------------------------------------------------------------
-#         # --- END OF FIX 2 ---
-#         # -----------------------------------------------------------------
-
-#         print("\nKogna AI is thinking...")
-#         final_report = None
-#         stream_error = None
-#         full_stream_output = [] # Optional: Capture intermediate steps
-
-#         # 3. Run the graph stream
-#         try:
-#             # Loop through the stream output from the graph
-#             for s in app.stream(initial_state, {"recursion_limit": 25}):
-#                 full_stream_output.append(s)
-
-#                 # --- START: MODIFIED LOGIC ---
-#                 # Check for an answer from EITHER the general chat OR the communicator
-                
-#                 final_answer_node = None
-#                 if "answer_general_query_node" in s:
-#                     final_answer_node = s.get("answer_general_query_node")
-#                 elif "communicator_node" in s:
-#                     final_answer_node = s.get("communicator_node")
-
-#                 # If we found an answer node and it's not empty
-#                 if final_answer_node is not None:
-#                     report = final_answer_node.get("final_report")
-#                     if report:
-#                         final_report = report
-                
-#                 # --- END: MODIFIED LOGIC ---
-
-#                 # Check if the error handler node ran
-#                 elif "error_handler_node" in s:
-#                      node_output = s["error_handler_node"]
-#                      if node_output is not None:
-#                          error_msg = node_output.get("error_message")
-#                          if error_msg:
-#                              final_report = f"Sorry, I encountered an error: {error_msg}"
-#                              stream_error = True
-
-#         except Exception as e:
-#             print(f"\n--- WORKFLOW EXECUTION ERROR ---")
-#             print(f"An error occurred while running the graph stream: {e}")
-#             final_report = f"Sorry, a critical error occurred during processing: {e}"
-#             stream_error = True
-
-#         # 4. Print the final AI response
-#         if final_report:
-#             print(f"\nKogna AI: {final_report}")
-#             # 5. Update chat history only on successful completion or handled error
-#             chat_history.append(f"Human: {query}")
-#             chat_history.append(f"AI: {final_report}")
-#         elif not stream_error:
-#             print("\nKogna AI: I finished processing but couldn't generate a final report.")
-#             print("--- DEBUG: No final report found in stream output. Last few outputs: ---")
-#             print(full_stream_output[-3:])
-#             chat_history.append(f"Human: {query}")
-#             chat_history.append(f"AI: [Processing completed without a final report]")
-        
-#         # Optional: Limit chat history size
-#         MAX_HISTORY_TURNS = 5 # Keep last 5 pairs (10 messages total)
-#         if len(chat_history) > MAX_HISTORY_TURNS * 2:
-#              print("--- Pruning chat history ---")
-#              chat_history = chat_history[-(MAX_HISTORY_TURNS * 2):]

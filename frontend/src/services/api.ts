@@ -8,7 +8,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // AWS: Request timeout configuration
-const REQUEST_TIMEOUT = 30000; // 30 seconds
+const REQUEST_TIMEOUT = 120000; // 120 seconds
 
 import type { BackendUser } from "../app/components/auth/UserContext";
 
