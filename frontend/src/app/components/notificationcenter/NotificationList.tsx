@@ -1,10 +1,17 @@
-import React from 'react';
-import { ScrollArea } from '../../ui/scroll-area';
-import { Bell } from 'lucide-react';
-import NotificationItem from './NotificationItem';
-import { Notification } from './notificationData';
+import { Bell } from "lucide-react";
+import { ScrollArea } from "../../ui/scroll-area";
+import NotificationItem from "./NotificationItem";
+import type { Notification } from "./notificationData";
 
-export default function NotificationList({ notifications, onItemClick, onDismiss }: { notifications: Notification[]; onItemClick: (id: string) => void; onDismiss: (id: string) => void }) {
+export default function NotificationList({
+  notifications,
+  onItemClick,
+  onDismiss,
+}: {
+  notifications: Notification[];
+  onItemClick: (id: string) => void;
+  onDismiss: (id: string) => void;
+}) {
   return (
     <ScrollArea className="h-full px-6 overflow-scroll">
       <div className="space-y-3 pb-4">
@@ -14,8 +21,13 @@ export default function NotificationList({ notifications, onItemClick, onDismiss
             <p>No notifications</p>
           </div>
         ) : (
-          notifications.map(n => (
-            <NotificationItem key={n.id} notification={n} onClick={onItemClick} onDismiss={onDismiss} />
+          notifications.map((n) => (
+            <NotificationItem
+              key={n.id}
+              notification={n}
+              onClick={onItemClick}
+              onDismiss={onDismiss}
+            />
           ))
         )}
       </div>

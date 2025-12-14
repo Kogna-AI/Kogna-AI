@@ -1,15 +1,17 @@
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/button';
-import { Switch } from '../../ui/switch';
-import { Label } from '../../ui/label';
-import { Settings, Bell, Shield, User } from 'lucide-react';
+import { Bell, User } from "lucide-react";
+import { Button } from "../../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { Label } from "../../ui/label";
+import { Switch } from "../../ui/switch";
 
 export function SettingsView() {
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1>Settings</h1>
-        <p className="text-muted-foreground">Manage your dashboard preferences and notifications</p>
+        <p className="text-muted-foreground">
+          Manage your dashboard preferences and notifications
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -50,7 +52,9 @@ export function SettingsView() {
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
-              <div className="text-sm text-muted-foreground">Strategic Manager</div>
+              <div className="text-sm text-muted-foreground">
+                Strategic Manager
+              </div>
             </div>
             <Button variant="outline" className="w-full">
               Edit Profile

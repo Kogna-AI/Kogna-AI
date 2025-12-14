@@ -1,15 +1,15 @@
 import {
-  Crown,
-  Target,
-  CheckCircle,
   BarChart3,
   Calendar,
-  FileSpreadsheet,
-  MessageSquare,
+  CheckCircle,
+  Crown,
   Database,
+  FileSpreadsheet,
   FolderKanban,
+  MessageSquare,
+  Target,
 } from "lucide-react";
-import { Connector, Category } from "./types";
+import type { Category, Connector } from "./types";
 
 export const syncModes = [
   {

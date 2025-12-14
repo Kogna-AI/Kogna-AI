@@ -3,8 +3,8 @@ export interface Connector {
   name: string;
   description: string;
   icon: React.ReactNode;
-  status: 'connected' | 'available' | 'premium';
-  category: 'project' | 'communication' | 'analytics' | 'storage';
+  status: "connected" | "available" | "premium";
+  category: "project" | "communication" | "analytics" | "storage";
   features: string[];
   setupTime: string;
   dataSync: string;

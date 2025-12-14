@@ -1,19 +1,49 @@
 /**
  * Kogna-AI API Service
  * Frontend API client for communicating with the FastAPI backend
+ * AWS-Compatible Version with Timeout Handling and Enhanced Error Management
  */
 
 // 1. API_BASE_URL is clean. It does NOT include '/api'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-import type { BackendUser } from "../app/components/auth/UserContext";
+// AWS: Request timeout configuration
+const REQUEST_TIMEOUT = 120000; // 120 seconds
+
+/**
+ * Fetch with timeout for AWS reliability
+ * Prevents hanging requests in AWS infrastructure
+ */
+const fetchWithTimeout = async (
+  url: string,
+  options: RequestInit = {},
+  timeout: number = REQUEST_TIMEOUT
+): Promise<Response> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Request timeout - please try again");
+    }
+    throw error;
+  }
+};
+
 /**
  * Get authentication headers
  */
 const getAuthHeaders = (): HeadersInit => {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  console.log(token);
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -21,23 +51,36 @@ const getAuthHeaders = (): HeadersInit => {
 };
 
 /**
- * Handle API response
+ * Handle API response with AWS-specific error handling
  */
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorData = await response
       .json()
       .catch(() => ({ detail: "An error occurred" }));
+
+    // AWS-specific error handling
+    if (response.status === 502) {
+      throw new Error("Service temporarily unavailable. Please try again.");
+    }
+    if (response.status === 504) {
+      throw new Error("Request timeout. Please try again.");
+    }
+    if (response.status === 503) {
+      throw new Error("Service unavailable. Please try again later.");
+    }
+
     throw new Error(
       errorData.detail || `HTTP error! status: ${response.status}`
     );
   }
+
   // Try to parse JSON
   try {
     const data = await response.json();
     // FastAPI returns {success: true, data: {...}} or root data
     return data.data || data;
-  } catch (e) {
+  } catch (_e) {
     // Handle empty response for methods like DELETE
     if (response.status === 204 || response.status === 200) {
       return {} as T;
@@ -52,14 +95,26 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export const api = {
   // ==================== AUTHENTICATION ====================
 
+  // ==================== AUTHENTICATION (JWT ONLY) ====================
+
   login: async (email: string, password: string) => {
-    // 2. '/api' prefix is added here (and in every function below)
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    return handleResponse(response);
+
+    const data = await handleResponse<{
+      access_token: string;
+      user: any;
+    }>(response);
+
+    // Save token
+    if (data.access_token) {
+      localStorage.setItem("token", data.access_token);
+    }
+
+    return data;
   },
 
   register: async (data: {
@@ -68,36 +123,52 @@ export const api = {
     first_name: string;
     second_name?: string;
     role?: string;
-    organization_id: number;
+    organization: string; // name
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return handleResponse(response);
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/auth/register`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }
+    );
+
+    const result = await handleResponse<{
+      user_id: string;
+      organization_id: string;
+    }>(response);
+
+    return result;
   },
 
   getCurrentUser: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/me`, {
       headers: getAuthHeaders(),
     });
+
     return handleResponse(response);
   },
 
   // ==================== ORGANIZATIONS ====================
 
   getOrganization: async (orgId: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/organizations/${orgId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
   listOrganizations: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/organizations`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/organizations`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -108,11 +179,14 @@ export const api = {
     team?: string;
     project_number?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/organizations`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/organizations`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -126,18 +200,21 @@ export const api = {
       project_number?: number;
     }
   ) => {
-    const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/organizations/${orgId}`,
+      {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
   // ==================== DASHBOARD ====================
 
   getDashboard: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/dashboard`,
       {
         headers: getAuthHeaders(),
@@ -149,14 +226,17 @@ export const api = {
   // ==================== USERS ====================
 
   getUser: async (userId: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/users/${userId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
   listOrganizationUsers: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/users`,
       {
         headers: getAuthHeaders(),
@@ -175,27 +255,36 @@ export const api = {
       email: string;
     }
   ) => {
-    const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/users/${userId}`,
+      {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
   // ==================== TEAMS ====================
 
-  getTeam: async (teamId: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/teams/${teamId}`, {
-      headers: getAuthHeaders(),
-    });
+  getUserTeam: async (userId: number | string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/users/${userId}/team`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
-  listOrganizationTeams: async (orgId: number) => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/organizations/${orgId}/teams`,
+  // List all members in a team by team_id
+  listTeamMembers: async (teamId: number | string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/${teamId}/members`,
       {
+        method: "GET",
         headers: getAuthHeaders(),
       }
     );
@@ -203,7 +292,7 @@ export const api = {
   },
 
   createTeam: async (data: { organization_id: number; name: string }) => {
-    const response = await fetch(`${API_BASE_URL}/api/teams`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/teams`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -218,30 +307,38 @@ export const api = {
     performance?: number;
     capacity?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/teams/members`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/members`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
   // ==================== OBJECTIVES ====================
 
   getObjective: async (objId: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/objectives/${objId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/objectives/${objId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
   listObjectives: async (orgId: number, filters?: { status?: string }) => {
-    const params = new URLSearchParams(filters as any).toString();
+    const params = new URLSearchParams(
+      filters as Record<string, string>
+    ).toString();
     const url = params
       ? `${API_BASE_URL}/api/organizations/${orgId}/objectives?${params}`
       : `${API_BASE_URL}/api/organizations/${orgId}/objectives`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -254,7 +351,7 @@ export const api = {
     status?: string;
     team_responsible?: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/objectives`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/objectives`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -271,11 +368,14 @@ export const api = {
       team_responsible?: string;
     }
   ) => {
-    const response = await fetch(`${API_BASE_URL}/api/objectives/${objId}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/objectives/${objId}`,
+      {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -286,11 +386,14 @@ export const api = {
     start_date?: string;
     end_date?: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/growth-stages`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/growth-stages`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -299,7 +402,7 @@ export const api = {
     title: string;
     achieved?: boolean;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/milestones`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/milestones`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -308,7 +411,7 @@ export const api = {
   },
 
   achieveMilestone: async (milestoneId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/milestones/${milestoneId}/achieve`,
       {
         method: "PUT",
@@ -321,9 +424,12 @@ export const api = {
   // ==================== METRICS ====================
 
   getMetric: async (metricId: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/metrics/${metricId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/metrics/${metricId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -340,7 +446,7 @@ export const api = {
       ? `${API_BASE_URL}/api/organizations/${orgId}/metrics?${params}`
       : `${API_BASE_URL}/api/organizations/${orgId}/metrics`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -353,7 +459,7 @@ export const api = {
     unit?: string;
     change_from_last?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/metrics`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/metrics`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -362,7 +468,7 @@ export const api = {
   },
 
   getMetricTrends: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/metrics/trends`,
       {
         headers: getAuthHeaders(),
@@ -374,9 +480,12 @@ export const api = {
   // ==================== INSIGHTS ====================
 
   getInsight: async (insightId: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/insights/${insightId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/insights/${insightId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -388,12 +497,14 @@ export const api = {
       status?: string;
     }
   ) => {
-    const params = new URLSearchParams(filters as any).toString();
+    const params = new URLSearchParams(
+      filters as Record<string, string>
+    ).toString();
     const url = params
       ? `${API_BASE_URL}/api/organizations/${orgId}/insights?${params}`
       : `${API_BASE_URL}/api/organizations/${orgId}/insights`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
@@ -407,7 +518,7 @@ export const api = {
     confidence: number;
     level: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/insights`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -416,7 +527,7 @@ export const api = {
   },
 
   archiveInsight: async (insightId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/insights/${insightId}/archive`,
       {
         method: "PUT",
@@ -429,7 +540,7 @@ export const api = {
   // ==================== RECOMMENDATIONS ====================
 
   getRecommendation: async (recId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}`,
       {
         headers: getAuthHeaders(),
@@ -457,14 +568,14 @@ export const api = {
       ? `${API_BASE_URL}/api/organizations/${orgId}/recommendations?${params}`
       : `${API_BASE_URL}/api/organizations/${orgId}/recommendations`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
   getPendingRecommendations: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/recommendations/pending`,
       {
         headers: getAuthHeaders(),
@@ -474,7 +585,7 @@ export const api = {
   },
 
   getHighPriorityRecommendations: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/recommendations/high-priority`,
       {
         headers: getAuthHeaders(),
@@ -491,11 +602,14 @@ export const api = {
     action?: string;
     created_for?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/recommendations`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/recommendations`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -503,7 +617,7 @@ export const api = {
     recId: number,
     status: "pending" | "acted" | "dismissed"
   ) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/status?new_status=${status}`,
       {
         method: "PUT",
@@ -524,7 +638,7 @@ export const api = {
       created_for?: number;
     }
   ) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}`,
       {
         method: "PUT",
@@ -536,7 +650,7 @@ export const api = {
   },
 
   deleteRecommendation: async (recId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}`,
       {
         method: "DELETE",
@@ -547,7 +661,7 @@ export const api = {
   },
 
   assignRecommendation: async (recId: number, userId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/assign?user_id=${userId}`,
       {
         method: "POST",
@@ -562,10 +676,10 @@ export const api = {
     data: {
       recommendation_id: number;
       reason: string;
-      evidence_datasets_id?: any;
+      evidence_datasets_id?: number | null;
     }
   ) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/reasons`,
       {
         method: "POST",
@@ -577,7 +691,7 @@ export const api = {
   },
 
   getRecommendationReasons: async (recId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/reasons`,
       {
         headers: getAuthHeaders(),
@@ -587,7 +701,7 @@ export const api = {
   },
 
   getRecommendationStats: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/recommendations/stats`,
       {
         headers: getAuthHeaders(),
@@ -604,7 +718,7 @@ export const api = {
     action_taken: string;
     result?: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/actions`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/actions`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -613,7 +727,7 @@ export const api = {
   },
 
   getRecommendationActions: async (recId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/actions`,
       {
         headers: getAuthHeaders(),
@@ -623,7 +737,7 @@ export const api = {
   },
 
   getUserActions: async (userId: number, limit: number = 50) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/users/${userId}/actions?limit=${limit}`,
       {
         headers: getAuthHeaders(),
@@ -647,10 +761,13 @@ export const api = {
     title: string;
     created_at: string;
   }> => {
-    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/chat/sessions`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -661,10 +778,13 @@ export const api = {
   getUserSessions: async (): Promise<
     Array<{ id: string; user_id: string; title: string; created_at: string }>
   > => {
-    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/chat/sessions`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -679,10 +799,14 @@ export const api = {
   ): Promise<
     Array<{ id: string; role: string; content: string; created_at: string }>
   > => {
-    const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    });
+    // FIXED: Added '/api' prefix to match other endpoints
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/chat/history/${sessionId}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -701,7 +825,7 @@ export const api = {
       execution_mode: executionMode,
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/chat/run`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/chat/run`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -722,157 +846,160 @@ export const api = {
   // ==================== HEALTH CHECK ====================
 
   healthCheck: async () => {
-    // Health checks usually live at the root, so no '/api' prefix
-    const response = await fetch(`${API_BASE_URL}/health`);
+    // Note: Verify this path matches your backend
+    // If your backend has /api/health instead, change this to: `${API_BASE_URL}/api/health`
+    const response = await fetchWithTimeout(`${API_BASE_URL}/health`);
     return handleResponse(response);
   },
 
-  getUserBySupabaseId: async (supabaseId: string): Promise<BackendUser> => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
-      {
-        headers: getAuthHeaders(),
+  // ==================== CONNECTORS (GENERAL) ====================
+
+  getConnectUrl: async (provider: string) => {
+    try {
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/api/connect/${provider}`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ detail: "Failed to get connect URL" }));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`
+        );
       }
-    );
-    return handleResponse<BackendUser>(response);
+
+      const data = await response.json();
+
+      if (!data.url) {
+        throw new Error("No authorization URL returned from server");
+      }
+
+      // Return the data instead of redirecting directly
+      // This gives the calling component more control
+      return data;
+    } catch (error) {
+      console.error(`Error getting ${provider} connect URL:`, error);
+      throw error;
+    }
   },
 
-// ==================== CONNECTORS (GENERAL) ====================
+  // Add this new method to handle OAuth callbacks
+  handleOAuthCallback: async (provider: string, code: string) => {
+    try {
+      if (!code) {
+        throw new Error("No authorization code received");
+      }
 
-getConnectUrl: async (provider: string) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/connect/${provider}`, {
-      headers: getAuthHeaders(),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: "Failed to get connect URL" }));
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(
+          code
+        )}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        }
+      );
+
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error handling ${provider} OAuth callback:`, error);
+      throw error;
     }
-    
-    const data = await response.json();
-    
-    if (!data.url) {
-      throw new Error('No authorization URL returned from server');
+  },
+
+  exchangeCode: async (provider: string, code: string) => {
+    try {
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(
+          code
+        )}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error exchanging ${provider} code:`, error);
+      throw error;
     }
-    
-    // Return the data instead of redirecting directly
-    // This gives the calling component more control
-    return data;
-  } catch (error) {
-    console.error(`Error getting ${provider} connect URL:`, error);
-    throw error;
-  }
-},
+  },
 
-// Add this new method to handle OAuth callbacks
-handleOAuthCallback: async (provider: string, code: string) => {
-  try {
-    if (!code) {
-      throw new Error('No authorization code received');
+  manualSync: async (provider: string) => {
+    try {
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/api/connect/sync/${provider}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error syncing ${provider}:`, error);
+      throw error;
     }
-    
-    const response = await fetch(
-      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-      }
-    );
-    
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error handling ${provider} OAuth callback:`, error);
-    throw error;
-  }
-},
+  },
 
-exchangeCode: async (provider: string, code: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error exchanging ${provider} code:`, error);
-    throw error;
-  }
-},
+  listConnections: async (userId: string | number) => {
+    try {
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/api/users/${userId}/connectors`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse<
+        {
+          id: number;
+          user_id: string;
+          service: string;
+          expires_at: number;
+          created_at: string;
+        }[]
+      >(response);
+    } catch (error) {
+      console.error("Error listing connections:", error);
+      throw error;
+    }
+  },
 
-manualSync: async (provider: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/sync/${provider}`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error syncing ${provider}:`, error);
-    throw error;
-  }
-},
+  disconnect: async (provider: string) => {
+    try {
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/api/connect/disconnect/${provider}`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error disconnecting ${provider}:`, error);
+      throw error;
+    }
+  },
 
-listConnections: async (userId: string | number) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/users/${userId}/connectors`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse<
-      {
-        id: number;
-        user_id: string;
-        service: string;
-        expires_at: number;
-        created_at: string;
-      }[]
-    >(response);
-  } catch (error) {
-    console.error('Error listing connections:', error);
-    throw error;
-  }
-},
-
-disconnect: async (provider: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/disconnect/${provider}`,
-      {
-        method: "DELETE",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error disconnecting ${provider}:`, error);
-    throw error;
-  }
-},
-
-// Add this to check connection status
-checkConnectionStatus: async (provider: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/status/${provider}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse<{ connected: boolean; expires_at?: number }>(response);
-  } catch (error) {
-    console.error(`Error checking ${provider} connection status:`, error);
-    throw error;
-  }
-},
+  checkConnectionStatus: async (provider: string) => {
+    try {
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/api/connect/status/${provider}`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse<{ connected: boolean; expires_at?: number }>(
+        response
+      );
+    } catch (error) {
+      console.error(`Error checking ${provider} connection status:`, error);
+      throw error;
+    }
+  },
 };
 
 export default api;

@@ -3,11 +3,14 @@ interface KogniiThinkingIconProps {
   size?: number;
 }
 
-export function KogniiThinkingIcon({ className = "w-4 h-4", size }: KogniiThinkingIconProps) {
+export function KogniiThinkingIcon({
+  className = "w-4 h-4",
+  size,
+}: KogniiThinkingIconProps) {
   const style = size ? { width: size, height: size } : {};
-  
+
   return (
-    <div 
+    <div
       className={`${className} rounded-full kognii-thinking-gradient`}
       style={style}
     />

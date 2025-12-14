@@ -8,7 +8,7 @@ import httpx
 import logging
 import time
 from services.etl_pipelines import run_master_etl, run_test
-from routers.Authentication import get_backend_user_id
+from auth.dependencies import get_current_user, get_backend_user_id 
 from supabase_connect import get_supabase_manager
 from typing import List, Optional
 from pydantic import BaseModel

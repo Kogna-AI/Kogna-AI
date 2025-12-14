@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
 import {
   Card,
   CardContent,
@@ -8,22 +10,22 @@ import {
   CardHeader,
   CardTitle,
 } from "../../ui/card";
-import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { Alert, AlertDescription } from "../../ui/alert";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, UserPlus } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../../../lib/supabaseClient";
+import { useUser } from "./UserContext";
 
-// --- Initialize Supabase client ---
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-export function LoginScreen() {
+interface LoginScreenProps {
+  onCreateAccount?: () => void;
+}
+
+export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,38 +33,33 @@ export function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Handle signup navigation
+  const handleSignupClick = () => {
+    if (onCreateAccount) {
+      onCreateAccount();
+    } else {
+      router.push("/signup");
+    }
+  };
+
   // --- Handle login submission ---
+  const { login } = useUser();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      // Attempt to sign in with Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const success = await login(email, password);
 
-      if (error || !data.session) {
-        setError("Invalid email or password");
+      if (!success) {
+        setError("Login failed");
         return;
       }
 
-      // Store the Supabase access token locally
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      localStorage.setItem("token", data.session?.access_token);
-      // Optional: call FastAPI backend to verify the token
-      const response = await fetch(`${BASE_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log(await response.json());
-
-      // Redirect user to dashboard after successful login
-      // router.push("/mainDashboard");
+      // Redirect to dashboard
+      router.push("/dashboard");
     } catch (err) {
       console.error(err);
       setError("An unexpected error occurred");
@@ -159,6 +156,20 @@ export function LoginScreen() {
             </form>
           </CardContent>
         </Card>
+
+        {/* Sign up section */}
+        <div className="text-center space-y-3">
+          <p className="text-sm text-gray-600">Don't have an account yet?</p>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-11 border-gray-300 hover:bg-gray-50"
+            onClick={handleSignupClick}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Sign up for free
+          </Button>
+        </div>
       </div>
     </div>
   );
