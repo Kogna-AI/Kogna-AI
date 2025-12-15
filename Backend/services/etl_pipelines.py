@@ -1648,7 +1648,7 @@ async def _run_google_etl(user_id: str, access_token: str) -> tuple[bool, int]:
             return True, successful_count
             
     except Exception as e:
-        logging.error(f"❌ Google Drive ETL Error: {e}")
+        logging.error(f" Google Drive ETL Error: {e}")
         import traceback
         traceback.print_exc()
         return False, 0
@@ -1861,7 +1861,7 @@ async def _run_microsoft_teams_etl(user_id: str, access_token: str) -> tuple[boo
                             
                         except httpx.HTTPStatusError as e:
                             if e.response.status_code == 403:
-                                logging.warning(f"   ⚠️  Access denied to channel: {channel_name}")
+                                logging.warning(f"     Access denied to channel: {channel_name}")
                             else:
                                 logging.error(f"Error fetching messages from {channel_name}: {e}")
                             continue
@@ -1890,7 +1890,7 @@ async def _run_microsoft_teams_etl(user_id: str, access_token: str) -> tuple[boo
                     
                 except httpx.HTTPStatusError as e:
                     if e.response.status_code == 403:
-                        logging.warning(f"⚠️  Access denied to team: {team_name}")
+                        logging.warning(f"  Access denied to team: {team_name}")
                     else:
                         logging.error(f"Error processing team {team_name}: {e}")
                     continue
@@ -1920,11 +1920,11 @@ async def _run_microsoft_teams_etl(user_id: str, access_token: str) -> tuple[boo
             return True, total_messages
             
     except httpx.HTTPStatusError as e:
-        logging.error(f"❌ API Error {e.response.status_code}: {e.response.text}")
+        logging.error(f" API Error {e.response.status_code}: {e.response.text}")
         logging.error(f"Failed URL: {e.request.url}")
         
         if e.response.status_code == 403:
-            logging.error("⚠️  Permission error. Required scopes:")
+            logging.error("  Permission error. Required scopes:")
             logging.error("   - Team.ReadBasic.All")
             logging.error("   - Channel.ReadBasic.All")
             logging.error("   - ChannelMessage.Read.All")
@@ -1933,7 +1933,7 @@ async def _run_microsoft_teams_etl(user_id: str, access_token: str) -> tuple[boo
         return False, 0
         
     except Exception as e:
-        logging.error(f"❌ Teams ETL Error: {e}")
+        logging.error(f" Teams ETL Error: {e}")
         import traceback
         traceback.print_exc()
         return False, 0
