@@ -1,15 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LoginScreen } from "./components/auth/LoginPage";
-import { UserProvider, useUser } from "./components/auth/UserContext";
+import { UserProvider } from "./components/auth/UserContext";
 import { KogniiAssistant } from "./components/KogniiAssistant";
 import { MainDashboard } from "./components/MainDashboard";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { Sidebar } from "./components/sidebar";
 
 function AppContent() {
-  const { isAuthenticated, loading } = useUser();
   const [activeView, setActiveView] = useState("dashboard");
   const [isKogniiOpen, setIsKogniiOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -68,7 +66,7 @@ function AppContent() {
         }));
       },
 
-      startGuidedTour: (_tourType: string) => {
+      startGuidedTour: () => {
         setKogniiControlState((prev) => ({
           ...prev,
           guidedTourActive: true,
@@ -90,21 +88,6 @@ function AppContent() {
     []
   );
 
-  // 1. While auth state is loading, render nothing or a loader
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
-        Checking authentication…
-      </div>
-    );
-  }
-
-  // 2. Only after loading finishes, decide to show login
-  if (!isAuthenticated) {
-    return <LoginScreen />;
-  }
-
-  // 3. Authenticated application
   return (
     <div className="size-full flex bg-background">
       <Sidebar
