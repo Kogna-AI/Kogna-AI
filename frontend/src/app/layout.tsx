@@ -1,4 +1,5 @@
 import "./globals.css";
+import { QueryProvider } from "./providers/QueryProvider";
 
 export const metadata = {
   title: "My App",
@@ -12,7 +13,9 @@ const rootStyle: React.CSSProperties & { [key: string]: string } = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" style={rootStyle}>
-      <body style={{ fontFamily: "var(--font-sans)" }}>{children}</body>
+      <body style={{ fontFamily: "var(--font-sans)" }}>
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

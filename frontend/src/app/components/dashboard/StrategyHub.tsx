@@ -7,6 +7,7 @@ import { Progress } from '../../ui/progress';
 import { Target, Plus, Calendar, TrendingUp, AlertCircle, Users } from 'lucide-react';
 import { ObjectiveCreation } from './ObjectiveCreation';
 import { TeamScaleSimulation } from './TeamScaleSimulation';
+import JiraOverview from './JiraOverview';
 
 const initialObjectives = [
   { id: 1, title: 'Market Expansion', progress: 75, status: 'on-track', owner: 'Marketing Team', category: 'Marketing', priority: 'High' },
@@ -245,6 +246,9 @@ export function StrategyHub({ kogniiControlState, onKogniiActionComplete }: Stra
 
       {/* Team Scale Simulation */}
       <TeamScaleSimulation objectives={objectives} />
+
+      {/* Jira Overview Section */}
+      <JiraOverview />
 
       <ObjectiveCreation
         isOpen={isCreatingObjective}

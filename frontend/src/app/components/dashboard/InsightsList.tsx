@@ -1,11 +1,79 @@
+'use client';
+
 import React from 'react';
 import { Card, CardContent, CardHeader } from '../../ui/card';
 import {Badge} from '../../ui/badge';
 import {Button} from '../../ui/button';
 import { ArrowRight } from 'lucide-react';
 import { KogniiThinkingIcon } from '../../../../public/KogniiThinkingIcon';
+import { useInsights } from '../../hooks/useDashboard';
+import type { AIInsight } from '../../types/dashboard';
 
-export default function InsightsList({ insights, onView }: { insights: any[]; onView: (insight: any) => void }) {
+interface InsightsListProps {
+  insights?: any[];
+  onView: (insight: any) => void;
+  orgId?: number;
+  useLiveData?: boolean;
+}
+
+export default function InsightsList({
+  insights,
+  onView,
+  orgId,
+  useLiveData = false
+}: InsightsListProps) {
+  // Fetch live data if enabled
+  const { data: apiData, isLoading, error } = useInsights(
+    orgId || 0,
+    { enabled: useLiveData && !!orgId }
+  );
+
+  // Use API data or provided data
+  const displayInsights = useLiveData && apiData?.data
+    ? apiData.data.map((insight: AIInsight) => ({
+        id: insight.id,
+        type: insight.category,
+        title: insight.title,
+        description: insight.description || 'No description available',
+        confidence: `${insight.confidence}%`,
+        impact: insight.level,
+        ...insight
+      }))
+    : insights;
+
+  // Show loading state
+  if (useLiveData && isLoading) {
+    return (
+      <Card className='relative overflow-hidden border-white/20 bg-gradient-to-br from-purple-50/50 via-white/50 to-blue-50/50 backdrop-blur-sm'>
+        <CardHeader>
+          <div>Kognii AI Insights</div>
+          <p className="text-sm text-muted-foreground">Loading insights...</p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <p className="text-sm text-gray-500">Loading...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show error state
+  if (useLiveData && error) {
+    return (
+      <Card className='relative overflow-hidden border-white/20 bg-gradient-to-br from-purple-50/50 via-white/50 to-blue-50/50 backdrop-blur-sm'>
+        <CardHeader>
+          <div>Kognii AI Insights</div>
+          <p className="text-sm text-red-500">Error loading insights</p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <p className="text-sm text-red-500">{error.message}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <Card className='relative overflow-hidden border-white/20 bg-gradient-to-br from-purple-50/50 via-white/50 to-blue-50/50 backdrop-blur-sm'>
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>
