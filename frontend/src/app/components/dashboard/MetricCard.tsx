@@ -1,17 +1,6 @@
-'use client';
-
 import { Card, CardContent, CardHeader } from '../../ui/card';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import React from 'react';
-import type { Metric } from '../../types/dashboard';
-
-interface MetricCardProps {
-  metric?: any; // For backwards compatibility with mock data
-  apiMetric?: Metric; // For API data
-  title?: string;
-  icon?: any;
-  color?: string;
-}
 
 export default function MetricCard({
   metric,
@@ -43,13 +32,13 @@ export default function MetricCard({
       <CardContent>
         <div className="text-2xl font-bold">{displayData?.value}</div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          {displayData?.trend === 'up' ? (
+          {metric.trend === 'up' ? (
             <TrendingUp className="h-3 w-3 text-green-600" />
           ) : (
             <TrendingDown className="h-3 w-3 text-red-600" />
           )}
-          <span className={displayData?.trend === 'up' ? 'text-green-600' : 'text-red-600'}>
-            {displayData?.change}
+          <span className={metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}>
+            {metric.change}
           </span>
           <span>from last month</span>
         </div>

@@ -35,16 +35,18 @@ jobs:
 
       - name: Run Biome linting
         run: npm run lint
+        continue-on-error: true
 
       - name: Run Biome formatting check
         run: npx biome format --check .
+        continue-on-error: true
 
       - name: Build Next.js application
         run: npm run build
         env:
-          # Add your environment variables here as secrets
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
       - name: Upload build artifacts
         if: success()

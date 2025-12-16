@@ -16,14 +16,14 @@ on:
           - production
 
 env:
-  AWS_REGION: us-east-1  # Change to your preferred region
-  ECR_REPOSITORY_BACKEND: kogna-backend
-  ECR_REPOSITORY_FRONTEND: kogna-frontend
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY_BACKEND: backend
+  ECR_REPOSITORY_FRONTEND: frontend
   ECS_SERVICE_BACKEND: kogna-backend-service
   ECS_SERVICE_FRONTEND: kogna-frontend-service
-  ECS_CLUSTER: kogna-cluster
-  BACKEND_CONTAINER_NAME: kogna-backend
-  FRONTEND_CONTAINER_NAME: kogna-frontend
+  ECS_CLUSTER: Kogna-Fargate-Cluster
+  BACKEND_CONTAINER_NAME: backend-app
+  FRONTEND_CONTAINER_NAME: frontend-app
 
 jobs:
   build-and-push-backend:
@@ -116,22 +116,48 @@ jobs:
           aws ecs describe-task-definition \
             --task-definition kogna-backend-task \
             --query taskDefinition > task-definition-backend.json
+          
+          # Remove fields that shouldn't be in the registration
+          cat task-definition-backend.json | jq 'del(
+            .taskDefinitionArn,
+            .revision,
+            .status,
+            .requiresAttributes,
+            .compatibilities,
+            .registeredAt,
+            .registeredBy,
+            .containerDefinitions[].enableFaultInjection
+          )' > task-def-clean.json
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition-backend.json
-          container-name: ${{ env.BACKEND_CONTAINER_NAME }}
-          image: ${{ needs.build-and-push-backend.outputs.image }}
+      - name: Update task definition with new image
+        run: |
+          cat task-def-clean.json | jq \
+            --arg IMAGE "${{ needs.build-and-push-backend.outputs.image }}" \
+            '.containerDefinitions[0].image = $IMAGE' \
+            > task-definition-updated.json
 
-      - name: Deploy Amazon ECS task definition for backend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE_BACKEND }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+      - name: Register new task definition
+        id: register-task-def
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://task-definition-updated.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task-def-arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE_BACKEND }} \
+            --task-definition ${{ steps.register-task-def.outputs.task-def-arn }} \
+            --force-new-deployment
+
+      - name: Wait for service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE_BACKEND }}
 
   deploy-frontend:
     name: Deploy Frontend to ECS
@@ -151,22 +177,48 @@ jobs:
           aws ecs describe-task-definition \
             --task-definition kogna-frontend-task \
             --query taskDefinition > task-definition-frontend.json
+          
+          # Remove fields that shouldn't be in the registration
+          cat task-definition-frontend.json | jq 'del(
+            .taskDefinitionArn,
+            .revision,
+            .status,
+            .requiresAttributes,
+            .compatibilities,
+            .registeredAt,
+            .registeredBy,
+            .containerDefinitions[].enableFaultInjection
+          )' > task-def-clean.json
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition-frontend.json
-          container-name: ${{ env.FRONTEND_CONTAINER_NAME }}
-          image: ${{ needs.build-and-push-frontend.outputs.image }}
+      - name: Update task definition with new image
+        run: |
+          cat task-def-clean.json | jq \
+            --arg IMAGE "${{ needs.build-and-push-frontend.outputs.image }}" \
+            '.containerDefinitions[0].image = $IMAGE' \
+            > task-definition-updated.json
 
-      - name: Deploy Amazon ECS task definition for frontend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE_FRONTEND }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+      - name: Register new task definition
+        id: register-task-def
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://task-definition-updated.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task-def-arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE_FRONTEND }} \
+            --task-definition ${{ steps.register-task-def.outputs.task-def-arn }} \
+            --force-new-deployment
+
+      - name: Wait for service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE_FRONTEND }}
 
   notify-deployment:
     name: Notify Deployment Status

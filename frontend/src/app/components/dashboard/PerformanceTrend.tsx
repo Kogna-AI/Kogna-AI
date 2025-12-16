@@ -1,16 +1,6 @@
-'use client';
-
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@mui/material';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
-import { useMetricTrends } from '../../hooks/useDashboard';
-
-interface PerformanceTrendProps {
-  data?: any[];
-  orgId?: number;
-  metricName?: string;
-  useLiveData?: boolean;
-}
 
 export default function PerformanceTrend({
   data,
@@ -67,7 +57,9 @@ export default function PerformanceTrend({
     <Card>
       <CardHeader>
         <div>Performance Trend</div>
-        <p className="text-sm text-muted-foreground">Strategic performance over the last 6 months</p>
+        <p className="text-sm text-muted-foreground">
+          Strategic performance over the last 6 months
+        </p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>

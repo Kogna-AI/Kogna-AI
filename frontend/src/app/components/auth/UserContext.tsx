@@ -1,19 +1,19 @@
 "use client";
 
+import { createClient, type User as SupabaseUser } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
 import {
   createContext,
+  type ReactNode,
   useContext,
-  useState,
   useEffect,
-  ReactNode,
+  useState,
 } from "react";
-import { createClient, User as SupabaseUser } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
 import api from "../../../services/api";
 
 // --- Initialize Supabase client ---
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // --- Backend user model ---
@@ -62,7 +62,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       if (session?.access_token) {
         // Save the JWT for the backend API client (api.ts) to use
-        localStorage.setItem("token", session.access_token); 
+        localStorage.setItem("token", session.access_token);
       }
 
       if (session?.user) {
@@ -70,7 +70,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(true);
         try {
           const backendUser: BackendUser = await api.getUserBySupabaseId(
-            supabaseUser.id
+            supabaseUser.id,
           );
           console.log(backendUser);
           const mergedUser: MergedUser = {
@@ -100,7 +100,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         if (event === "SIGNED_IN" && session?.user) {
           if (session.access_token) {
             // Save the JWT for the backend API client (api.ts) to use
-            localStorage.setItem("token", session.access_token); 
+            localStorage.setItem("token", session.access_token);
           }
           initSession();
           router.push("/");
@@ -109,7 +109,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           setIsAuthenticated(false);
           router.push("/");
         }
-      }
+      },
     );
 
     return () => listener.subscription.unsubscribe();

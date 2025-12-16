@@ -1,22 +1,28 @@
-"use client"
+"use client";
 
-import { useState } from 'react';
-import { Card, CardContent } from '../ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import NotificationHeader from './notificationcenter/NotificationHeader';
-import NotificationList from './notificationcenter/NotificationList';
-import { sampleNotifications, Notification } from './notificationcenter/notificationData';
+import { useState } from "react";
+import { Card, CardContent } from "../ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import NotificationHeader from "./notificationcenter/NotificationHeader";
+import NotificationList from "./notificationcenter/NotificationList";
+import {
+  type Notification,
+  sampleNotifications,
+} from "./notificationcenter/notificationData";
 
 interface NotificationCenterProps {
   onClose: () => void;
 }
 
 export function NotificationCenter({ onClose }: NotificationCenterProps) {
-  const [selectedTab, setSelectedTab] = useState('all');
-  const [notificationList, setNotificationList] = useState<Notification[]>(sampleNotifications);
+  const [selectedTab, setSelectedTab] = useState("all");
+  const [notificationList, setNotificationList] =
+    useState<Notification[]>(sampleNotifications);
 
   const markAsRead = (id: string) => {
-    setNotificationList(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotificationList((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
 
     // Example: call backend to mark an item read
     // fetch(`/api/notifications/${id}/read`, { method: 'POST' })
@@ -25,7 +31,7 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
   };
 
   const markAllAsRead = () => {
-    setNotificationList(prev => prev.map(n => ({ ...n, read: true })));
+    setNotificationList((prev) => prev.map((n) => ({ ...n, read: true })));
 
     // Example: call backend to mark all as read
     // fetch(`/api/notifications/mark-all-read`, { method: 'POST' })
@@ -35,7 +41,7 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
 
   const dismissItem = (id: string) => {
     // remove locally
-    setNotificationList(prev => prev.filter(n => n.id !== id));
+    setNotificationList((prev) => prev.filter((n) => n.id !== id));
 
     // Example: call backend to dismiss
     // fetch(`/api/notifications/${id}/dismiss`, { method: 'DELETE' })
@@ -43,22 +49,32 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
     //   .catch(err => console.error('Failed to dismiss', err));
   };
 
-  const filteredNotifications = notificationList.filter(notification => {
-    if (selectedTab === 'all') return true;
-    if (selectedTab === 'unread') return !notification.read;
-    if (selectedTab === 'actions') return notification.actionRequired;
+  const filteredNotifications = notificationList.filter((notification) => {
+    if (selectedTab === "all") return true;
+    if (selectedTab === "unread") return !notification.read;
+    if (selectedTab === "actions") return notification.actionRequired;
     return notification.category === selectedTab;
   });
 
-  const unreadCount = notificationList.filter(n => !n.read).length;
-  const actionCount = notificationList.filter(n => n.actionRequired && !n.read).length;
+  const unreadCount = notificationList.filter((n) => !n.read).length;
+  const actionCount = notificationList.filter(
+    (n) => n.actionRequired && !n.read,
+  ).length;
 
   return (
     <Card className="fixed top-4 right-4 w-96 h-[600px] shadow-lg z-50 flex flex-col overflow-auto">
-      <NotificationHeader unreadCount={unreadCount} onMarkAll={markAllAsRead} onClose={onClose} />
+      <NotificationHeader
+        unreadCount={unreadCount}
+        onMarkAll={markAllAsRead}
+        onClose={onClose}
+      />
 
       <CardContent className="flex-1 flex flex-col p-0">
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1 flex flex-col">
+        <Tabs
+          value={selectedTab}
+          onValueChange={setSelectedTab}
+          className="flex-1 flex flex-col"
+        >
           <div className="px-6 pb-4">
             <TabsList className="grid w-full grid-cols-4 text-xs">
               <TabsTrigger value="all">All</TabsTrigger>
@@ -88,7 +104,11 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
               Example: fetch('/api/notifications', { method: 'GET' }) to load,
               and use the commented calls above in markAsRead/markAllAsRead/dismissItem.
             */}
-            <NotificationList notifications={filteredNotifications} onItemClick={markAsRead} onDismiss={dismissItem} />
+            <NotificationList
+              notifications={filteredNotifications}
+              onItemClick={markAsRead}
+              onDismiss={dismissItem}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>

@@ -1,14 +1,24 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import {Sidebar} from './components/sidebar';
-import { MainDashboard } from './components/maindashboard';
-import { KogniiAssistant } from './components/KogniiAssistant';
-import { NotificationCenter } from './components/NotificationCenter';
-import { UserProvider, useUser } from './components/auth/UserContext';
-import { LoginScreen } from './components/auth/LoginScreen';
+import { useMemo, useState } from "react";
+import { LoginScreen } from "./components/auth/LoginScreen";
+import { UserProvider, useUser } from "./components/auth/UserContext";
+import { KogniiAssistant } from "./components/KogniiAssistant";
+import { MainDashboard } from "./components/maindashboard";
+import { NotificationCenter } from "./components/NotificationCenter";
+import { Sidebar } from "./components/sidebar";
+
+// Add this type definition at the top of the file
+type ObjectiveFormData = {
+  title?: string;
+  description?: string;
+  deadline?: string;
+  priority?: string;
+  team_responsible?: string;
+  [key: string]: unknown; // Allow additional properties
+};
 
 function AppContent() {
   const { isAuthenticated } = useUser();
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState("dashboard");
   const [isKogniiOpen, setIsKogniiOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [strategySessionMode, setStrategySessionMode] = useState(false);
@@ -17,10 +27,10 @@ function AppContent() {
   const [kogniiControlState, setKogniiControlState] = useState({
     shouldOpenObjectiveCreation: false,
     shouldNavigateToView: null as string | null,
-    objectiveFormData: null as any,
+    objectiveFormData: null as ObjectiveFormData | null, // ✅ Fixed
     shouldHighlightElement: null as string | null,
     guidedTourActive: false,
-    currentGuidanceStep: 0
+    currentGuidanceStep: 0,
   });
 
   const handleStrategySession = () => {
@@ -36,53 +46,62 @@ function AppContent() {
   };
 
   // Memoized Kognii control functions to prevent re-renders
-  const kogniiActions = useMemo(() => ({
-    navigateToView: (view: string) => {
-      setActiveView(view);
-      setKogniiControlState(prev => ({ ...prev, shouldNavigateToView: view }));
-    },
-    
-    openObjectiveCreation: (prefillData?: any) => {
-      setActiveView('strategy');
-      setKogniiControlState(prev => ({ 
-        ...prev, 
-        shouldOpenObjectiveCreation: true,
-        objectiveFormData: prefillData || null
-      }));
-    },
-    
-    updateObjectiveForm: (formData: any) => {
-      setKogniiControlState(prev => ({ 
-        ...prev, 
-        objectiveFormData: { ...prev.objectiveFormData, ...formData }
-      }));
-    },
-    
-    highlightElement: (elementId: string) => {
-      setKogniiControlState(prev => ({ ...prev, shouldHighlightElement: elementId }));
-    },
-    
-    startGuidedTour: (tourType: string) => {
-      setKogniiControlState(prev => ({ 
-        ...prev, 
-        guidedTourActive: true,
-        currentGuidanceStep: 0
-      }));
-    },
-    
-    clearKogniiControl: () => {
-      setKogniiControlState({
-        shouldOpenObjectiveCreation: false,
-        shouldNavigateToView: null,
-        objectiveFormData: null,
-        shouldHighlightElement: null,
-        guidedTourActive: false,
-        currentGuidanceStep: 0
-      });
-    }
-  }), []); // Empty dependency array since these functions only use setters
+  const kogniiActions = useMemo(
+    () => ({
+      navigateToView: (view: string) => {
+        setActiveView(view);
+        setKogniiControlState((prev) => ({
+          ...prev,
+          shouldNavigateToView: view,
+        }));
+      },
 
+      openObjectiveCreation: (prefillData?: ObjectiveFormData) => {
+        // ✅ Fixed
+        setActiveView("strategy");
+        setKogniiControlState((prev) => ({
+          ...prev,
+          shouldOpenObjectiveCreation: true,
+          objectiveFormData: prefillData || null,
+        }));
+      },
 
+      updateObjectiveForm: (formData: ObjectiveFormData) => {
+        // ✅ Fixed
+        setKogniiControlState((prev) => ({
+          ...prev,
+          objectiveFormData: { ...prev.objectiveFormData, ...formData },
+        }));
+      },
+
+      highlightElement: (elementId: string) => {
+        setKogniiControlState((prev) => ({
+          ...prev,
+          shouldHighlightElement: elementId,
+        }));
+      },
+
+      startGuidedTour: (_tourType: string) => {
+        setKogniiControlState((prev) => ({
+          ...prev,
+          guidedTourActive: true,
+          currentGuidanceStep: 0,
+        }));
+      },
+
+      clearKogniiControl: () => {
+        setKogniiControlState({
+          shouldOpenObjectiveCreation: false,
+          shouldNavigateToView: null,
+          objectiveFormData: null,
+          shouldHighlightElement: null,
+          guidedTourActive: false,
+          currentGuidanceStep: 0,
+        });
+      },
+    }),
+    [],
+  ); // Empty dependency array since these functions only use setters
 
   if (!isAuthenticated) {
     return <LoginScreen />;
@@ -90,26 +109,29 @@ function AppContent() {
 
   return (
     <div className="size-full flex bg-background">
-      <Sidebar 
-        activeView={activeView} 
+      <Sidebar
+        activeView={activeView}
         setActiveView={setActiveView}
         onKogniiToggle={() => setIsKogniiOpen(!isKogniiOpen)}
         onNotificationsToggle={() => setNotificationsOpen(!notificationsOpen)}
       />
-      
+
       <div className="flex-1 flex">
-        <MainDashboard 
-          activeView={activeView} 
+        <MainDashboard
+          activeView={activeView}
           setActiveView={setActiveView}
           onStrategySession={handleStrategySession}
           kogniiControlState={kogniiControlState}
           onKogniiActionComplete={kogniiActions.clearKogniiControl}
         />
-        
+
         {isKogniiOpen && (
-          <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 'var(--z-kognii-assistant)' }}>
+          <div
+            className="fixed inset-0 pointer-events-none"
+            style={{ zIndex: "var(--z-kognii-assistant)" }}
+          >
             <div className="absolute right-0 top-0 h-full pointer-events-auto">
-              <KogniiAssistant 
+              <KogniiAssistant
                 onClose={handleCloseKognii}
                 strategySessionMode={strategySessionMode}
                 activeView={activeView}

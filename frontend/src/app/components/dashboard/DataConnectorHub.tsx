@@ -1,42 +1,62 @@
-"use client"
+"use client";
 
-import { ReactPortal, Key, ReactElement, ReactNode, JSXElementConstructor, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
-import { 
-  Database, 
-  Plug, 
-  CheckCircle, 
+import {
+  AlertCircle,
   BarChart3,
-  Settings,
+  CheckCircle,
   Crown,
-  Sparkles,
+  Database,
+  Plug,
+  Settings,
   Shield,
+  Sparkles,
   Zap,
-  AlertCircle
-} from 'lucide-react';
-import { connectors, categories } from './connector-hub/constants';
-import { getStatusIcon, getStatusText } from './connector-hub/utils';
-import { SetupDialog } from './connector-hub/SetupDialog';
-import { Connector } from './connector-hub/types';
+} from "lucide-react";
+import {
+  type JSXElementConstructor,
+  type Key,
+  type ReactElement,
+  type ReactNode,
+  type ReactPortal,
+  useState,
+} from "react";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../ui/card";
+import { categories, connectors } from "./connector-hub/constants";
+import { SetupDialog } from "./connector-hub/SetupDialog";
+import type { Connector } from "./connector-hub/types";
+import { getStatusIcon, getStatusText } from "./connector-hub/utils";
 
 export function DataConnectorHub() {
-  const [selectedConnector, setSelectedConnector] = useState<Connector | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedConnector, setSelectedConnector] = useState<Connector | null>(
+    null,
+  );
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
-  const filteredConnectors = selectedCategory === 'all' 
-    ? connectors 
-    : connectors.filter((connector: { category: string; }) => connector.category === selectedCategory);
+  const filteredConnectors =
+    selectedCategory === "all"
+      ? connectors
+      : connectors.filter(
+          (connector: { category: string }) =>
+            connector.category === selectedCategory,
+        );
 
-  const kognaCoreConnector = connectors.find((c: { id: string; }) => c.id === 'kognacore');
+  const kognaCoreConnector = connectors.find(
+    (c: { id: string }) => c.id === "kognacore",
+  );
 
-  interface Category{
+  interface Category {
     id: string;
     icon: React.ReactNode;
     name: string;
   }
-
 
   return (
     <div className="space-y-6">
@@ -45,17 +65,16 @@ export function DataConnectorHub() {
         <div>
           <h1 className="text-2xl font-bold">Data Connector Hub</h1>
           <p className="text-muted-foreground">
-            Connect your existing tools and data sources for comprehensive project insights
+            Connect your existing tools and data sources for comprehensive
+            project insights
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-green-600 border-green-200">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            3 Connected
+            <CheckCircle className="w-3 h-3 mr-1" />3 Connected
           </Badge>
           <Badge variant="outline" className="text-blue-600 border-blue-200">
-            <Database className="w-3 h-3 mr-1" />
-            8 Available
+            <Database className="w-3 h-3 mr-1" />8 Available
           </Badge>
         </div>
       </div>
@@ -71,7 +90,9 @@ export function DataConnectorHub() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-lg font-semibold">{kognaCoreConnector.name}</h3>
+                    <h3 className="text-lg font-semibold">
+                      {kognaCoreConnector.name}
+                    </h3>
                     <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white">
                       <Sparkles className="w-3 h-3 mr-1" />
                       Recommended
@@ -96,7 +117,7 @@ export function DataConnectorHub() {
                   </div>
                 </div>
               </div>
-              <Button 
+              <Button
                 className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
                 onClick={() => setSelectedConnector(kognaCoreConnector)}
               >
@@ -125,58 +146,217 @@ export function DataConnectorHub() {
 
       {/* Connectors Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredConnectors.filter((c: { id: string; }) => c.id !== 'kognacore').map((connector: { id: Key | null | undefined; icon: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; status: string; description: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; setupTime: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; dataSync: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; features: any[]; }) => (
-          <Card key={connector.id} className="hover:shadow-md transition-shadow cursor-pointer group">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  {connector.icon}
-                  <CardTitle className="text-base">{connector.name}</CardTitle>
-                </div>
-                <div className="flex items-center gap-1">
-                  {getStatusIcon(connector.status)}
-                  <span className="text-xs text-muted-foreground">
-                    {getStatusText(connector.status)}
-                  </span>
-                </div>
-              </div>
-              <CardDescription className="text-sm">
-                {connector.description}
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Setup: {connector.setupTime}</span>
-                  <span>Sync: {connector.dataSync}</span>
-                </div>
-                
-                <div className="flex flex-wrap gap-1">
-                  {connector.features.slice(0, 2).map((feature: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined, index: Key | null | undefined) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {feature}
-                    </Badge>
-                  ))}
-                  {connector.features.length > 2 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{connector.features.length - 2} more
-                    </Badge>
-                  )}
-                </div>
+        {filteredConnectors
+          .filter((c: { id: string }) => c.id !== "kognacore")
+          .map(
+            (connector: {
+              id: Key | null | undefined;
+              icon:
+                | string
+                | number
+                | bigint
+                | boolean
+                | ReactElement<unknown, string | JSXElementConstructor<any>>
+                | Iterable<ReactNode>
+                | ReactPortal
+                | Promise<
+                    | string
+                    | number
+                    | bigint
+                    | boolean
+                    | ReactPortal
+                    | ReactElement<unknown, string | JSXElementConstructor<any>>
+                    | Iterable<ReactNode>
+                    | null
+                    | undefined
+                  >
+                | null
+                | undefined;
+              name:
+                | string
+                | number
+                | bigint
+                | boolean
+                | ReactElement<unknown, string | JSXElementConstructor<any>>
+                | Iterable<ReactNode>
+                | ReactPortal
+                | Promise<
+                    | string
+                    | number
+                    | bigint
+                    | boolean
+                    | ReactPortal
+                    | ReactElement<unknown, string | JSXElementConstructor<any>>
+                    | Iterable<ReactNode>
+                    | null
+                    | undefined
+                  >
+                | null
+                | undefined;
+              status: string;
+              description:
+                | string
+                | number
+                | bigint
+                | boolean
+                | ReactElement<unknown, string | JSXElementConstructor<any>>
+                | Iterable<ReactNode>
+                | ReactPortal
+                | Promise<
+                    | string
+                    | number
+                    | bigint
+                    | boolean
+                    | ReactPortal
+                    | ReactElement<unknown, string | JSXElementConstructor<any>>
+                    | Iterable<ReactNode>
+                    | null
+                    | undefined
+                  >
+                | null
+                | undefined;
+              setupTime:
+                | string
+                | number
+                | bigint
+                | boolean
+                | ReactElement<unknown, string | JSXElementConstructor<any>>
+                | Iterable<ReactNode>
+                | ReactPortal
+                | Promise<
+                    | string
+                    | number
+                    | bigint
+                    | boolean
+                    | ReactPortal
+                    | ReactElement<unknown, string | JSXElementConstructor<any>>
+                    | Iterable<ReactNode>
+                    | null
+                    | undefined
+                  >
+                | null
+                | undefined;
+              dataSync:
+                | string
+                | number
+                | bigint
+                | boolean
+                | ReactElement<unknown, string | JSXElementConstructor<any>>
+                | Iterable<ReactNode>
+                | ReactPortal
+                | Promise<
+                    | string
+                    | number
+                    | bigint
+                    | boolean
+                    | ReactPortal
+                    | ReactElement<unknown, string | JSXElementConstructor<any>>
+                    | Iterable<ReactNode>
+                    | null
+                    | undefined
+                  >
+                | null
+                | undefined;
+              features: any[];
+            }) => (
+              <Card
+                key={connector.id}
+                className="hover:shadow-md transition-shadow cursor-pointer group"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      {connector.icon}
+                      <CardTitle className="text-base">
+                        {connector.name}
+                      </CardTitle>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {getStatusIcon(connector.status)}
+                      <span className="text-xs text-muted-foreground">
+                        {getStatusText(connector.status)}
+                      </span>
+                    </div>
+                  </div>
+                  <CardDescription className="text-sm">
+                    {connector.description}
+                  </CardDescription>
+                </CardHeader>
 
-                <Button 
-                  className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
-                  variant={connector.status === 'connected' ? 'outline' : 'default'}
-                  onClick={() => setSelectedConnector(connector as Connector)}
-                >
-                  <Plug className="w-4 h-4 mr-2" />
-                  {connector.status === 'connected' ? 'Manage' : 'Connect'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                <CardContent className="pt-0">
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Setup: {connector.setupTime}</span>
+                      <span>Sync: {connector.dataSync}</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      {connector.features
+                        .slice(0, 2)
+                        .map(
+                          (
+                            feature:
+                              | string
+                              | number
+                              | bigint
+                              | boolean
+                              | ReactElement<
+                                  unknown,
+                                  string | JSXElementConstructor<any>
+                                >
+                              | Iterable<ReactNode>
+                              | ReactPortal
+                              | Promise<
+                                  | string
+                                  | number
+                                  | bigint
+                                  | boolean
+                                  | ReactPortal
+                                  | ReactElement<
+                                      unknown,
+                                      string | JSXElementConstructor<any>
+                                    >
+                                  | Iterable<ReactNode>
+                                  | null
+                                  | undefined
+                                >
+                              | null
+                              | undefined,
+                            index: Key | null | undefined,
+                          ) => (
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {feature}
+                            </Badge>
+                          ),
+                        )}
+                      {connector.features.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{connector.features.length - 2} more
+                        </Badge>
+                      )}
+                    </div>
+
+                    <Button
+                      className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                      variant={
+                        connector.status === "connected" ? "outline" : "default"
+                      }
+                      onClick={() =>
+                        setSelectedConnector(connector as Connector)
+                      }
+                    >
+                      <Plug className="w-4 h-4 mr-2" />
+                      {connector.status === "connected" ? "Manage" : "Connect"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ),
+          )}
       </div>
 
       {/* Integration Stats & Quick Actions */}
@@ -192,11 +372,15 @@ export function DataConnectorHub() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">3</div>
-                <div className="text-sm text-muted-foreground">Active Connections</div>
+                <div className="text-sm text-muted-foreground">
+                  Active Connections
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">24/7</div>
-                <div className="text-sm text-muted-foreground">Real-time Monitoring</div>
+                <div className="text-sm text-muted-foreground">
+                  Real-time Monitoring
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">99.9%</div>
@@ -204,7 +388,9 @@ export function DataConnectorHub() {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">15min</div>
-                <div className="text-sm text-muted-foreground">Avg Sync Time</div>
+                <div className="text-sm text-muted-foreground">
+                  Avg Sync Time
+                </div>
               </div>
             </div>
           </CardContent>
@@ -234,8 +420,8 @@ export function DataConnectorHub() {
         </Card>
       </div>
 
-      <SetupDialog 
-        connector={selectedConnector} 
+      <SetupDialog
+        connector={selectedConnector}
         onClose={() => setSelectedConnector(null)}
       />
     </div>

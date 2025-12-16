@@ -1,90 +1,113 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../ui/dialog';
-import { Textarea } from '../../ui/textarea';
-import { Label } from '../../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
-import { Progress } from '../../ui/progress';
-import { 
-  MessageSquare, 
-  Plus, 
-  Star, 
-  Sparkles, 
-  ArrowRight, 
-  CheckCircle, 
+import {
+  ArrowRight,
+  BarChart3,
+  CheckCircle,
   Lightbulb,
-  Target,
-  Users,
-  TrendingUp,
-  Clock,
-  Wand2,
+  MessageSquare,
+  Plus,
   RefreshCw,
-  ThumbsUp,
-  AlertCircle,
-  BarChart3
-} from 'lucide-react';
-import { KogniiThinkingIcon } from '../../../../public/KogniiThinkingIcon';
+  Sparkles,
+  Star,
+  TrendingUp,
+  Wand2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { KogniiThinkingIcon } from "../../../../public/KogniiThinkingIcon";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../../ui/dialog";
+import { Progress } from "../../ui/progress";
+import { Textarea } from "../../ui/textarea";
 
 const feedbackItems = [
-  { id: 1, author: 'Sarah Chen', type: 'suggestion', content: 'Consider implementing async stand-ups for better time management', rating: 5, timestamp: '2 hours ago' },
-  { id: 2, author: 'Marcus Johnson', type: 'concern', content: 'Development timeline seems aggressive given current capacity', rating: 3, timestamp: '1 day ago' },
-  { id: 3, author: 'Elena Rodriguez', type: 'praise', content: 'Great collaboration on the recent design system implementation', rating: 5, timestamp: '3 days ago' }
+  {
+    id: 1,
+    author: "Sarah Chen",
+    type: "suggestion",
+    content: "Consider implementing async stand-ups for better time management",
+    rating: 5,
+    timestamp: "2 hours ago",
+  },
+  {
+    id: 2,
+    author: "Marcus Johnson",
+    type: "concern",
+    content: "Development timeline seems aggressive given current capacity",
+    rating: 3,
+    timestamp: "1 day ago",
+  },
+  {
+    id: 3,
+    author: "Elena Rodriguez",
+    type: "praise",
+    content: "Great collaboration on the recent design system implementation",
+    rating: 5,
+    timestamp: "3 days ago",
+  },
 ];
 
 const demoScenarios = [
   {
     id: 1,
-    title: 'Vague Concern → Actionable Insight',
-    originalText: 'The project is not going well and we need to fix things',
-    improvedText: 'Our Q2 delivery timeline is at risk due to three critical blockers: (1) API integration delays affecting 2 developers, (2) design review bottleneck causing 3-day delays, and (3) insufficient testing resources. I recommend immediate sprint re-planning with stakeholder alignment by Friday.',
+    title: "Vague Concern → Actionable Insight",
+    originalText: "The project is not going well and we need to fix things",
+    improvedText:
+      "Our Q2 delivery timeline is at risk due to three critical blockers: (1) API integration delays affecting 2 developers, (2) design review bottleneck causing 3-day delays, and (3) insufficient testing resources. I recommend immediate sprint re-planning with stakeholder alignment by Friday.",
     improvements: [
-      'Added specific timeline context (Q2 delivery)',
-      'Identified 3 concrete blockers with impact details',
-      'Proposed actionable solution with deadline',
-      'Specified stakeholder involvement needed'
+      "Added specific timeline context (Q2 delivery)",
+      "Identified 3 concrete blockers with impact details",
+      "Proposed actionable solution with deadline",
+      "Specified stakeholder involvement needed",
     ],
     metrics: {
       clarity: { before: 2, after: 9 },
       actionability: { before: 1, after: 9 },
-      specificity: { before: 2, after: 10 }
-    }
+      specificity: { before: 2, after: 10 },
+    },
   },
   {
     id: 2,
-    title: 'Generic Praise → Strategic Recognition',
-    originalText: 'Good job on the feature launch',
-    improvedText: 'Outstanding execution on the mobile payment integration launch - delivered 2 days early with zero critical bugs. The cross-functional coordination between engineering, design, and QA exemplifies our collaborative culture. This achievement directly supports our Q2 revenue target of $2.3M ARR growth.',
+    title: "Generic Praise → Strategic Recognition",
+    originalText: "Good job on the feature launch",
+    improvedText:
+      "Outstanding execution on the mobile payment integration launch - delivered 2 days early with zero critical bugs. The cross-functional coordination between engineering, design, and QA exemplifies our collaborative culture. This achievement directly supports our Q2 revenue target of $2.3M ARR growth.",
     improvements: [
-      'Specified which feature and achievement details',
-      'Quantified impact (2 days early, zero bugs)',
-      'Recognized team collaboration across functions',
-      'Connected to strategic business outcomes'
+      "Specified which feature and achievement details",
+      "Quantified impact (2 days early, zero bugs)",
+      "Recognized team collaboration across functions",
+      "Connected to strategic business outcomes",
     ],
     metrics: {
       recognition: { before: 3, after: 10 },
       motivation: { before: 4, after: 9 },
-      strategic_alignment: { before: 1, after: 9 }
-    }
+      strategic_alignment: { before: 1, after: 9 },
+    },
   },
   {
     id: 3,
-    title: 'Process Complaint → Improvement Proposal',
-    originalText: 'Meetings are taking too long and wasting time',
-    improvedText: 'Our weekly planning meetings have grown from 30 minutes to 90 minutes over the past month, reducing focused development time by 15%. I propose implementing structured agendas with time-boxed segments, pre-meeting async updates, and decision-making frameworks. This could recover 4 hours per developer weekly.',
+    title: "Process Complaint → Improvement Proposal",
+    originalText: "Meetings are taking too long and wasting time",
+    improvedText:
+      "Our weekly planning meetings have grown from 30 minutes to 90 minutes over the past month, reducing focused development time by 15%. I propose implementing structured agendas with time-boxed segments, pre-meeting async updates, and decision-making frameworks. This could recover 4 hours per developer weekly.",
     improvements: [
-      'Quantified the problem with specific metrics',
-      'Showed trend analysis (30min → 90min growth)',
-      'Calculated productivity impact (15% reduction)',
-      'Proposed concrete solutions with expected ROI'
+      "Quantified the problem with specific metrics",
+      "Showed trend analysis (30min → 90min growth)",
+      "Calculated productivity impact (15% reduction)",
+      "Proposed concrete solutions with expected ROI",
     ],
     metrics: {
       problem_definition: { before: 3, after: 9 },
       solution_quality: { before: 0, after: 8 },
-      business_impact: { before: 1, after: 9 }
-    }
-  }
+      business_impact: { before: 1, after: 9 },
+    },
+  },
 ];
 
 export function FeedbackView() {
@@ -93,7 +116,7 @@ export function FeedbackView() {
   const [demoStep, setDemoStep] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showImprovement, setShowImprovement] = useState(false);
-  const [typingText, setTypingText] = useState('');
+  const [typingText, setTypingText] = useState("");
   const [showMetrics, setShowMetrics] = useState(false);
 
   const scenario = demoScenarios[currentScenario];
@@ -102,7 +125,7 @@ export function FeedbackView() {
   useEffect(() => {
     if (demoStep === 1 && scenario) {
       let index = 0;
-      setTypingText('');
+      setTypingText("");
       const timer = setInterval(() => {
         if (index < scenario.originalText.length) {
           setTypingText(scenario.originalText.substring(0, index + 1));
@@ -159,10 +182,12 @@ export function FeedbackView() {
       <div className="flex items-center justify-between">
         <div>
           <h1>Team Feedback Hub</h1>
-          <p className="text-muted-foreground">AI-enhanced feedback collection and insights</p>
+          <p className="text-muted-foreground">
+            AI-enhanced feedback collection and insights
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button 
+          <Button
             onClick={startDemo}
             className="gap-2 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700"
           >
@@ -185,32 +210,50 @@ export function FeedbackView() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <h3 className="font-semibold text-lg">Kognii AI Feedback Enhancement</h3>
+                <h3 className="font-semibold text-lg">
+                  Kognii AI Feedback Enhancement
+                </h3>
                 <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs">
                   <Sparkles className="w-3 h-3 mr-1" />
                   New Feature
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                Transform vague feedback into actionable insights. Kognii analyzes tone, clarity, and strategic alignment 
-                to suggest improvements that drive better outcomes and accelerate team performance.
+                Transform vague feedback into actionable insights. Kognii
+                analyzes tone, clarity, and strategic alignment to suggest
+                improvements that drive better outcomes and accelerate team
+                performance.
               </p>
               <div className="grid grid-cols-4 gap-4 text-center">
                 <div className="p-3 bg-white rounded-lg border">
                   <div className="font-semibold text-blue-600 text-lg">94%</div>
-                  <div className="text-xs text-muted-foreground">Clarity Improvement</div>
+                  <div className="text-xs text-muted-foreground">
+                    Clarity Improvement
+                  </div>
                 </div>
                 <div className="p-3 bg-white rounded-lg border">
-                  <div className="font-semibold text-purple-600 text-lg">87%</div>
-                  <div className="text-xs text-muted-foreground">Action Rate Increase</div>
+                  <div className="font-semibold text-purple-600 text-lg">
+                    87%
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Action Rate Increase
+                  </div>
                 </div>
                 <div className="p-3 bg-white rounded-lg border">
-                  <div className="font-semibold text-green-600 text-lg">76%</div>
-                  <div className="text-xs text-muted-foreground">Resolution Speed</div>
+                  <div className="font-semibold text-green-600 text-lg">
+                    76%
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Resolution Speed
+                  </div>
                 </div>
                 <div className="p-3 bg-white rounded-lg border">
-                  <div className="font-semibold text-orange-600 text-lg">92%</div>
-                  <div className="text-xs text-muted-foreground">User Satisfaction</div>
+                  <div className="font-semibold text-orange-600 text-lg">
+                    92%
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    User Satisfaction
+                  </div>
                 </div>
               </div>
             </div>
@@ -231,15 +274,19 @@ export function FeedbackView() {
                   </div>
                   <div>
                     <span className="font-medium">{feedback.author}</span>
-                    <p className="text-xs text-muted-foreground">{feedback.timestamp}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {feedback.timestamp}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge 
+                  <Badge
                     variant={
-                      feedback.type === 'praise' ? 'default' : 
-                      feedback.type === 'concern' ? 'destructive' : 
-                      'secondary'
+                      feedback.type === "praise"
+                        ? "default"
+                        : feedback.type === "concern"
+                          ? "destructive"
+                          : "secondary"
                     }
                     className="capitalize"
                   >
@@ -247,14 +294,19 @@ export function FeedbackView() {
                   </Badge>
                   <div className="flex items-center gap-1">
                     {[...Array(feedback.rating)].map((_, i) => (
-                      <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                      <Star
+                        key={i}
+                        className="w-3 h-3 fill-yellow-400 text-yellow-400"
+                      />
                     ))}
                   </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">{feedback.content}</p>
+              <p className="text-sm text-muted-foreground">
+                {feedback.content}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -282,16 +334,28 @@ export function FeedbackView() {
               <div className="flex items-center justify-center space-x-2">
                 {[1, 2, 3, 4, 5].map((step) => (
                   <div key={step} className="flex items-center">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
-                      step <= demoStep ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200 text-gray-500'
-                    }`}>
-                      {step < demoStep ? <CheckCircle className="w-4 h-4" /> : step}
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all ${
+                        step <= demoStep
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "bg-gray-200 text-gray-500"
+                      }`}
+                    >
+                      {step < demoStep ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : (
+                        step
+                      )}
                     </div>
-                    {step < 5 && <div className={`w-8 h-0.5 transition-colors ${step < demoStep ? 'bg-blue-600' : 'bg-gray-200'}`} />}
+                    {step < 5 && (
+                      <div
+                        className={`w-8 h-0.5 transition-colors ${step < demoStep ? "bg-blue-600" : "bg-gray-200"}`}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
-              
+
               {/* Step Description */}
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">
@@ -314,7 +378,7 @@ export function FeedbackView() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Textarea 
+                  <Textarea
                     value={typingText}
                     placeholder="User types their feedback here..."
                     readOnly
@@ -322,7 +386,7 @@ export function FeedbackView() {
                   />
                   {demoStep >= 2 && (
                     <div className="mt-4 flex justify-end">
-                      <Button 
+                      <Button
                         onClick={handleAnalyze}
                         disabled={isAnalyzing}
                         className="gap-2"
@@ -352,7 +416,9 @@ export function FeedbackView() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <KogniiThinkingIcon className="w-5 h-5 animate-pulse" />
-                      <span className="font-medium">Kognii is analyzing your feedback...</span>
+                      <span className="font-medium">
+                        Kognii is analyzing your feedback...
+                      </span>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -392,14 +458,25 @@ export function FeedbackView() {
                   </CardHeader>
                   <CardContent>
                     <div className="bg-white p-4 rounded-lg border">
-                      <p className="text-sm leading-relaxed">{scenario?.improvedText}</p>
+                      <p className="text-sm leading-relaxed">
+                        {scenario?.improvedText}
+                      </p>
                     </div>
                     <div className="mt-4 flex gap-2">
-                      <Button onClick={showMetricsView} size="sm" className="gap-2">
+                      <Button
+                        onClick={showMetricsView}
+                        size="sm"
+                        className="gap-2"
+                      >
                         <BarChart3 className="w-4 h-4" />
                         View Improvement Metrics
                       </Button>
-                      <Button onClick={nextScenario} size="sm" variant="outline" className="gap-2">
+                      <Button
+                        onClick={nextScenario}
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                      >
                         {currentScenario < demoScenarios.length - 1 ? (
                           <>
                             <ArrowRight className="w-4 h-4" />
@@ -448,28 +525,38 @@ export function FeedbackView() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {Object.entries(scenario?.metrics || {}).map(([metric, values]) => (
-                      <div key={metric} className="space-y-3">
-                        <h4 className="font-medium capitalize">{metric.replace('_', ' ')}</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-red-600">Before</span>
-                            <span>{values.before}/10</span>
-                          </div>
-                          <Progress value={values.before * 10} className="h-2" />
-                          <div className="flex justify-between text-sm">
-                            <span className="text-green-600">After</span>
-                            <span>{values.after}/10</span>
-                          </div>
-                          <Progress value={values.after * 10} className="h-2" />
-                          <div className="text-center">
-                            <Badge className="bg-green-100 text-green-800">
-                              +{values.after - values.before} improvement
-                            </Badge>
+                    {Object.entries(scenario?.metrics || {}).map(
+                      ([metric, values]) => (
+                        <div key={metric} className="space-y-3">
+                          <h4 className="font-medium capitalize">
+                            {metric.replace("_", " ")}
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-red-600">Before</span>
+                              <span>{values.before}/10</span>
+                            </div>
+                            <Progress
+                              value={values.before * 10}
+                              className="h-2"
+                            />
+                            <div className="flex justify-between text-sm">
+                              <span className="text-green-600">After</span>
+                              <span>{values.after}/10</span>
+                            </div>
+                            <Progress
+                              value={values.after * 10}
+                              className="h-2"
+                            />
+                            <div className="text-center">
+                              <Badge className="bg-green-100 text-green-800">
+                                +{values.after - values.before} improvement
+                              </Badge>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ),
+                    )}
                   </div>
                 </CardContent>
               </Card>

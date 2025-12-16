@@ -1,22 +1,22 @@
 import {
-  LayoutDashboard,
-  Users,
+  Bell,
+  Brain,
   Calendar,
+  Database,
+  LayoutDashboard,
+  LogOut,
+  MessageSquare,
+  Settings,
   Target,
   TrendingUp,
-  MessageSquare,
-  Bell,
-  Settings,
-  Database,
-  LogOut,
-  Brain,
+  Users,
 } from "lucide-react";
 // Using Next.js Image component for better optimization
 import Image from "next/image";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Separator } from "../ui/seperator";
 import { KogniiThinkingIcon } from "../../../public/KogniiThinkingIcon";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Separator } from "../ui/seperator";
 import { useUser } from "./auth/UserContext";
 
 interface SidebarProps {

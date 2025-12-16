@@ -1,6 +1,7 @@
 /**
  * Kogna-AI API Service
  * Frontend API client for communicating with the FastAPI backend
+ * AWS-Compatible Version with Timeout Handling and Enhanced Error Management
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -9,11 +10,10 @@ import type { BackendUser } from "../app/components/auth/UserContext";
 // 1. API_BASE_URL is clean. It does NOT include '/api'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// Initialize Supabase client for auth
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// AWS: Request timeout configuration
+const REQUEST_TIMEOUT = 30000; // 30 seconds
 
+import type { BackendUser } from "../app/components/auth/UserContext";
 /**
  * Get authentication headers
  */
@@ -29,23 +29,36 @@ const getAuthHeaders = async (): Promise<HeadersInit> => {
 };
 
 /**
- * Handle API response
+ * Handle API response with AWS-specific error handling
  */
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorData = await response
       .json()
       .catch(() => ({ detail: "An error occurred" }));
+
+    // AWS-specific error handling
+    if (response.status === 502) {
+      throw new Error("Service temporarily unavailable. Please try again.");
+    }
+    if (response.status === 504) {
+      throw new Error("Request timeout. Please try again.");
+    }
+    if (response.status === 503) {
+      throw new Error("Service unavailable. Please try again later.");
+    }
+
     throw new Error(
-      errorData.detail || `HTTP error! status: ${response.status}`
+      errorData.detail || `HTTP error! status: ${response.status}`,
     );
   }
+  
   // Try to parse JSON
   try {
     const data = await response.json();
     // FastAPI returns {success: true, data: {...}} or root data
     return data.data || data;
-  } catch (e) {
+  } catch (_e) {
     // Handle empty response for methods like DELETE
     if (response.status === 204 || response.status === 200) {
       return {} as T;
@@ -61,8 +74,7 @@ export const api = {
   // ==================== AUTHENTICATION ====================
 
   login: async (email: string, password: string) => {
-    // 2. '/api' prefix is added here (and in every function below)
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -78,17 +90,20 @@ export const api = {
     role?: string;
     organization_id: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/auth/register`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }
+    );
     return handleResponse(response);
   },
 
   getCurrentUser: async () => {
     const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
@@ -97,14 +112,14 @@ export const api = {
 
   getOrganization: async (orgId: number) => {
     const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
   listOrganizations: async () => {
     const response = await fetch(`${API_BASE_URL}/api/organizations`, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
@@ -118,7 +133,7 @@ export const api = {
   }) => {
     const response = await fetch(`${API_BASE_URL}/api/organizations`, {
       method: "POST",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -132,11 +147,11 @@ export const api = {
       team_due?: number;
       team?: string;
       project_number?: number;
-    }
+    },
   ) => {
     const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
       method: "PUT",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -145,10 +160,10 @@ export const api = {
   // ==================== DASHBOARD ====================
 
   getDashboard: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/dashboard`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -158,16 +173,16 @@ export const api = {
 
   getUser: async (userId: number) => {
     const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
   listOrganizationUsers: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/users`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -181,11 +196,11 @@ export const api = {
       second_name?: string;
       role?: string;
       email: string;
-    }
+    },
   ) => {
     const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
       method: "PUT",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -195,23 +210,23 @@ export const api = {
 
   getTeam: async (teamId: number) => {
     const response = await fetch(`${API_BASE_URL}/api/teams/${teamId}`, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
   listOrganizationTeams: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/teams`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
   },
 
   createTeam: async (data: { organization_id: number; name: string }) => {
-    const response = await fetch(`${API_BASE_URL}/api/teams`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/teams`, {
       method: "POST",
       headers: await getAuthHeaders(),
       body: JSON.stringify(data),
@@ -228,7 +243,7 @@ export const api = {
   }) => {
     const response = await fetch(`${API_BASE_URL}/api/teams/members`, {
       method: "POST",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -238,19 +253,21 @@ export const api = {
 
   getObjective: async (objId: number) => {
     const response = await fetch(`${API_BASE_URL}/api/objectives/${objId}`, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
   listObjectives: async (orgId: number, filters?: { status?: string }) => {
-    const params = new URLSearchParams(filters as any).toString();
+    const params = new URLSearchParams(
+      filters as Record<string, string>,
+    ).toString();
     const url = params
       ? `${API_BASE_URL}/api/organizations/${orgId}/objectives?${params}`
       : `${API_BASE_URL}/api/organizations/${orgId}/objectives`;
 
     const response = await fetch(url, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
@@ -262,7 +279,7 @@ export const api = {
     status?: string;
     team_responsible?: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/objectives`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/objectives`, {
       method: "POST",
       headers: await getAuthHeaders(),
       body: JSON.stringify(data),
@@ -277,11 +294,11 @@ export const api = {
       progress?: number;
       status?: string;
       team_responsible?: string;
-    }
+    },
   ) => {
     const response = await fetch(`${API_BASE_URL}/api/objectives/${objId}`, {
       method: "PUT",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -296,7 +313,7 @@ export const api = {
   }) => {
     const response = await fetch(`${API_BASE_URL}/api/growth-stages`, {
       method: "POST",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -307,7 +324,7 @@ export const api = {
     title: string;
     achieved?: boolean;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/milestones`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/milestones`, {
       method: "POST",
       headers: await getAuthHeaders(),
       body: JSON.stringify(data),
@@ -316,11 +333,11 @@ export const api = {
   },
 
   achieveMilestone: async (milestoneId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/milestones/${milestoneId}/achieve`,
       {
         method: "PUT",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -330,14 +347,14 @@ export const api = {
 
   getMetric: async (metricId: number) => {
     const response = await fetch(`${API_BASE_URL}/api/metrics/${metricId}`, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
   listMetrics: async (
     orgId: number,
-    filters?: { name?: string; limit?: number }
+    filters?: { name?: string; limit?: number },
   ) => {
     const params = new URLSearchParams({
       ...(filters?.name && { name: filters.name }),
@@ -349,7 +366,7 @@ export const api = {
       : `${API_BASE_URL}/api/organizations/${orgId}/metrics`;
 
     const response = await fetch(url, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
@@ -361,7 +378,7 @@ export const api = {
     unit?: string;
     change_from_last?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/metrics`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/metrics`, {
       method: "POST",
       headers: await getAuthHeaders(),
       body: JSON.stringify(data),
@@ -370,10 +387,10 @@ export const api = {
   },
 
   getMetricTrends: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/metrics/trends`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -383,7 +400,7 @@ export const api = {
 
   getInsight: async (insightId: number) => {
     const response = await fetch(`${API_BASE_URL}/api/insights/${insightId}`, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
@@ -394,15 +411,17 @@ export const api = {
       category?: string;
       level?: string;
       status?: string;
-    }
+    },
   ) => {
-    const params = new URLSearchParams(filters as any).toString();
+    const params = new URLSearchParams(
+      filters as Record<string, string>,
+    ).toString();
     const url = params
       ? `${API_BASE_URL}/api/organizations/${orgId}/insights?${params}`
       : `${API_BASE_URL}/api/organizations/${orgId}/insights`;
 
     const response = await fetch(url, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
@@ -415,7 +434,7 @@ export const api = {
     confidence: number;
     level: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/insights`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/insights`, {
       method: "POST",
       headers: await getAuthHeaders(),
       body: JSON.stringify(data),
@@ -424,11 +443,11 @@ export const api = {
   },
 
   archiveInsight: async (insightId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/insights/${insightId}/archive`,
       {
         method: "PUT",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -437,10 +456,10 @@ export const api = {
   // ==================== RECOMMENDATIONS ====================
 
   getRecommendation: async (recId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -452,7 +471,7 @@ export const api = {
       status?: string;
       created_for?: number;
       min_confidence?: number;
-    }
+    },
   ) => {
     const params = new URLSearchParams();
     if (filters?.status) params.append("status", filters.status);
@@ -466,26 +485,26 @@ export const api = {
       : `${API_BASE_URL}/api/organizations/${orgId}/recommendations`;
 
     const response = await fetch(url, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
 
   getPendingRecommendations: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/recommendations/pending`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
   },
 
   getHighPriorityRecommendations: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/recommendations/high-priority`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -501,7 +520,7 @@ export const api = {
   }) => {
     const response = await fetch(`${API_BASE_URL}/api/recommendations`, {
       method: "POST",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -509,13 +528,13 @@ export const api = {
 
   updateRecommendationStatus: async (
     recId: number,
-    status: "pending" | "acted" | "dismissed"
+    status: "pending" | "acted" | "dismissed",
   ) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/status?new_status=${status}`,
       {
         method: "PUT",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -530,36 +549,36 @@ export const api = {
       confidence: number;
       action?: string;
       created_for?: number;
-    }
+    },
   ) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}`,
       {
         method: "PUT",
         headers: await getAuthHeaders(),
         body: JSON.stringify(data),
-      }
+      },
     );
     return handleResponse(response);
   },
 
   deleteRecommendation: async (recId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}`,
       {
         method: "DELETE",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
   },
 
   assignRecommendation: async (recId: number, userId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/assign?user_id=${userId}`,
       {
         method: "POST",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -570,35 +589,35 @@ export const api = {
     data: {
       recommendation_id: number;
       reason: string;
-      evidence_datasets_id?: any;
-    }
+      evidence_datasets_id?: number | null;
+    },
   ) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/reasons`,
       {
         method: "POST",
         headers: await getAuthHeaders(),
         body: JSON.stringify(data),
-      }
+      },
     );
     return handleResponse(response);
   },
 
   getRecommendationReasons: async (recId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/reasons`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
   },
 
   getRecommendationStats: async (orgId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/recommendations/stats`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -612,7 +631,7 @@ export const api = {
     action_taken: string;
     result?: string;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/actions`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/actions`, {
       method: "POST",
       headers: await getAuthHeaders(),
       body: JSON.stringify(data),
@@ -621,20 +640,20 @@ export const api = {
   },
 
   getRecommendationActions: async (recId: number) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/recommendations/${recId}/actions`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
   },
 
   getUserActions: async (userId: number, limit: number = 50) => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/users/${userId}/actions?limit=${limit}`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -657,7 +676,7 @@ export const api = {
   }> => {
     const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
       method: "POST",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
@@ -671,7 +690,7 @@ export const api = {
   > => {
     const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
       method: "GET",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
@@ -683,13 +702,13 @@ export const api = {
    * @returns {Promise<Array<{id: string, role: string, content: string, created_at: string}>>} A list of message objects.
    */
   getSessionHistory: async (
-    sessionId: string
+    sessionId: string,
   ): Promise<
     Array<{ id: string; role: string; content: string; created_at: string }>
   > => {
     const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
       method: "GET",
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },
@@ -697,7 +716,7 @@ export const api = {
   runAgentInSession: async (
     sessionId: string,
     userQuery: string,
-    executionMode: string = "auto"
+    executionMode: string = "auto",
   ): Promise<{
     final_report: string;
     session_id: string;
@@ -709,7 +728,7 @@ export const api = {
       execution_mode: executionMode,
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/chat/run`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/chat/run`, {
       method: "POST",
       headers: await getAuthHeaders(),
       body: JSON.stringify(payload),
@@ -721,7 +740,7 @@ export const api = {
         .json()
         .catch(() => ({ detail: "An error occurred" }));
       throw new Error(
-        errorData.detail || `HTTP error! status: ${response.status}`
+        errorData.detail || `HTTP error! status: ${response.status}`,
       );
     }
     return response.json();
@@ -730,40 +749,41 @@ export const api = {
   // ==================== HEALTH CHECK ====================
 
   healthCheck: async () => {
-    // Health checks usually live at the root, so no '/api' prefix
-    const response = await fetch(`${API_BASE_URL}/health`);
+    // Note: Verify this path matches your backend
+    // If your backend has /api/health instead, change this to: `${API_BASE_URL}/api/health`
+    const response = await fetchWithTimeout(`${API_BASE_URL}/health`);
     return handleResponse(response);
   },
 
   getUserBySupabaseId: async (supabaseId: string): Promise<BackendUser> => {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse<BackendUser>(response);
   },
 
-// ==================== CONNECTORS (GENERAL) ====================
+  // ==================== CONNECTORS (GENERAL) ====================
 
 getConnectUrl: async (provider: string) => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/connect/${provider}`, {
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
     });
-
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ detail: "Failed to get connect URL" }));
       throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
     }
-
+    
     const data = await response.json();
-
+    
     if (!data.url) {
       throw new Error('No authorization URL returned from server');
     }
-
+    
     // Return the data instead of redirecting directly
     // This gives the calling component more control
     return data;
@@ -779,15 +799,15 @@ handleOAuthCallback: async (provider: string, code: string) => {
     if (!code) {
       throw new Error('No authorization code received');
     }
-
+    
     const response = await fetch(
       `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
       {
         method: "POST",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
-
+    
     return handleResponse(response);
   } catch (error) {
     console.error(`Error handling ${provider} OAuth callback:`, error);
@@ -801,7 +821,7 @@ exchangeCode: async (provider: string, code: string) => {
       `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
       {
         method: "POST",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -817,7 +837,7 @@ manualSync: async (provider: string) => {
       `${API_BASE_URL}/api/connect/sync/${provider}`,
       {
         method: "POST",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -832,7 +852,7 @@ listConnections: async (userId: string | number) => {
     const response = await fetch(
       `${API_BASE_URL}/api/users/${userId}/connectors`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse<
@@ -856,7 +876,7 @@ disconnect: async (provider: string) => {
       `${API_BASE_URL}/api/connect/disconnect/${provider}`,
       {
         method: "DELETE",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse(response);
@@ -872,7 +892,7 @@ checkConnectionStatus: async (provider: string) => {
     const response = await fetch(
       `${API_BASE_URL}/api/connect/status/${provider}`,
       {
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
       }
     );
     return handleResponse<{ connected: boolean; expires_at?: number }>(response);
