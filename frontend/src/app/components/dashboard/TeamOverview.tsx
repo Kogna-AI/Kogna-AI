@@ -1,22 +1,20 @@
 "use client";
-import {
-  Award,
-  Bot,
-  Calendar,
-  Clock,
-  MessageSquare,
-  Star,
-  Target,
-  TrendingUp,
-  UserPlus,
-  Users,
-} from "lucide-react";
-import { useState } from "react";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { Progress } from "../../ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
+import { Input } from "../../ui/input";
+import { Label } from "../../ui/label";
+import { Textarea } from "../../ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../ui/select";
 import { Checkbox } from "../../ui/checkbox";
 import {
   Dialog,
@@ -26,18 +24,31 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../../ui/dialog";
-import { Input } from "../../ui/input";
-import { Label } from "../../ui/label";
-import { Progress } from "../../ui/progress";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../ui/select";
-import { Textarea } from "../../ui/textarea";
-
+  Users,
+  TrendingUp,
+  Clock,
+  Target,
+  Star,
+  MessageSquare,
+  Calendar,
+  Award,
+  Bot,
+  UserPlus,
+} from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+} from "recharts";
+import api from "@/services/api";
+import { useUser } from "@/app/components/auth/UserContext";
+import type { Team, TeamMember } from "@/types/backend";
 const teamMembers = [
   {
     id: 1,
@@ -138,7 +149,7 @@ function OneOnOneSchedulingDialog() {
   });
 
   const handlePresetSelection = (
-    preset: "kognii-1on1" | "team-member-1on1",
+    preset: "kognii-1on1" | "team-member-1on1"
   ) => {
     if (preset === "kognii-1on1") {
       setMeetingData({
@@ -179,7 +190,7 @@ function OneOnOneSchedulingDialog() {
   };
 
   const availableMembers = teamMembers.filter(
-    (member) => member.status === "available",
+    (member) => member.status === "available"
   );
 
   return (
@@ -257,7 +268,11 @@ function OneOnOneSchedulingDialog() {
                     >
                       <div className="flex items-center gap-2">
                         <div
-                          className={`w-2 h-2 rounded-full ${member.status === "available" ? "bg-green-500" : "bg-yellow-500"}`}
+                          className={`w-2 h-2 rounded-full ${
+                            member.status === "available"
+                              ? "bg-green-500"
+                              : "bg-yellow-500"
+                          }`}
                         />
                         <span>{member.name}</span>
                         <span className="text-xs text-muted-foreground">
@@ -427,6 +442,10 @@ function OneOnOneSchedulingDialog() {
 }
 
 export function TeamOverview() {
+  const { user } = useUser();
+  const [team, setTeam] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [teamMembersCount, setTeamMembersCount] = useState(0);
   const getStatusColor = (status: string) => {
     switch (status) {
       case "available":
@@ -437,15 +456,32 @@ export function TeamOverview() {
         return "bg-gray-500";
     }
   };
+  useEffect(() => {
+    const fetchTeamAndMembers = async () => {
+      if (!user?.id) return;
+      try {
+        const teamData = await api.getUserTeam(user?.backend_id);
+        setTeam(teamData);
+
+        const teamMembers = await api.listTeamMembers(teamData.id);
+        setMembers(teamMembers);
+        setTeamMembersCount(teamMembers.length);
+      } catch (err) {
+        console.error("Error loading team info:", err);
+      }
+    };
+
+    fetchTeamAndMembers();
+  }, [user]);
 
   const averagePerformance = Math.round(
     teamMembers.reduce((sum, member) => sum + member.performance, 0) /
-      teamMembers.length,
+      teamMembers.length
   );
 
   const averageCapacity = Math.round(
     teamMembers.reduce((sum, member) => sum + member.capacity, 0) /
-      teamMembers.length,
+      teamMembers.length
   );
 
   return (
@@ -475,7 +511,7 @@ export function TeamOverview() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teamMembers.length}</div>
+            <div className="text-2xl font-bold">{teamMembersCount}</div>
             <p className="text-xs text-muted-foreground">Active members</p>
           </CardContent>
         </Card>
@@ -549,7 +585,9 @@ export function TeamOverview() {
                         </AvatarFallback>
                       </Avatar>
                       <div
-                        className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(member.status)} rounded-full border-2 border-background`}
+                        className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
+                          member.status
+                        )} rounded-full border-2 border-background`}
                       />
                     </div>
                     <div>

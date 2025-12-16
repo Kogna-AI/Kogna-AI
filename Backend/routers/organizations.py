@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException, status,Depends
 from core.database import get_db
 from core.models import OrganizationCreate
-from routers.Authentication import get_current_user
+from auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/organizations", tags=["Organizations"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_organization(org: OrganizationCreate, user=Depends(get_current_user)):  
+def create_organization(org: OrganizationCreate):  
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""

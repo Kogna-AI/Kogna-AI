@@ -5,7 +5,7 @@ Users Router - Handles user management with Supabase authentication and RBAC
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List, Optional
 from core.database import get_db
-from core.models import UserCreate, UserUpdate, UserResponse
+from core.models import UserUpdate, CreateUserRequest
 from core.permissions import (
     get_user_context,
     UserContext,
@@ -14,97 +14,66 @@ from core.permissions import (
 )
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from routers.Authentication import get_current_user
+from auth.dependencies import get_current_user
 router = APIRouter(prefix="/api/users", tags=["Users"])
+
 
 
 # ============================================
 # PUBLIC ENDPOINTS (No Auth Required)
 # ============================================
-
-@router.post("", status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate):
+@router.post("", status_code=201)
+def create_user(data: CreateUserRequest, db=Depends(get_db)):
     """
-    Create a new user in the database (called after Supabase signup).
-
-    This endpoint is typically called by your frontend after a successful
-    Supabase signup to create the corresponding user in your database.
-
-    Flow:
-    1. Frontend calls supabase.auth.signUp()
-    2. Frontend gets back Supabase user with ID
-    3. Frontend calls this endpoint with supabase_id
-    4. User is created in your database with link to Supabase
+    Create an internal team member.
+    - No password
+    - No supabase_id
+    - Belongs to an existing organization
     """
-    with get_db() as conn:
-        cursor = conn.cursor()
-        try:
-            # Check if user already exists
-            cursor.execute(
-                "SELECT id FROM users WHERE supabase_id = %s OR email = %s",
-                (user.supabase_id, user.email)
+
+    with db as conn:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # 1. Organization must exist
+        cursor.execute("SELECT id FROM organizations WHERE id = %s", (data.organization_id,))
+        if not cursor.fetchone():
+            raise HTTPException(404, "Organization not found")
+
+        # 2. Insert internal team member
+        cursor.execute("""
+            INSERT INTO users (
+                id,
+                organization_id,
+                first_name,
+                second_name,
+                role,
+                email
             )
-            existing_user = cursor.fetchone()
-
-            if existing_user:
-                raise HTTPException(
-                    status_code=400,
-                    detail="User with this Supabase ID or email already exists"
-                )
-
-            # Check if organization exists
-            cursor.execute(
-                "SELECT id FROM organizations WHERE id = %s",
-                (user.organization_id,)
+            VALUES (
+                gen_random_uuid(),
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
             )
-            if not cursor.fetchone():
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Organization with ID {user.organization_id} not found"
-                )
+            RETURNING id, first_name, second_name, role, email
+        """, (
+            data.organization_id,
+            data.first_name,
+            data.second_name,
+            data.role,
+            data.email,
+        ))
 
-            # Create user
-            cursor.execute("""
-                INSERT INTO users (
-                    supabase_id, organization_id, first_name,
-                    second_name, role, email
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id, supabase_id, organization_id, first_name,
-                          second_name, role, email, created_at
-            """, (
-                user.supabase_id,
-                user.organization_id,
-                user.first_name,
-                user.second_name,
-                user.role,
-                user.email
-            ))
+        new_user = cursor.fetchone()
+        conn.commit()
 
-            result = cursor.fetchone()
-            conn.commit()
+        return {
+            "success": True,
+            "data": new_user
+        }
 
-            return {
-                "success": True,
-                "message": "User created successfully",
-                "data": dict(result)
-            }
-
-        except psycopg2.IntegrityError as e:
-            conn.rollback()
-            raise HTTPException(
-                status_code=400,
-                detail=f"Database integrity error: {str(e)}"
-            )
-        except HTTPException:
-            conn.rollback()
-            raise
-        except Exception as e:
-            conn.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to create user: {str(e)}"
-            )
 
 
 @router.get("/by-supabase/{supabase_id}")

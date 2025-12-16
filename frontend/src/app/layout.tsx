@@ -1,8 +1,7 @@
 import "./globals.css";
-import { QueryProvider } from "./providers/QueryProvider";
 
 export const metadata = {
-  title: "My App",
+  title: "Kogna",
   description: "Layout with sans-serif variable",
 };
 
@@ -17,9 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" style={rootStyle}>
-      <body style={{ fontFamily: "var(--font-sans)" }}>
-        <QueryProvider>{children}</QueryProvider>
-      </body>
+      <body style={{ fontFamily: "var(--font-sans)" }}>{children}</body>
     </html>
   );
 }
