@@ -1,28 +1,37 @@
 "use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { LoginScreen } from "../components/auth/LoginPage";
 import { useUser } from "../components/auth/UserContext";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 export default function LoginPage() {
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, loading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/dashboard');
-    }
-  }, [isAuthenticated, router]);
+    if (loading) return;
 
-  //  ADD THIS - Handle navigation to signup page
+    if (isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [loading, isAuthenticated, router]);
+
   const handleCreateAccount = () => {
-    router.push('/signup');
+    router.push("/signup");
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+        Checking authentication…
+      </div>
+    );
+  }
 
   if (isAuthenticated) {
     return null;
   }
 
-  //  UPDATE THIS - Pass onCreateAccount prop
   return <LoginScreen onCreateAccount={handleCreateAccount} />;
 }

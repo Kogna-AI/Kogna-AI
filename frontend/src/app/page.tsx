@@ -1,4 +1,5 @@
 "use client";
+
 import { useMemo, useState } from "react";
 import { LoginScreen } from "./components/auth/LoginPage";
 import { UserProvider, useUser } from "./components/auth/UserContext";
@@ -8,13 +9,12 @@ import { NotificationCenter } from "./components/NotificationCenter";
 import { Sidebar } from "./components/sidebar";
 
 function AppContent() {
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, loading } = useUser();
   const [activeView, setActiveView] = useState("dashboard");
   const [isKogniiOpen, setIsKogniiOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [strategySessionMode, setStrategySessionMode] = useState(false);
 
-  // Kognii control states
   const [kogniiControlState, setKogniiControlState] = useState({
     shouldOpenObjectiveCreation: false,
     shouldNavigateToView: null as string | null,
@@ -32,11 +32,9 @@ function AppContent() {
   const handleCloseKognii = () => {
     setIsKogniiOpen(false);
     setStrategySessionMode(false);
-    // Clear any pending Kognii actions
     kogniiActions.clearKogniiControl();
   };
 
-  // Memoized Kognii control functions to prevent re-renders
   const kogniiActions = useMemo(
     () => ({
       navigateToView: (view: string) => {
@@ -90,12 +88,23 @@ function AppContent() {
       },
     }),
     []
-  ); // Empty dependency array since these functions only use setters
+  );
 
+  // 1. While auth state is loading, render nothing or a loader
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+        Checking authentication…
+      </div>
+    );
+  }
+
+  // 2. Only after loading finishes, decide to show login
   if (!isAuthenticated) {
     return <LoginScreen />;
   }
 
+  // 3. Authenticated application
   return (
     <div className="size-full flex bg-background">
       <Sidebar
