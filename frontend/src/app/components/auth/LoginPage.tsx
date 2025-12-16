@@ -58,8 +58,8 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
         return;
       }
 
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // IMPORTANT: use replace, not push
+      router.replace("/dashboard");
     } catch (err) {
       console.error(err);
       setError("An unexpected error occurred");
