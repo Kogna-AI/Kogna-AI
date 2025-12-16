@@ -1,12 +1,12 @@
-"use client";
-import { Plus, Target } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Badge } from "../../ui/badge";
-import { Button } from "../../ui/button";
-import { Card, CardContent, CardHeader } from "../../ui/card";
-import { Progress } from "../../ui/progress";
-import { ObjectiveCreation } from "./ObjectiveCreation";
-import { TeamScaleSimulation } from "./TeamScaleSimulation";
+"use client"
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
+import { Button } from '../../ui/button';
+import { Badge } from '../../ui/badge';
+import { Progress } from '../../ui/progress';
+import { Target, Plus, Calendar, TrendingUp, AlertCircle, Users } from 'lucide-react';
+import { ObjectiveCreation } from './ObjectiveCreation';
+import { TeamScaleSimulation } from './TeamScaleSimulation';
 
 const initialObjectives = [
   {
@@ -297,6 +297,9 @@ export function StrategyHub({
 
       {/* Team Scale Simulation */}
       <TeamScaleSimulation objectives={objectives} />
+
+      {/* Jira Overview Section */}
+      <JiraOverview />
 
       <ObjectiveCreation
         isOpen={isCreatingObjective}

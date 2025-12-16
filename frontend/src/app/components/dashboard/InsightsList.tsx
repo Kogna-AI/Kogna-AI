@@ -1,16 +1,11 @@
-import { ArrowRight } from "lucide-react";
-import { KogniiThinkingIcon } from "../../../../public/KogniiThinkingIcon";
-import { Badge } from "../../ui/badge";
-import { Button } from "../../ui/button";
-import { Card, CardContent, CardHeader } from "../../ui/card";
+import React from 'react';
+import { Card, CardContent, CardHeader } from '../../ui/card';
+import {Badge} from '../../ui/badge';
+import {Button} from '../../ui/button';
+import { ArrowRight } from 'lucide-react';
+import { KogniiThinkingIcon } from '../../../../public/KogniiThinkingIcon';
 
-export default function InsightsList({
-  insights,
-  onView,
-}: {
-  insights: any[];
-  onView: (insight: any) => void;
-}) {
+export default function InsightsList({ insights, onView }: { insights: any[]; onView: (insight: any) => void }) {
   return (
     <Card className="relative overflow-hidden border-white/20 bg-gradient-to-br from-purple-50/50 via-white/50 to-blue-50/50 backdrop-blur-sm">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>

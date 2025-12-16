@@ -6,7 +6,7 @@ import time
 import fitz  # <-- Add this import
 from supabase_connect import get_supabase_manager
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # (Your initial client setup and splitters are unchanged)
 try:

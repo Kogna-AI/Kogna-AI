@@ -593,7 +593,7 @@ async def _run_jira_etl(user_id: str, access_token: str) -> tuple[bool, int]:
             # Save all KPIs
             kpis_json = json.dumps(all_kpis, indent=2)
             kpis_path = f"{user_id}/jira/kpis_dashboard.json"
-            
+
             await safe_upload_to_bucket(
                 bucket_name,
                 kpis_path,
@@ -601,9 +601,18 @@ async def _run_jira_etl(user_id: str, access_token: str) -> tuple[bool, int]:
                 "application/json",
                 enable_versioning=True
             )
-            
-            kpis_latest = f"{user_id}/jira/kpis_dashboard_latest.json"
-            await queue_embedding(user_id, kpis_latest)
+
+            # Also save as kpis_latest.json for the dashboard
+            kpis_latest_path = f"{user_id}/jira/kpis_latest.json"
+            await safe_upload_to_bucket(
+                bucket_name,
+                kpis_latest_path,
+                kpis_json.encode('utf-8'),
+                "application/json",
+                enable_versioning=True
+            )
+
+            await queue_embedding(user_id, kpis_latest_path)
             
             logging.info(f"{'='*60}")
             logging.info(f"Finished Jira ETL: {len(all_issues)} issues, {len(projects)} projects")
