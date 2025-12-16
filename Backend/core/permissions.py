@@ -194,25 +194,32 @@ def get_user_teams(user_id: str) -> List[str]:
         return [str(team['team_id']) for team in teams]
 
 #Build complete UserContext from Supabase user.This is the main function that connects authentication with RBAC.
-def build_user_context(supabase_user) -> UserContext:
+def build_user_context(jwt_payload: Dict[str, Any]) -> UserContext: 
     """
     Args:
-        supabase_user: User object from Supabase authentication
-
-    Returns:
-        UserContext with full role and permission information
-
-    Raises:
-        HTTPException: If user not found in database
+        jwt_payload: User DICT returned by get_current_user (e.g., {"supabase_id": "...", "email": "..."})
+    # ...
     """
+    
+    # The key is 'supabase_id', as defined in get_current_user
+    auth_id = jwt_payload.get("supabase_id") 
+    user_email = jwt_payload.get("email")
+
+    if not auth_id:
+        # This check is technically redundant if get_current_user is strict, but good practice
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token is missing the required 'supabase_id' claim."
+        )
+
     # Get user from database
-    db_user = get_user_from_supabase_id(supabase_user.id)
+    # We must use the function that queries the DB by supabase_id.
+    db_user = get_user_from_supabase_id(auth_id) # <-- Use the existing function name and the extracted ID
 
     if not db_user:
         raise HTTPException(
-            status_code=404,
-            detail=f"User with Supabase ID {supabase_user.id} not found in database. "
-                   f"Please sync Supabase users with the database."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with Auth ID {auth_id} not found in database."
         )
 
     # Get role and permissions
@@ -224,8 +231,8 @@ def build_user_context(supabase_user) -> UserContext:
     # Build context
     return UserContext(
         id=str(db_user['id']),
-        supabase_id=supabase_user.id,
-        email=supabase_user.email,
+        supabase_id=auth_id, 
+        email=user_email,    
         organization_id=str(db_user['organization_id']) if db_user['organization_id'] else None,
         first_name=db_user.get('first_name'),
         second_name=db_user.get('second_name'),
@@ -234,7 +241,6 @@ def build_user_context(supabase_user) -> UserContext:
         permissions=role_data['permissions'],
         team_ids=team_ids
     )
-
 
 # ============================================
 # FASTAPI DEPENDENCY FUNCTIONS
