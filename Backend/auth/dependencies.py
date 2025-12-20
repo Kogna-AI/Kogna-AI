@@ -1,22 +1,44 @@
 from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials 
 from psycopg2.extras import RealDictCursor
 
 from core.security import decode_access_token
 from core.database import get_db
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+bearer_scheme = HTTPBearer(auto_error=True)
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    """
-    Reads the JWT and returns basic user identity.
-    """
+
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security = HTTPBearer(auto_error=True)
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    token = credentials.credentials
+
+    # dev shortcut
+    if token == "system-admin-dev":
+        return {
+            "supabase_id": "system",
+            "email": "system@kogna.ai",
+            "organization_id": "kogna_internal",
+            "is_system_admin": True,
+        }
+
     payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
     return {
         "supabase_id": payload["sub"],
         "email": payload.get("email"),
+        "organization_id": payload.get("organization_id"),
+        "is_system_admin": False,
     }
+
 
 
 async def get_backend_user_id(

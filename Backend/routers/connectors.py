@@ -545,3 +545,13 @@ async def sync_service(
     background_tasks.add_task(run_master_etl, user_id, provider)
 
     return {"status": f"Sync scheduled for {provider} for user {user_id}."}
+
+
+
+# Add this to your routers/connectors.py (COMPLETE VERSION WITH ALL ENDPOINTS)
+from core.permissions import require_permission, UserContext
+@connect_router.get("/t/test")
+async def test_connector(
+    user: UserContext = Depends(require_permission("connectors", "read", "organization")),
+):
+    return {"status": "ok"}

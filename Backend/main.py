@@ -145,38 +145,6 @@ async def global_exception_handler(request, exc):
         }
     )
 
-# ==================== FOR LOCAL DEVELOPMENT ====================
-# 👇 只需要引入这几个 RBAC 相关的即可
-from fastapi import Depends
-from core.permissions import require_permission, UserContext, get_user_context
-
-# ==========================================
-# 场景 1：只有 Manager 或有权限的人能进
-# ==========================================
-@app.get("/test/protected/insights")
-async def get_team_insights(
-    user_ctx: UserContext = Depends(require_permission("insights", "read", "team"))
-):
-    return {
-        "status": "Success",
-        "message": "你有权访问这个接口！",
-        "user": user_ctx.email,
-        "role": user_ctx.role_name
-    }
-
-# ==========================================
-# 场景 2：什么人都能进，但我需要知道你是谁
-# ==========================================
-@app.get("/test/public/whoami")
-async def who_am_i(
-    user_ctx: UserContext = Depends(get_user_context)
-):
-    return {
-        "id": user_ctx.id,
-        "role": user_ctx.role_name,
-        "permissions": user_ctx.permissions
-    }
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

@@ -200,6 +200,20 @@ def build_user_context(jwt_payload: Dict[str, Any]) -> UserContext:
         jwt_payload: User DICT returned by get_current_user (e.g., {"supabase_id": "...", "email": "..."})
     # ...
     """
+
+    if jwt_payload.get("is_system_admin"):
+        return UserContext(
+            id="system",
+            supabase_id="system",
+            email=jwt_payload.get("email"),
+            organization_id=None,
+            first_name="System",
+            second_name="Admin",
+            role_name="admin",
+            role_level=5,
+            permissions=["*"],  # wildcard, optional
+            team_ids=[]
+        )
     
     # The key is 'supabase_id', as defined in get_current_user
     auth_id = jwt_payload.get("supabase_id") 
@@ -263,26 +277,27 @@ async def get_user_context(user = Depends(get_current_user)) -> UserContext:
 
 #this factory function to create a dependency that requires a specific permission.
 def require_permission(resource: str, action: str, scope: str = None):
-    """
-    Args:
-        resource: 'agents', 'insights', 'objectives', etc.
-        action: 'read', 'write', 'invoke', etc.
-        scope: 'own', 'team', 'organization' (optional)
+    async def permission_checker(
+        user_ctx: UserContext = Depends(get_user_context)
+    ) -> UserContext:
 
-    Returns:
-        FastAPI dependency function that checks permission
-    """
-    async def permission_checker(user_ctx: UserContext = Depends(get_user_context)) -> UserContext:
+        required = f"{resource}:{action}:{scope}"
+
         if not user_ctx.has_permission(resource, action, scope):
-            permission_str = f"{resource}:{action}:{scope}" if scope else f"{resource}:{action}"
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Missing required permission: {permission_str}. "
-                       f"Your role '{user_ctx.role_name}' does not have access to this resource."
+                status_code=403,
+                detail={
+                    "error": "Permission denied",
+                    "required": required,
+                    "role_name": user_ctx.role_name,
+                    "permissions": user_ctx.permissions,
+                }
             )
+
         return user_ctx
 
     return permission_checker
+
 
 # Factory function to create a dependency that requires minimum role level.
 def require_role_level(min_level: int, role_name: str = None):
