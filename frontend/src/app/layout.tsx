@@ -1,3 +1,4 @@
+import { AppProviders } from "./providers/AppProvider";
 import "./globals.css";
 
 export const metadata = {
@@ -15,8 +16,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" style={rootStyle}>
-      <body style={{ fontFamily: "var(--font-sans)" }}>{children}</body>
+    <html lang="en">
+      <body style={{ fontFamily: "var(--font-sans)" }}>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

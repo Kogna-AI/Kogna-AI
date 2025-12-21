@@ -6,6 +6,8 @@ import { KogniiAssistant } from "./components/KogniiAssistant";
 import { MainDashboard } from "./components/MainDashboard";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { Sidebar } from "./components/sidebar";
+import { QueryProvider } from "./providers/QueryProvider";
+import { AppProviders } from "./providers/AppProvider";
 
 function AppContent() {
   const [activeView, setActiveView] = useState("dashboard");
@@ -132,8 +134,8 @@ function AppContent() {
 
 export default function App() {
   return (
-    <UserProvider>
+    <AppProviders>
       <AppContent />
-    </UserProvider>
+    </AppProviders>
   );
 }
