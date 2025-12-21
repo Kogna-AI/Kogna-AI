@@ -12,6 +12,7 @@ from auth.dependencies import get_current_user, get_backend_user_id
 from supabase_connect import get_supabase_manager
 from typing import List, Optional
 from pydantic import BaseModel
+from core.permissions import require_permission, UserContext
 
 supabase = get_supabase_manager().client
 
@@ -172,13 +173,9 @@ async def clear_sync_job(
 # EXISTING ENDPOINTS (UNCHANGED)
 # =================================================================
 
-@connect_router.get("/test")
-async def run_simple_test():
-    """Runs the simple httpx test."""
-    return await run_test()
 
 @connect_router.get("/{provider}")
-async def connect_to_service(provider: str, ids: dict = Depends(get_backend_user_id)):
+async def connect_to_service(provider: str, ids: dict = Depends(get_backend_user_id), user : UserContext = Depends(require_permission("connectors", "read", "organization"))):
     """Initiates OAuth flow for a given provider."""
     user_id = ids.get('user_id')
     if not user_id:
@@ -549,7 +546,6 @@ async def sync_service(
 
 
 # Add this to your routers/connectors.py (COMPLETE VERSION WITH ALL ENDPOINTS)
-from core.permissions import require_permission, UserContext
 @connect_router.get("/t/test")
 async def test_connector(
     user: UserContext = Depends(require_permission("connectors", "read", "organization")),
