@@ -1,6 +1,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@mui/material';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
+import { useMetricTrends } from '../../hooks/useDashboard';
+
+interface PerformanceTrendProps {
+  data?: Array<{ month: string; value: number }>;
+  orgId?: number;
+  metricName?: string;
+  useLiveData?: boolean;
+}
 
 export default function PerformanceTrend({
   data,

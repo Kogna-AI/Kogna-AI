@@ -1,4 +1,6 @@
 import "./globals.css";
+import { QueryProvider } from "./providers/QueryProvider";
+import { UserProvider } from "./components/auth/UserContext";
 
 export const metadata = {
   title: "Kogna",
@@ -16,7 +18,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" style={rootStyle}>
-      <body style={{ fontFamily: "var(--font-sans)" }}>{children}</body>
+      <body style={{ fontFamily: "var(--font-sans)" }}>
+        <QueryProvider>
+          <UserProvider>{children}</UserProvider>
+        </QueryProvider>
+      </body>
     </html>
   );
 }

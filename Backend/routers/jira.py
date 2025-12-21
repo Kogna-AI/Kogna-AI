@@ -4,7 +4,7 @@ import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from supabase_connect import get_supabase_manager
-from routers.Authentication import get_backend_user_id
+from auth.dependencies import get_backend_user_id
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 

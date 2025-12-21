@@ -48,7 +48,7 @@ app.add_middleware(
 
 
 # include ROUTERS
-from routers.Authentication import router as auth_router
+from routers.auth import router as auth_router
 from routers.users import router as users_router
 from routers.connectors import connect_router, callback_router
 from routers.jira import router as jira_router

@@ -7,6 +7,7 @@ import { Progress } from '../../ui/progress';
 import { Target, Plus, Calendar, TrendingUp, AlertCircle, Users } from 'lucide-react';
 import { ObjectiveCreation } from './ObjectiveCreation';
 import { TeamScaleSimulation } from './TeamScaleSimulation';
+import JiraOverview from './JiraOverview';
 
 const initialObjectives = [
   {
