@@ -2,19 +2,27 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/services/api";
+import api, { LoginUser } from "@/services/api";
 
-interface BackendUser {
+export interface BackendUser {
+  first_name: string;
+  second_name: string;
   id: string;
   email: string;
-  first_name?: string;
-  second_name?: string;
-  role?: string;
-  organization_id?: number;
+  organization_id: string;
+  role: string;
+  rbac: {
+    role_name: string;
+    role_level: number;
+    permissions: string[];
+    team_ids: string[];
+  };
 }
 
+export type AuthUser = LoginUser | BackendUser;
+
 interface UserContextType {
-  user: BackendUser | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -27,62 +35,45 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
-  const [user, setUser] = useState<BackendUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // ============================
-  // 1. Initialize Auth State
-  // ============================
   useEffect(() => {
     const init = async () => {
       const token = localStorage.getItem("token");
-
       if (!token) {
         setLoading(false);
         return;
       }
 
       try {
-        const me = (await api.getCurrentUser()) as { user?: BackendUser }; // <-- FIXED
-        const finalUser = "user" in me ? me.user : me;
-
-        setUser(finalUser as BackendUser);
+        const fullUser = await api.getCurrentUser(); // BackendUser
+        setUser(fullUser);
         setIsAuthenticated(true);
-      } catch (err) {
-        console.warn("Invalid token, logging out");
+      } catch {
         localStorage.removeItem("token");
         setUser(null);
         setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     init();
   }, []);
 
-  // ============================
-  // 2. LOGIN
-  // ============================
   const login = async (email: string, password: string) => {
     try {
-      const res = await api.login(email, password); // <-- FIXED
-
-      localStorage.setItem("token", res.access_token);
-      setUser(res.user);
+      const res = await api.login(email, password);
+      setUser(res.user); // LoginUser
       setIsAuthenticated(true);
-
       return true;
-    } catch (err) {
-      console.error("Login failed:", err);
+    } catch {
       return false;
     }
   };
 
-  // ============================
-  // 3. LOGOUT
-  // ============================
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
@@ -90,9 +81,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     router.push("/");
   };
 
-  // ============================
-  // 4. SIGNUP
-  // ============================
   const signup = async (form: any) => {
     return api.register(form);
   };
@@ -106,7 +94,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Hook
 export function useUser() {
   const ctx = useContext(UserContext);
   if (!ctx) throw new Error("useUser must be used inside UserProvider");

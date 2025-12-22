@@ -14,6 +14,26 @@ const REQUEST_TIMEOUT = 120000; // 120 seconds
  * Fetch with timeout for AWS reliability
  * Prevents hanging requests in AWS infrastructure
  */
+
+import { BackendUser } from "../app/components/auth/UserContext";
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
+interface LoginResponse {
+  success: boolean;
+  access_token: string;
+  token_type: string;
+  user: LoginUser;
+}
+export interface LoginUser {
+  first_name: string;
+  second_name: string;
+  id: string;
+  email: string;
+  organization_id: string;
+}
+
 const fetchWithTimeout = async (
   url: string,
   options: RequestInit = {},
@@ -53,40 +73,24 @@ const getAuthHeaders = (): HeadersInit => {
 /**
  * Handle API response with AWS-specific error handling
  */
-async function handleResponse<T>(response: Response): Promise<T> {
+export async function handleResponse<T>(
+  response: Response
+): Promise<ApiResponse<T>> {
+  let json: any;
+
+  try {
+    json = await response.json();
+  } catch {
+    throw new Error("Empty response body");
+  }
+
   if (!response.ok) {
-    const errorData = await response
-      .json()
-      .catch(() => ({ detail: "An error occurred" }));
-
-    // AWS-specific error handling
-    if (response.status === 502) {
-      throw new Error("Service temporarily unavailable. Please try again.");
-    }
-    if (response.status === 504) {
-      throw new Error("Request timeout. Please try again.");
-    }
-    if (response.status === 503) {
-      throw new Error("Service unavailable. Please try again later.");
-    }
-
     throw new Error(
-      errorData.detail || `HTTP error! status: ${response.status}`
+      json?.detail || json?.error || `HTTP error ${response.status}`
     );
   }
 
-  // Try to parse JSON
-  try {
-    const data = await response.json();
-    // FastAPI returns {success: true, data: {...}} or root data
-    return data.data || data;
-  } catch (_e) {
-    // Handle empty response for methods like DELETE
-    if (response.status === 204 || response.status === 200) {
-      return {} as T;
-    }
-    throw new Error("Failed to parse JSON response.");
-  }
+  return json as ApiResponse<T>;
 }
 
 /**
@@ -104,17 +108,14 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await handleResponse<{
-      access_token: string;
-      user: any;
-    }>(response);
-
-    // Save token
-    if (data.access_token) {
-      localStorage.setItem("token", data.access_token);
+    const json = (await response.json()) as LoginResponse;
+    if (!response.ok || !json.success || !json.access_token) {
+      throw new Error("Login failed");
     }
 
-    return data;
+    localStorage.setItem("token", json.access_token);
+
+    return json;
   },
 
   register: async (data: {
@@ -142,12 +143,17 @@ export const api = {
     return result;
   },
 
-  getCurrentUser: async () => {
+  getCurrentUser: async (): Promise<BackendUser> => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/me`, {
       headers: getAuthHeaders(),
     });
+    const result = await handleResponse<BackendUser>(response);
+    console.log(result);
+    if (!result?.data) {
+      throw new Error("Invalid /me response");
+    }
 
-    return handleResponse(response);
+    return result.data;
   },
 
   // ==================== ORGANIZATIONS ====================
@@ -768,7 +774,15 @@ export const api = {
         headers: getAuthHeaders(),
       }
     );
-    return handleResponse(response);
+
+    const res = await handleResponse<{
+      id: string;
+      user_id: string;
+      title: string;
+      created_at: string;
+    }>(response);
+
+    return res.data;
   },
 
   /**
@@ -785,7 +799,11 @@ export const api = {
         headers: getAuthHeaders(),
       }
     );
-    return handleResponse(response);
+    const res = await handleResponse<
+      Array<{ id: string; user_id: string; title: string; created_at: string }>
+    >(response);
+
+    return res.data;
   },
 
   /**
@@ -807,7 +825,11 @@ export const api = {
         headers: getAuthHeaders(),
       }
     );
-    return handleResponse(response);
+    const res = await handleResponse<
+      Array<{ id: string; role: string; content: string; created_at: string }>
+    >(response);
+
+    return res.data;
   },
 
   runAgentInSession: async (
