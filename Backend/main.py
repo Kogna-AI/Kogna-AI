@@ -145,8 +145,6 @@ async def global_exception_handler(request, exc):
         }
     )
 
-# ==================== FOR LOCAL DEVELOPMENT ====================
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

@@ -112,52 +112,6 @@ def get_user_by_supabase_id(supabase_id: str):
 # PROTECTED ENDPOINTS (Authentication Required)
 # ============================================
 
-@router.get("/me")
-async def get_current_user(user_ctx: UserContext = Depends(get_user_context)):
-    """
-    Get the current authenticated user's information.
-
-    This returns the full user profile with role and organization details.
-    """
-    with get_db() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT
-                u.id,
-                u.supabase_id,
-                u.organization_id,
-                u.first_name,
-                u.second_name,
-                u.role,
-                u.email,
-                u.created_at,
-                o.name as organization_name
-            FROM users u
-            LEFT JOIN organizations o ON u.organization_id = o.id
-            WHERE u.id = %s
-        """, (user_ctx.id,))
-
-        user = cursor.fetchone()
-
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        # Add RBAC information
-        user_data = dict(user)
-        user_data['rbac'] = {
-            'role_name': user_ctx.role_name,
-            'role_level': user_ctx.role_level,
-            'permissions': user_ctx.permissions,
-            'team_ids': user_ctx.team_ids
-        }
-
-        return {
-            "success": True,
-            "data": user_data
-        }
-
-
 @router.get("/{user_id}")
 async def get_user(
     user_id: int,

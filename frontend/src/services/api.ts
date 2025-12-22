@@ -4,9 +4,6 @@
  * AWS-Compatible Version with Timeout Handling and Enhanced Error Management
  */
 
-import { createClient } from '@supabase/supabase-js';
-import type { BackendUser } from "../app/components/auth/UserContext";
-
 // 1. API_BASE_URL is clean. It does NOT include '/api'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -17,6 +14,26 @@ const REQUEST_TIMEOUT = 120000; // 120 seconds
  * Fetch with timeout for AWS reliability
  * Prevents hanging requests in AWS infrastructure
  */
+
+import { BackendUser } from "../app/components/auth/UserContext";
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
+interface LoginResponse {
+  success: boolean;
+  access_token: string;
+  token_type: string;
+  user: LoginUser;
+}
+export interface LoginUser {
+  first_name: string;
+  second_name: string;
+  id: string;
+  email: string;
+  organization_id: string;
+}
+
 const fetchWithTimeout = async (
   url: string,
   options: RequestInit = {},
@@ -57,40 +74,24 @@ const getAuthHeaders = (): HeadersInit => {
 /**
  * Handle API response with AWS-specific error handling
  */
-async function handleResponse<T>(response: Response): Promise<T> {
+export async function handleResponse<T>(
+  response: Response
+): Promise<ApiResponse<T>> {
+  let json: any;
+
+  try {
+    json = await response.json();
+  } catch {
+    throw new Error("Empty response body");
+  }
+
   if (!response.ok) {
-    const errorData = await response
-      .json()
-      .catch(() => ({ detail: "An error occurred" }));
-
-    // AWS-specific error handling
-    if (response.status === 502) {
-      throw new Error("Service temporarily unavailable. Please try again.");
-    }
-    if (response.status === 504) {
-      throw new Error("Request timeout. Please try again.");
-    }
-    if (response.status === 503) {
-      throw new Error("Service unavailable. Please try again later.");
-    }
-
     throw new Error(
-      errorData.detail || `HTTP error! status: ${response.status}`
+      json?.detail || json?.error || `HTTP error ${response.status}`
     );
   }
 
-  // Try to parse JSON
-  try {
-    const data = await response.json();
-    // FastAPI returns {success: true, data: {...}} or root data
-    return data.data || data;
-  } catch (_e) {
-    // Handle empty response for methods like DELETE
-    if (response.status === 204 || response.status === 200) {
-      return {} as T;
-    }
-    throw new Error("Failed to parse JSON response.");
-  }
+  return json as ApiResponse<T>;
 }
 
 /**
@@ -108,17 +109,14 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await handleResponse<{
-      access_token: string;
-      user: any;
-    }>(response);
-
-    // Save token
-    if (data.access_token) {
-      localStorage.setItem("token", data.access_token);
+    const json = (await response.json()) as LoginResponse;
+    if (!response.ok || !json.success || !json.access_token) {
+      throw new Error("Login failed");
     }
 
-    return data;
+    localStorage.setItem("token", json.access_token);
+
+    return json;
   },
 
   register: async (data: {
@@ -146,12 +144,17 @@ export const api = {
     return result;
   },
 
-  getCurrentUser: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+  getCurrentUser: async (): Promise<BackendUser> => {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/me`, {
       headers: getAuthHeaders(),
     });
+    const result = await handleResponse<BackendUser>(response);
+    console.log(result);
+    if (!result?.data) {
+      throw new Error("Invalid /me response");
+    }
 
-    return handleResponse(response);
+    return result.data;
   },
 
   // ==================== ORGANIZATIONS ====================
@@ -725,11 +728,22 @@ export const api = {
     title: string;
     created_at: string;
   }> => {
-    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-    });
-    return handleResponse(response);
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/chat/sessions`,
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+      }
+    );
+
+    const res = await handleResponse<{
+      id: string;
+      user_id: string;
+      title: string;
+      created_at: string;
+    }>(response);
+
+    return res.data;
   },
 
   /**
@@ -739,11 +753,18 @@ export const api = {
   getUserSessions: async (): Promise<
     Array<{ id: string; user_id: string; title: string; created_at: string }>
   > => {
-    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    });
-    return handleResponse(response);
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/chat/sessions`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
+    const res = await handleResponse<
+      Array<{ id: string; user_id: string; title: string; created_at: string }>
+    >(response);
+
+    return res.data;
   },
 
   /**
@@ -757,11 +778,19 @@ export const api = {
   ): Promise<
     Array<{ id: string; role: string; content: string; created_at: string }>
   > => {
-    const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    });
-    return handleResponse(response);
+    // FIXED: Added '/api' prefix to match other endpoints
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/chat/history/${sessionId}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
+    const res = await handleResponse<
+      Array<{ id: string; role: string; content: string; created_at: string }>
+    >(response);
+
+    return res.data;
   },
 
   runAgentInSession: async (
@@ -811,9 +840,16 @@ export const api = {
       `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
-    return handleResponse<BackendUser>(response);
+
+    const res = await handleResponse<BackendUser>(response);
+
+    if (!res.data) {
+      throw new Error("Invalid user response");
+    }
+
+    return res.data;
   },
 
   // ==================== CONNECTORS (GENERAL) ====================
@@ -872,92 +908,96 @@ export const api = {
     }
   },
 
-exchangeCode: async (provider: string, code: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error exchanging ${provider} code:`, error);
-    throw error;
-  }
-},
+  exchangeCode: async (provider: string, code: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(
+          code
+        )}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error exchanging ${provider} code:`, error);
+      throw error;
+    }
+  },
 
-manualSync: async (provider: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/sync/${provider}`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error syncing ${provider}:`, error);
-    throw error;
-  }
-},
+  manualSync: async (provider: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/connect/sync/${provider}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error syncing ${provider}:`, error);
+      throw error;
+    }
+  },
 
-listConnections: async (userId: string | number) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/users/${userId}/connectors`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse<
-      {
-        id: number;
-        user_id: string;
-        service: string;
-        expires_at: number;
-        created_at: string;
-      }[]
-    >(response);
-  } catch (error) {
-    console.error('Error listing connections:', error);
-    throw error;
-  }
-},
+  listConnections: async (userId: string | number) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/users/${userId}/connectors`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse<
+        {
+          id: number;
+          user_id: string;
+          service: string;
+          expires_at: number;
+          created_at: string;
+        }[]
+      >(response);
+    } catch (error) {
+      console.error("Error listing connections:", error);
+      throw error;
+    }
+  },
 
-disconnect: async (provider: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/disconnect/${provider}`,
-      {
-        method: "DELETE",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error disconnecting ${provider}:`, error);
-    throw error;
-  }
-},
+  disconnect: async (provider: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/connect/disconnect/${provider}`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error disconnecting ${provider}:`, error);
+      throw error;
+    }
+  },
 
-// Add this to check connection status
-checkConnectionStatus: async (provider: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/status/${provider}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse<{ connected: boolean; expires_at?: number }>(response);
-  } catch (error) {
-    console.error(`Error checking ${provider} connection status:`, error);
-    throw error;
-  }
-},
+  // Add this to check connection status
+  checkConnectionStatus: async (provider: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/connect/status/${provider}`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse<{ connected: boolean; expires_at?: number }>(
+        response
+      );
+    } catch (error) {
+      console.error(`Error checking ${provider} connection status:`, error);
+      throw error;
+    }
+  },
 };
 
 export default api;

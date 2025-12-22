@@ -194,25 +194,46 @@ def get_user_teams(user_id: str) -> List[str]:
         return [str(team['team_id']) for team in teams]
 
 #Build complete UserContext from Supabase user.This is the main function that connects authentication with RBAC.
-def build_user_context(supabase_user) -> UserContext:
+def build_user_context(jwt_payload: Dict[str, Any]) -> UserContext: 
     """
     Args:
-        supabase_user: User object from Supabase authentication
-
-    Returns:
-        UserContext with full role and permission information
-
-    Raises:
-        HTTPException: If user not found in database
+        jwt_payload: User DICT returned by get_current_user (e.g., {"supabase_id": "...", "email": "..."})
+    # ...
     """
+
+    if jwt_payload.get("is_system_admin"):
+        return UserContext(
+            id="system",
+            supabase_id="system",
+            email=jwt_payload.get("email"),
+            organization_id=None,
+            first_name="System",
+            second_name="Admin",
+            role_name="admin",
+            role_level=5,
+            permissions=["*"],  # wildcard, optional
+            team_ids=[]
+        )
+    
+    # The key is 'supabase_id', as defined in get_current_user
+    auth_id = jwt_payload.get("supabase_id") 
+    user_email = jwt_payload.get("email")
+
+    if not auth_id:
+        # This check is technically redundant if get_current_user is strict, but good practice
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token is missing the required 'supabase_id' claim."
+        )
+
     # Get user from database
-    db_user = get_user_from_supabase_id(supabase_user.id)
+    # We must use the function that queries the DB by supabase_id.
+    db_user = get_user_from_supabase_id(auth_id) # <-- Use the existing function name and the extracted ID
 
     if not db_user:
         raise HTTPException(
-            status_code=404,
-            detail=f"User with Supabase ID {supabase_user.id} not found in database. "
-                   f"Please sync Supabase users with the database."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with Auth ID {auth_id} not found in database."
         )
 
     # Get role and permissions
@@ -224,8 +245,8 @@ def build_user_context(supabase_user) -> UserContext:
     # Build context
     return UserContext(
         id=str(db_user['id']),
-        supabase_id=supabase_user.id,
-        email=supabase_user.email,
+        supabase_id=auth_id, 
+        email=user_email,    
         organization_id=str(db_user['organization_id']) if db_user['organization_id'] else None,
         first_name=db_user.get('first_name'),
         second_name=db_user.get('second_name'),
@@ -234,7 +255,6 @@ def build_user_context(supabase_user) -> UserContext:
         permissions=role_data['permissions'],
         team_ids=team_ids
     )
-
 
 # ============================================
 # FASTAPI DEPENDENCY FUNCTIONS
@@ -257,26 +277,27 @@ async def get_user_context(user = Depends(get_current_user)) -> UserContext:
 
 #this factory function to create a dependency that requires a specific permission.
 def require_permission(resource: str, action: str, scope: str = None):
-    """
-    Args:
-        resource: 'agents', 'insights', 'objectives', etc.
-        action: 'read', 'write', 'invoke', etc.
-        scope: 'own', 'team', 'organization' (optional)
+    async def permission_checker(
+        user_ctx: UserContext = Depends(get_user_context)
+    ) -> UserContext:
 
-    Returns:
-        FastAPI dependency function that checks permission
-    """
-    async def permission_checker(user_ctx: UserContext = Depends(get_user_context)) -> UserContext:
+        required = f"{resource}:{action}:{scope}"
+
         if not user_ctx.has_permission(resource, action, scope):
-            permission_str = f"{resource}:{action}:{scope}" if scope else f"{resource}:{action}"
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Missing required permission: {permission_str}. "
-                       f"Your role '{user_ctx.role_name}' does not have access to this resource."
+                status_code=403,
+                detail={
+                    "error": "Permission denied",
+                    "required": required,
+                    "role_name": user_ctx.role_name,
+                    "permissions": user_ctx.permissions,
+                }
             )
+
         return user_ctx
 
     return permission_checker
+
 
 # Factory function to create a dependency that requires minimum role level.
 def require_role_level(min_level: int, role_name: str = None):

@@ -7,15 +7,22 @@ import {
   useState,
   useCallback,
 } from "react";
+import { useRouter } from "next/navigation";
 import api from "@/services/api";
 
-interface BackendUser {
+export interface BackendUser {
+  first_name: string;
+  second_name: string;
   id: string;
   email: string;
-  first_name?: string;
-  second_name?: string;
-  role?: string;
-  organization_id?: number;
+  organization_id: string;
+  role: string;
+  rbac: {
+    role_name: string;
+    role_level: number;
+    permissions: string[];
+    team_ids: string[];
+  };
 }
 
 interface UserContextType {
@@ -30,27 +37,31 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
   const [user, setUser] = useState<BackendUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // ---------- CORE: stable fetch ----------
+  // ============================
+  // CORE: single source of truth
+  // ============================
   const fetchCurrentUser = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) {
+      setUser(null);
+      setIsAuthenticated(false);
       setLoading(false);
       return;
     }
 
     try {
-      const res = await api.getCurrentUser();
-      const finalUser = "user" in res ? res.user : res;
-
-      setUser(finalUser as BackendUser);
+      const me = await api.getCurrentUser(); // BackendUser only
+      setUser(me);
       setIsAuthenticated(true);
     } catch (err) {
       console.warn("getCurrentUser failed", err);
-      // DO NOT clear token here during OAuth
+      localStorage.removeItem("token");
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -58,12 +69,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // ---------- INIT: run ONCE ----------
+  // INIT once
   useEffect(() => {
     fetchCurrentUser();
   }, [fetchCurrentUser]);
 
-  // ---------- PUBLIC API ----------
+  // PUBLIC API
   const refreshUser = useCallback(async () => {
     setLoading(true);
     await fetchCurrentUser();
@@ -71,12 +82,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const res = await api.login(email, password);
-
-      localStorage.setItem("token", res.access_token);
-
-      await fetchCurrentUser();
-
+      await api.login(email, password);
+      await fetchCurrentUser(); // <-- 关键：login 不 setUser
       return true;
     } catch (err) {
       console.error("Login failed", err);
@@ -88,6 +95,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("token");
     setUser(null);
     setIsAuthenticated(false);
+    router.push("/");
   };
 
   return (

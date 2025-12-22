@@ -21,7 +21,8 @@ import { Separator } from "../ui/seperator";
 import { KogniiThinkingIcon } from "../../../public/KogniiThinkingIcon";
 import { useUser } from "./auth/UserContext";
 import KognaLogo from "../../../public/KognaKLetterLogo.png";
-
+import { hasPermission } from "./auth/rbac";
+import { useAuthUser } from "@/hooks/useAuthUser";
 interface SidebarProps {
   activeView: string;
   setActiveView: (view: string) => void;
@@ -34,6 +35,7 @@ interface NavItem {
   label: string;
   icon: any;
   badge?: string | number;
+  requiredPermission?: string;
 }
 
 export function Sidebar({
@@ -42,20 +44,26 @@ export function Sidebar({
   onKogniiToggle,
   onNotificationsToggle,
 }: SidebarProps) {
+  const { fullName } = useAuthUser();
   const { user, logout } = useUser();
   const pathname = usePathname();
-
   const navigationItems: NavItem[] = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "team", label: "Team Overview", icon: Users },
     { id: "strategy", label: "Strategy Hub", icon: Target },
-    { id: "connectors", label: "Data Connectors", icon: Database },
+
+    {
+      id: "connectors",
+      label: "Data Connectors",
+      icon: Database,
+      requiredPermission: "connectors:read:organization",
+    },
+
     { id: "meetings", label: "Meetings", icon: Calendar },
     { id: "analytics", label: "Analytics", icon: TrendingUp },
     { id: "feedback", label: "Feedback", icon: MessageSquare },
     // { id: "insights", label: "Insights", icon: Brain },
   ];
-
   return (
     <div className="w-64 relative bg-gradient-to-br from-slate-50/95 via-white/95 to-gray-50/95 backdrop-blur-xl border-r border-white/20 shadow-lg flex flex-col">
       {/* Header */}
@@ -119,28 +127,34 @@ export function Sidebar({
       {/* Navigation */}
       <div className="flex-1 p-4">
         <nav className="space-y-2">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              pathname === `/${item.id}` ||
-              (pathname === "/" && item.id === "dashboard");
-            return (
-              <Link key={item.id} href={`/${item.id}`}>
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
-                >
-                  <Icon className="w-4 h-4" />
-                  {item.label}
-                  {item.badge && (
-                    <Badge variant="secondary" className="ml-auto text-xs">
-                      {item.badge}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
-            );
-          })}
+          {navigationItems
+            .filter((item) => {
+              if (!item.requiredPermission) return true;
+              return hasPermission(user, item.requiredPermission);
+            })
+            .map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                pathname === `/${item.id}` ||
+                (pathname === "/" && item.id === "dashboard");
+
+              return (
+                <Link key={item.id} href={`/${item.id}`}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
+                  >
+                    <Icon className="w-4 h-4" />
+                    {item.label}
+                    {item.badge && (
+                      <Badge variant="secondary" className="ml-auto text-xs">
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
+              );
+            })}
         </nav>
       </div>
 
@@ -164,7 +178,7 @@ export function Sidebar({
           className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
         >
           <LogOut className="w-4 h-4" />
-          Sign Out ({user?.name})
+          Sign Out ({fullName})
         </Button>
       </div>
     </div>

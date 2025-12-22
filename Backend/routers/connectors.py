@@ -8,6 +8,7 @@ from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
+from core.permissions import require_permission, UserContext
 
 from services.etl_pipelines import run_master_etl, run_test
 from auth.dependencies import get_backend_user_id
@@ -61,13 +62,14 @@ callback_router = APIRouter(prefix="/api/connect", tags=["Connectors"])
 # Test
 # ------------------------------------------------------------------
 
-@connect_router.get("/test")
-async def run_simple_test():
-    return await run_test()
 
-# ------------------------------------------------------------------
-# OAuth Start (Authenticated)
-# ------------------------------------------------------------------
+@connect_router.get("/{provider}")
+async def connect_to_service(provider: str, ids: dict = Depends(get_backend_user_id), user : UserContext = Depends(require_permission("connectors", "read", "organization"))):
+    """Initiates OAuth flow for a given provider."""
+    user_id = ids.get('user_id')
+    if not user_id:
+        logging.error("Connect attempted without valid user ID.")
+        return {"error": "Authentication failed: User ID not found."}
 
 @connect_router.get("/{provider}")
 async def connect_to_service(
@@ -286,3 +288,12 @@ async def sync_service(
 
     background_tasks.add_task(run_master_etl, user_id, provider)
     return {"status": "sync_started"}
+
+
+
+# Add this to your routers/connectors.py (COMPLETE VERSION WITH ALL ENDPOINTS)
+@connect_router.get("/t/test")
+async def test_connector(
+    user: UserContext = Depends(require_permission("connectors", "read", "organization")),
+):
+    return {"status": "ok"}
