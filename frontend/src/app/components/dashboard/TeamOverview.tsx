@@ -458,14 +458,16 @@ export function TeamOverview() {
   };
   useEffect(() => {
     const fetchTeamAndMembers = async () => {
-      if (!user?.id) return;
-      try {
-        const teamData = await api.getUserTeam(user?.backend_id);
-        setTeam(teamData);
+      const teamId = user?.rbac?.team_ids?.[0];
+      if (!teamId) return;
 
-        const teamMembers = await api.listTeamMembers(teamData.id);
-        setMembers(teamMembers);
-        setTeamMembersCount(teamMembers.length);
+      try {
+        const teamRes = await api.getTeam(teamId);
+        setTeam(teamRes.data);
+
+        const members = await api.listTeamMembers(teamId);
+        setMembers(members);
+        setTeamMembersCount(members.length);
       } catch (err) {
         console.error("Error loading team info:", err);
       }

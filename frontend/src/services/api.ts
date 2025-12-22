@@ -34,6 +34,15 @@ export interface LoginUser {
   organization_id: string;
 }
 
+export interface TeamMember {
+  id: number;
+  user_id: number;
+  team_id: number;
+  role?: string;
+  performance?: number;
+  capacity?: number;
+}
+
 const fetchWithTimeout = async (
   url: string,
   options: RequestInit = {},
@@ -257,7 +266,7 @@ export const api = {
 
   // ==================== TEAMS ====================
 
-  getTeam: async (teamId: number) => {
+  getTeam: async (teamId: string) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/teams/${teamId}`,
       {
@@ -268,7 +277,7 @@ export const api = {
   },
 
   // List all members in a team by team_id
-  listTeamMembers: async (teamId: number | string) => {
+  listTeamMembers: async (teamId: number | string): Promise<TeamMember[]> => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/teams/${teamId}/members`,
       {
@@ -276,7 +285,10 @@ export const api = {
         headers: getAuthHeaders(),
       }
     );
-    return handleResponse(response);
+
+    const res = await handleResponse<TeamMember[]>(response);
+
+    return res.data;
   },
 
   createTeam: async (data: { organization_id: number; name: string }) => {
