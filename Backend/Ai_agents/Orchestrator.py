@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from typing import TypedDict, Optional, List
 import json
+import asyncio
 from langgraph.graph import StateGraph, END
 # UNCOMMENTED: Connect to supabase
 from supabase_connect import get_supabase_manager 
@@ -28,6 +29,7 @@ from Ai_agents.internal_analyst_agent import create_internal_analyst_crew
 from Ai_agents.reasearch_agent import create_research_crew
 from Ai_agents.synthesize_agent import create_synthesis_crew
 from Ai_agents.communication_agent import create_communication_crew
+from services.conversation_service import generate_and_store_conversation_note, get_user_context
 
 # --- Configure retry settings for different operations ---
 LLM_RETRY_CONFIG = RetryConfig(
@@ -216,6 +218,9 @@ def _run_internal_analyst_crew(user_id: str, user_query: str, chat_history_str: 
 
 
 def node_internal_analyst(state: WorkflowState) -> dict:
+    """
+    UPDATED: Now includes user context from past conversations!
+    """
     print("\n--- [Node] Executing Internal Analyst Crew (RAG) ---")
     user_id = state.get("user_id")
     
@@ -224,9 +229,35 @@ def node_internal_analyst(state: WorkflowState) -> dict:
         return {"internal_analysis_report": "Error: user_id is missing."}
     
     try:
+        # ✨ NEW: Get user context from past conversations
+        user_context = None
+        try:
+            user_context = asyncio.run(get_user_context(user_id))
+            
+            if user_context and user_context.get('user_priorities'):
+                print(f"--- [Info] User context loaded: {user_context['user_priorities'][:100]}... ---")
+        except Exception as ctx_error:
+            logging.warning(f"Could not load user context: {ctx_error}")
+        
+        # Build chat history with user context
         chat_history_str = "\n".join(state.get("chat_history", []))
         
-        # This will retry the crew execution if it times out
+        # Add user context to chat history if available
+        if user_context and user_context.get('user_priorities'):
+            context_prefix = f"""
+USER CONTEXT (from past conversations):
+{user_context['user_priorities']}
+
+Common topics user cares about: {', '.join(user_context.get('common_topics', []))}
+
+Recent concerns:
+{chr(10).join(f"- {concern}" for concern in user_context.get('key_concerns', [])[:3])}
+
+---
+"""
+            chat_history_str = context_prefix + chat_history_str
+        
+        # Run internal analyst with enhanced context
         analysis_report = _run_internal_analyst_crew(
             user_id=user_id,
             user_query=state['user_query'],
@@ -241,8 +272,7 @@ def node_internal_analyst(state: WorkflowState) -> dict:
         print(f"--- [Error] {error_msg} ---")
         logging.error(f"Internal analyst error: {e}", exc_info=True)
         return {"internal_analysis_report": f"Error: {error_msg}"}
-
-
+    
 # --- UPDATED NODE: Researcher (with retry) ---
 @retry_with_backoff(CREW_RETRY_CONFIG)
 def _run_research_with_validation(user_query: str, google_api_key: str, serper_api_key: str):
@@ -408,6 +438,94 @@ def node_human_approval(state: WorkflowState) -> dict:
     
     return {"human_feedback": None} # Approved, no feedback needed
 
+# =================================================================
+# NEW NODE: Save Conversation Note
+# =================================================================
+
+def node_save_conversation_note(state: WorkflowState) -> dict:
+    """
+    Generates and stores a conversation note after workflow completes.
+    Runs in background so it doesn't slow down the response.
+    """
+    print("\n--- [Node] Saving Conversation Note ---")
+    
+    user_id = state.get("user_id")
+    session_id = state.get("session_id")
+    
+    if not user_id or not session_id:
+        print("--- [Info] Skipping note: missing user_id or session_id ---")
+        return {}
+    
+    try:
+        # Build conversation history
+        chat_history = state.get("chat_history", [])
+        current_query = state.get("user_query", "")
+        final_response = state.get("final_report", "")
+        
+        # Format as conversation history
+        conversation_history = []
+        
+        # Add past history
+        for msg in chat_history:
+            if msg.startswith("user:"):
+                conversation_history.append({
+                    "role": "user",
+                    "content": msg.replace("user:", "").strip()
+                })
+            elif msg.startswith("assistant:"):
+                conversation_history.append({
+                    "role": "assistant", 
+                    "content": msg.replace("assistant:", "").strip()
+                })
+        
+        # Add current exchange
+        if current_query:
+            conversation_history.append({
+                "role": "user",
+                "content": current_query
+            })
+        
+        if final_response:
+            conversation_history.append({
+                "role": "assistant",
+                "content": final_response
+            })
+        
+        # Check if we should generate a note
+        should_generate = (
+            len(conversation_history) >= 5 or
+            any(keyword in current_query.lower() 
+                for keyword in ['budget', 'cost', 'expense', 'revenue', 
+                               'plan', 'strategy', 'decision', 'concern'])
+        )
+        
+        if should_generate:
+            print(f"--- [Info] Generating note for {len(conversation_history)} messages ---")
+            
+            # Run note generation in background
+            async def generate_note_async():
+                try:
+                    await generate_and_store_conversation_note(
+                        user_id=user_id,
+                        session_id=session_id,
+                        conversation_history=conversation_history,
+                        force=False
+                    )
+                except Exception as e:
+                    logging.error(f"Background note generation failed: {e}")
+            
+            # Start background task
+            asyncio.create_task(generate_note_async())
+            print("--- [Info] Note generation started in background ---")
+        else:
+            print(f"--- [Info] Skipping note: only {len(conversation_history)} messages ---")
+        
+        return {}
+        
+    except Exception as e:
+        logging.error(f"Error in conversation note node: {e}")
+        print(f"--- [Warning] Note generation failed: {e} ---")
+        return {}
 
 # --- EXISTING DECISION FUNCTIONS (Unchanged) ---
 def decide_next_step_after_analysis(state: WorkflowState) -> str:
@@ -462,6 +580,7 @@ def get_compiled_app():
     workflow.add_node("human_approval_node", node_human_approval)
     workflow.add_node("communicator_node", node_communicator)
     workflow.add_node("error_handler_node", node_error_handler)
+    workflow.add_node("save_note_node", node_save_conversation_note)
 
     # --- Set the entry point ---
     workflow.set_entry_point("load_history_node")
@@ -478,7 +597,8 @@ def get_compiled_app():
         }
     )
     
-    workflow.add_edge("answer_general_query_node", END) 
+    workflow.add_edge("answer_general_query_node", "save_note_node") 
+    workflow.add_edge("save_note_node", END) 
     workflow.add_conditional_edges(
         "internal_analyst_node",
         decide_next_step_after_analysis, 
@@ -495,7 +615,7 @@ def get_compiled_app():
         decide_after_approval, 
         {"proceed_to_comms": "communicator_node", "rerun_synthesis": "synthesizer_node"}
     )
-    workflow.add_edge("communicator_node", END)
+    workflow.add_edge("communicator_node", "save_note_node")
     workflow.add_edge("error_handler_node", END)
 
     # --- Compile the app ---
