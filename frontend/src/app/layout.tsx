@@ -1,5 +1,5 @@
+import { AppProviders } from "./providers/AppProvider";
 import "./globals.css";
-import { UserProvider } from "./components/auth/UserContext";
 
 export const metadata = {
   title: "Kogna",
@@ -16,9 +16,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" style={rootStyle}>
+    <html lang="en">
       <body style={{ fontFamily: "var(--font-sans)" }}>
-        <UserProvider>{children}</UserProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );
