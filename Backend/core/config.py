@@ -12,7 +12,8 @@ if not SECRET_KEY:
     raise ValueError("SECRET_KEY is not found")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 15  # Short-lived: 15 minutes
+REFRESH_TOKEN_EXPIRE_DAYS = 30  # Long-lived: 30 days
 
 def get_allowed_origins() -> list[str]:
     """Get allowed CORS origins from environment variable."""
