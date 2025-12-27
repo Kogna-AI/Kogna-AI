@@ -1523,6 +1523,429 @@ async def _run_asana_etl(user_id: str, access_token: str) -> tuple[bool, int]:
         import traceback
         traceback.print_exc()
         return False, 0
+    
+    # =================================================================
+# GOOGLE DRIVE ETL
+# =================================================================
+async def _run_google_etl(user_id: str, access_token: str) -> tuple[bool, int]:
+    """
+    Google Drive ETL - fetches files and extracts content from Google Drive
+    Supports: Google Docs, Sheets, Slides, PDFs, and other file types
+    Returns: (success, files_count)
+    """
+    logging.info(f"--- Starting Google Drive ETL for user: {user_id} ---")
+    
+    try:
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json"
+        }
+        
+        async with httpx.AsyncClient(headers=headers, timeout=60.0) as client:
+            logging.info("Fetching files from Google Drive...")
+            
+            # Query to get all files (excluding folders)
+            # You can customize this query to filter by type, date, etc.
+            query = "mimeType != 'application/vnd.google-apps.folder' and trashed = false"
+            files_url = f"https://www.googleapis.com/drive/v3/files?q={quote(query)}&pageSize=100&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime,createdTime,webViewLink,owners)"
+            
+            all_files = []
+            page_token = None
+            
+            # Paginate through all files
+            while True:
+                url = files_url
+                if page_token:
+                    url += f"&pageToken={page_token}"
+                
+                # Refresh token if needed
+                access_token = await ensure_valid_token(user_id, "google")
+                if not access_token:
+                    raise ValueError("Token refresh failed")
+                
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+                
+                files = data.get('files', [])
+                all_files.extend(files)
+                
+                page_token = data.get('nextPageToken')
+                if not page_token:
+                    break
+                
+                await asyncio.sleep(RATE_LIMIT_DELAY)
+            
+            logging.info(f"Found {len(all_files)} files")
+            await update_sync_progress(user_id, "google", progress=f"0/{len(all_files)} files")
+            
+            successful_count = 0
+            bucket_name = "Kogna"
+            
+            # Process each file
+            for idx, file in enumerate(all_files):
+                file_id = file.get('id')
+                file_name = file.get('name')
+                mime_type = file.get('mimeType')
+                file_size = int(file.get('size', 0))
+                
+                # Skip very large files
+                if file_size > MAX_FILE_SIZE:
+                    logging.warning(f"Skipping large file: {file_name} ({file_size} bytes)")
+                    continue
+                
+                try:
+                    # Refresh token if needed
+                    access_token = await ensure_valid_token(user_id, "google")
+                    if not access_token:
+                        raise ValueError("Token refresh failed")
+                    
+                    # Extract content based on file type
+                    content_data = await extract_google_file_content(
+                        client, file_id, file_name, mime_type, access_token
+                    )
+                    
+                    if content_data:
+                        # Save extracted content
+                        file_path = f"{user_id}/google_drive/{file_id}_content.json"
+                        
+                        # Add metadata to content
+                        full_data = {
+                            'file_id': file_id,
+                            'file_name': file_name,
+                            'mime_type': mime_type,
+                            'modified_time': file.get('modifiedTime'),
+                            'created_time': file.get('createdTime'),
+                            'web_link': file.get('webViewLink'),
+                            'owners': file.get('owners', []),
+                            'content': content_data
+                        }
+                        
+                        data_json = json.dumps(full_data, indent=2)
+                        upload_success = await safe_upload_to_bucket(
+                            bucket_name,
+                            file_path,
+                            data_json.encode('utf-8'),
+                            "application/json",
+                            enable_versioning=True
+                        )
+                        
+                        if upload_success:
+                            successful_count += 1
+                            latest_path = f"{user_id}/google_drive/{file_id}_content_latest.json"
+                            await queue_embedding(user_id, latest_path)
+                            logging.info(f"✓ Processed: {file_name}")
+                    
+                    # Update progress every 10 files
+                    if (idx + 1) % 10 == 0:
+                        await update_sync_progress(
+                            user_id, "google",
+                            progress=f"{idx+1}/{len(all_files)} files",
+                            files_processed=successful_count
+                        )
+                    
+                    await asyncio.sleep(RATE_LIMIT_DELAY)
+                    
+                except Exception as e:
+                    logging.error(f"Error processing {file_name}: {e}")
+                    continue
+            
+            logging.info(f"{'='*60}")
+            logging.info(f"✓ Finished Google Drive ETL: {successful_count}/{len(all_files)} files")
+            logging.info(f"{'='*60}")
+            
+            return True, successful_count
+            
+    except Exception as e:
+        logging.error(f" Google Drive ETL Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, 0
+
+
+async def extract_google_file_content(
+    client: httpx.AsyncClient,
+    file_id: str,
+    file_name: str,
+    mime_type: str,
+    access_token: str
+) -> dict:
+    """
+    Extract content from Google Drive files based on their type
+    Supports Google Docs, Sheets, Slides, and downloadable files
+    """
+    try:
+        # Google Workspace files (Docs, Sheets, Slides)
+        google_export_types = {
+            'application/vnd.google-apps.document': 'text/plain',  # Google Docs
+            'application/vnd.google-apps.spreadsheet': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # Google Sheets
+            'application/vnd.google-apps.presentation': 'text/plain',  # Google Slides
+        }
+        
+        if mime_type in google_export_types:
+            # Export Google Workspace file
+            export_mime = google_export_types[mime_type]
+            export_url = f"https://www.googleapis.com/drive/v3/files/{file_id}/export?mimeType={quote(export_mime)}"
+            
+            response = await client.get(export_url)
+            response.raise_for_status()
+            
+            if mime_type == 'application/vnd.google-apps.document':
+                # Plain text for Docs
+                return {
+                    'type': 'document',
+                    'text': response.text
+                }
+            elif mime_type == 'application/vnd.google-apps.spreadsheet':
+                # For Sheets, we need to parse the Excel format
+                # For simplicity, we'll just note it's a spreadsheet
+                return {
+                    'type': 'spreadsheet',
+                    'note': 'Spreadsheet content (download as Excel for full data)',
+                    'size_bytes': len(response.content)
+                }
+            elif mime_type == 'application/vnd.google-apps.presentation':
+                # Plain text for Slides
+                return {
+                    'type': 'presentation',
+                    'text': response.text
+                }
+        
+        # Regular files (PDFs, text files, etc.)
+        elif mime_type in ['application/pdf', 'text/plain', 'text/csv']:
+            # Download file content
+            download_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+            
+            response = await client.get(download_url)
+            response.raise_for_status()
+            
+            if mime_type == 'text/plain' or mime_type == 'text/csv':
+                return {
+                    'type': 'text_file',
+                    'text': response.text
+                }
+            elif mime_type == 'application/pdf':
+                # For PDFs, we'll store metadata (actual PDF parsing would require additional libraries)
+                return {
+                    'type': 'pdf',
+                    'note': 'PDF file (content extraction requires PDF parser)',
+                    'size_bytes': len(response.content)
+                }
+        
+        # Other file types - just store metadata
+        else:
+            return {
+                'type': 'other',
+                'mime_type': mime_type,
+                'note': f'File type: {mime_type}'
+            }
+    
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 403:
+            logging.warning(f"Access denied to file: {file_name}")
+        else:
+            logging.error(f"HTTP error extracting {file_name}: {e.response.status_code}")
+        return None
+    except Exception as e:
+        logging.error(f"Error extracting {file_name}: {e}")
+        return None
+
+
+# =================================================================
+# MICROSOFT TEAMS ETL
+# =================================================================
+async def _run_microsoft_teams_etl(user_id: str, access_token: str) -> tuple[bool, int]:
+    """
+    Microsoft Teams ETL - fetches teams, channels, and messages
+    Extracts conversations and shared files from Teams
+    Returns: (success, files_count)
+    """
+    logging.info(f"--- Starting Microsoft Teams ETL for user: {user_id} ---")
+    
+    try:
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json"
+        }
+        
+        async with httpx.AsyncClient(headers=headers, timeout=60.0) as client:
+            logging.info("📱 Fetching Teams...")
+            
+            # Get all teams the user is a member of
+            teams_url = "https://graph.microsoft.com/v1.0/me/joinedTeams"
+            response = await client.get(teams_url)
+            response.raise_for_status()
+            teams = response.json().get('value', [])
+            
+            logging.info(f"Found {len(teams)} teams")
+            await update_sync_progress(user_id, "microsoft-teams", progress=f"0/{len(teams)} teams")
+            
+            bucket_name = "Kogna"
+            total_messages = 0
+            total_files = 0
+            
+            for team_idx, team in enumerate(teams):
+                team_id = team.get('id')
+                team_name = team.get('displayName')
+                
+                logging.info(f"Processing team: {team_name}")
+                
+                try:
+                    # Refresh token if needed
+                    access_token = await ensure_valid_token(user_id, "microsoft-teams")
+                    if not access_token:
+                        raise ValueError("Token refresh failed")
+                    
+                    # Get channels for this team
+                    channels_url = f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels"
+                    channels_response = await client.get(channels_url)
+                    channels_response.raise_for_status()
+                    channels = channels_response.json().get('value', [])
+                    
+                    logging.info(f"   Found {len(channels)} channels")
+                    
+                    team_data = {
+                        'team_id': team_id,
+                        'team_name': team_name,
+                        'channels': []
+                    }
+                    
+                    for channel in channels:
+                        channel_id = channel.get('id')
+                        channel_name = channel.get('displayName')
+                        
+                        try:
+                            # Get messages from channel
+                            messages_url = f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels/{channel_id}/messages"
+                            
+                            # Refresh token if needed
+                            access_token = await ensure_valid_token(user_id, "microsoft-teams")
+                            if not access_token:
+                                raise ValueError("Token refresh failed")
+                            
+                            messages_response = await client.get(messages_url)
+                            messages_response.raise_for_status()
+                            messages = messages_response.json().get('value', [])
+                            
+                            if messages:
+                                channel_data = {
+                                    'channel_id': channel_id,
+                                    'channel_name': channel_name,
+                                    'message_count': len(messages),
+                                    'messages': messages
+                                }
+                                
+                                team_data['channels'].append(channel_data)
+                                total_messages += len(messages)
+                                
+                                logging.info(f"      {channel_name}: {len(messages)} messages")
+                            
+                            # Get files shared in channel (if any)
+                            try:
+                                files_url = f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels/{channel_id}/filesFolder"
+                                files_response = await client.get(files_url)
+                                
+                                if files_response.status_code == 200:
+                                    files_folder = files_response.json()
+                                    
+                                    # Get children (files) in the folder
+                                    folder_id = files_folder.get('id')
+                                    if folder_id:
+                                        children_url = f"https://graph.microsoft.com/v1.0/me/drive/items/{folder_id}/children"
+                                        children_response = await client.get(children_url)
+                                        
+                                        if children_response.status_code == 200:
+                                            files = children_response.json().get('value', [])
+                                            if files:
+                                                total_files += len(files)
+                                                # Add files to channel data
+                                                if 'files' not in channel_data:
+                                                    channel_data['files'] = []
+                                                channel_data['files'] = files
+                                                logging.info(f"      📎 {len(files)} files")
+                            except Exception as e:
+                                logging.debug(f"Could not fetch files for {channel_name}: {e}")
+                            
+                            await asyncio.sleep(RATE_LIMIT_DELAY)
+                            
+                        except httpx.HTTPStatusError as e:
+                            if e.response.status_code == 403:
+                                logging.warning(f"     Access denied to channel: {channel_name}")
+                            else:
+                                logging.error(f"Error fetching messages from {channel_name}: {e}")
+                            continue
+                    
+                    # Save team data with versioning
+                    if team_data['channels']:
+                        team_json = json.dumps(team_data, indent=2)
+                        file_path = f"{user_id}/microsoft_teams/{team_id}_data.json"
+                        
+                        await safe_upload_to_bucket(
+                            bucket_name,
+                            file_path,
+                            team_json.encode('utf-8'),
+                            "application/json",
+                            enable_versioning=True
+                        )
+                        
+                        latest_path = f"{user_id}/microsoft_teams/{team_id}_data_latest.json"
+                        await queue_embedding(user_id, latest_path)
+                    
+                    await update_sync_progress(
+                        user_id, "microsoft-teams",
+                        progress=f"{team_idx+1}/{len(teams)} teams",
+                        files_processed=total_messages
+                    )
+                    
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 403:
+                        logging.warning(f"  Access denied to team: {team_name}")
+                    else:
+                        logging.error(f"Error processing team {team_name}: {e}")
+                    continue
+            
+            # Create summary
+            summary = {
+                'total_teams': len(teams),
+                'total_messages': total_messages,
+                'total_files': total_files,
+                'extracted_at': int(time.time())
+            }
+            
+            summary_json = json.dumps(summary, indent=2)
+            summary_path = f"{user_id}/microsoft_teams/summary.json"
+            await safe_upload_to_bucket(
+                bucket_name,
+                summary_path,
+                summary_json.encode('utf-8'),
+                "application/json",
+                enable_versioning=True
+            )
+            
+            logging.info(f"{'='*60}")
+            logging.info(f"✓ Finished Teams ETL: {total_messages} messages, {total_files} files from {len(teams)} teams")
+            logging.info(f"{'='*60}")
+            
+            return True, total_messages
+            
+    except httpx.HTTPStatusError as e:
+        logging.error(f" API Error {e.response.status_code}: {e.response.text}")
+        logging.error(f"Failed URL: {e.request.url}")
+        
+        if e.response.status_code == 403:
+            logging.error("  Permission error. Required scopes:")
+            logging.error("   - Team.ReadBasic.All")
+            logging.error("   - Channel.ReadBasic.All")
+            logging.error("   - ChannelMessage.Read.All")
+            logging.error("   - Files.Read.All")
+        
+        return False, 0
+        
+    except Exception as e:
+        logging.error(f" Teams ETL Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, 0
 
 # =================================================================
 # TEST FUNCTION

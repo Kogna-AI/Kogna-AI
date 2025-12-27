@@ -1,14 +1,20 @@
-"use client"
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
-import { Progress } from '../../ui/progress';
-import { Target, Plus, Calendar, TrendingUp, AlertCircle, Users } from 'lucide-react';
-import { ObjectiveCreation } from './ObjectiveCreation';
-import { TeamScaleSimulation } from './TeamScaleSimulation';
-import JiraOverview from './JiraOverview';
-
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { Button } from "../../ui/button";
+import { Badge } from "../../ui/badge";
+import { Progress } from "../../ui/progress";
+import {
+  Target,
+  Plus,
+  Calendar,
+  TrendingUp,
+  AlertCircle,
+  Users,
+} from "lucide-react";
+import { ObjectiveCreation } from "./ObjectiveCreation";
+import { TeamScaleSimulation } from "./TeamScaleSimulation";
+import JiraOverview from "./JiraOverview";
 const initialObjectives = [
   {
     id: 1,
@@ -84,7 +90,7 @@ export function StrategyHub({
 
   // --- FIX: Explicitly type the useState hook ---
   const [aiSuggestedTeam, setAiSuggestedTeam] = useState<TeamMember[] | null>(
-    null,
+    null
   );
 
   // Handle Kognii control actions
@@ -199,20 +205,20 @@ export function StrategyHub({
           (member) =>
             member.department === "Product" ||
             member.department === "Engineering" ||
-            member.department === "Design",
+            member.department === "Design"
         );
         break;
       case "Marketing":
         suggestedMembers = teamMembers.filter(
           (member) =>
-            member.department === "Marketing" || member.department === "Design",
+            member.department === "Marketing" || member.department === "Design"
         );
         break;
       case "Technology":
         suggestedMembers = teamMembers.filter(
           (member) =>
             member.department === "Engineering" ||
-            member.expertise.some((exp) => exp.includes("Technology")),
+            member.expertise.some((exp) => exp.includes("Technology"))
         );
         break;
       default:
@@ -267,8 +273,8 @@ export function StrategyHub({
                     objective.status === "ahead"
                       ? "default"
                       : objective.status === "at-risk"
-                        ? "destructive"
-                        : "secondary"
+                      ? "destructive"
+                      : "secondary"
                   }
                 >
                   {objective.status}

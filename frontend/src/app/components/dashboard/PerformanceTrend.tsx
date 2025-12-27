@@ -1,23 +1,26 @@
-import React from 'react';
-import { Card, CardContent, CardHeader } from '@mui/material';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
-import { useMetricTrends } from '../../hooks/useDashboard';
+import React from "react";
+import { Card, CardContent, CardHeader } from "@mui/material";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from "recharts";
+import { useMetricTrends } from "@/app/hooks/useDashboard";
 
 interface PerformanceTrendProps {
-  data?: Array<{ month: string; value: number }>;
+  data?: Array<{ date: string; value: number }>;
   orgId?: number;
   metricName?: string;
   useLiveData?: boolean;
 }
-
 export default function PerformanceTrend({
   data,
   orgId,
-  metricName = 'performance',
-  useLiveData = false
+  metricName = "performance",
+  useLiveData = false,
 }: PerformanceTrendProps) {
   // Fetch live data if enabled and orgId is provided
-  const { data: apiData, isLoading, error } = useMetricTrends(
+  const {
+    data: apiData,
+    isLoading,
+    error,
+  } = useMetricTrends(
     orgId || 0,
     metricName,
     180, // Last 180 days (6 months)
@@ -33,7 +36,9 @@ export default function PerformanceTrend({
       <Card>
         <CardHeader>
           <div>Performance Trend</div>
-          <p className="text-sm text-muted-foreground">Loading performance data...</p>
+          <p className="text-sm text-muted-foreground">
+            Loading performance data...
+          </p>
         </CardHeader>
         <CardContent>
           <div className="h-[300px] flex items-center justify-center">

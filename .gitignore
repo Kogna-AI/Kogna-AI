@@ -166,3 +166,5 @@ task-definition-*.json
 
 **/.claude/
 **/settings.local.json
+
+warp.md
