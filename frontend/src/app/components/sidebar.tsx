@@ -1,10 +1,7 @@
 import {
   LayoutDashboard,
   Users,
-  Calendar,
   Target,
-  TrendingUp,
-  MessageSquare,
   Bell,
   Settings,
   Database,
@@ -50,9 +47,6 @@ export function Sidebar({
     { id: "team", label: "Team Overview", icon: Users },
     { id: "strategy", label: "Strategy Hub", icon: Target },
     { id: "connectors", label: "Data Connectors", icon: Database },
-    { id: "meetings", label: "Meetings", icon: Calendar },
-    { id: "analytics", label: "Analytics", icon: TrendingUp },
-    { id: "feedback", label: "Feedback", icon: MessageSquare },
     // { id: "insights", label: "Insights", icon: Brain },
   ];
 
