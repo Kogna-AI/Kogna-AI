@@ -1,11 +1,7 @@
 import { DashboardOverview } from "./dashboard/dashboardoverview";
 import { TeamOverview } from "./dashboard/TeamOverview";
 import { StrategyHub } from "./dashboard/StrategyHub";
-
 import { DataConnectorHub } from "./dashboard/DataConnectorHub";
-import { MeetingsView } from "./dashboard/MeetingsView";
-import { AnalyticsView } from "./dashboard/AnalyticsView";
-import { FeedbackView } from "./dashboard/FeedbackView";
 import { SettingsView } from "./dashboard/SettingsView";
 import { useUser } from "./auth/UserContext";
 
@@ -46,12 +42,6 @@ export function MainDashboard({
 
       case "connectors":
         return <DataConnectorHub />;
-      case "meetings":
-        return <MeetingsView />;
-      case "analytics":
-        return <AnalyticsView />;
-      case "feedback":
-        return <FeedbackView />;
       case "settings":
         return <SettingsView />;
       default:

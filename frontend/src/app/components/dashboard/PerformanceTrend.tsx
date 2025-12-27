@@ -2,6 +2,7 @@ import React from "react";
 import { Card, CardContent, CardHeader } from "@mui/material";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from "recharts";
 import { useMetricTrends } from "@/app/hooks/useDashboard";
+
 interface PerformanceTrendProps {
   data?: Array<{ date: string; value: number }>;
   orgId?: number;
