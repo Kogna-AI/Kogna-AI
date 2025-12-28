@@ -15,6 +15,7 @@ import { Label } from "../../ui/label";
 import { Alert, AlertDescription } from "../../ui/alert";
 import { Eye, EyeOff, AlertCircle, UserPlus } from "lucide-react";
 import Image from "next/image";
+import Logo from "/public/KognaKLetterLogo.png";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { useUser } from "./UserContext";
@@ -75,7 +76,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-white shadow-lg flex items-center justify-center">
             <Image
-              src="/logoImage.svg"
+              src={"/KognaKLetterLogo.png"}
               alt="KognaDash Logo"
               width={40}
               height={40}
@@ -83,7 +84,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
             />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Welcome to KognaDash
+            Welcome to Kogna
           </h1>
           <p className="text-gray-600 mt-1">
             Strategic Team Management Intelligence

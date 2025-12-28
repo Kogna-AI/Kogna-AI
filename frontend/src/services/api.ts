@@ -103,11 +103,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-
-    const data = await handleResponse<{
-      access_token: string;
-      user: any;
-    }>(response);
+    if(!response.ok){
+      const errorData = await response
+      .json()
+      .catch(()=>({detail:"Login Failed"}));
+      throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
+    }
+    const data = await response.json();
 
     // Save token
     if (data.access_token) {

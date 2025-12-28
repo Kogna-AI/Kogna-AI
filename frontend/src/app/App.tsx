@@ -149,7 +149,7 @@ export default function AppContent() {
   );
 }
 
-export default function App() {
+export function App() {
   return (
     <UserProvider>
       <AppContent />
