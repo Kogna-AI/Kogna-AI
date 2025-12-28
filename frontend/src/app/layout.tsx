@@ -1,4 +1,6 @@
+import { AppProviders } from "./providers/AppProvider";
 import "./globals.css";
+import { QueryProvider } from "./providers/QueryProvider";
 import { UserProvider } from "./components/auth/UserContext";
 
 export const metadata = {
@@ -10,6 +12,8 @@ const rootStyle: React.CSSProperties & { [key: string]: string } = {
   "--font-sans": "ui-sans-serif, system-ui, sans-serif",
 };
 
+
+
 export default function RootLayout({
   children,
 }: {
@@ -18,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" style={rootStyle}>
       <body style={{ fontFamily: "var(--font-sans)" }}>
-        <UserProvider>{children}</UserProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

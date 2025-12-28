@@ -17,7 +17,6 @@ import { Eye, EyeOff, AlertCircle, UserPlus } from "lucide-react";
 import Image from "next/image";
 import Logo from "/public/KognaKLetterLogo.png";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabaseClient";
 import { useUser } from "./UserContext";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -59,8 +58,8 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
         return;
       }
 
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // IMPORTANT: use replace, not push
+      router.replace("/dashboard");
     } catch (err) {
       console.error(err);
       setError("An unexpected error occurred");

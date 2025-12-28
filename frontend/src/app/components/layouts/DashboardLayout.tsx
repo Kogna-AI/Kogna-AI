@@ -32,8 +32,9 @@ interface GridWidget {
 }
 
 export function DashboardLayout({ activeView }: DashboardLayoutProps) {
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, loading } = useUser();
   const router = useRouter();
+
   const [isKogniiOpen, setIsKogniiOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [strategySessionMode, setStrategySessionMode] = useState(false);
@@ -75,7 +76,6 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
     }
   ]);
 
-  // Kognii control states
   const [kogniiControlState, setKogniiControlState] = useState({
     shouldOpenObjectiveCreation: false,
     shouldNavigateToView: null as string | null,
@@ -133,10 +133,12 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
 
   // Redirect if not authenticated
   useEffect(() => {
+    if (loading) return;
+
     if (!isAuthenticated) {
-      router.push("/login");
+      router.replace("/login");
     }
-  }, [isAuthenticated, router]);
+  }, [loading, isAuthenticated, router]);
 
   const handleStrategySession = () => {
     setStrategySessionMode(true);
@@ -194,11 +196,9 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
     }
   };
 
-  // Memoized Kognii control functions
   const kogniiActions = useMemo(
     () => ({
       navigateToView: (view: string) => {
-        // Navigate to the appropriate route
         router.push(`/${view}`);
         setKogniiControlState((prev) => ({
           ...prev,
@@ -229,7 +229,7 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
         }));
       },
 
-      startGuidedTour: (tourType: string) => {
+      startGuidedTour: (_tourType: string) => {
         setKogniiControlState((prev) => ({
           ...prev,
           guidedTourActive: true,
@@ -250,6 +250,14 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
     }),
     [router]
   );
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+        Loading dashboard…
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return null;

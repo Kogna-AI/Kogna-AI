@@ -1,33 +1,67 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from psycopg2.extras import RealDictCursor
 
-from core.security import create_access_token
+from core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+    hash_token,
+)
 from core.database import get_db
 from auth.dependencies import get_current_user
 from core.models import RegisterRequest, LoginRequest
 from argon2 import PasswordHasher
-ph = PasswordHasher()
 from argon2.exceptions import VerifyMismatchError
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 pwd_context = CryptContext(
     schemes=["argon2"],
-    deprecated="auto"
+    deprecated="auto",
 )
+
+ph = PasswordHasher()
+
+# Cookie configuration for refresh tokens
+REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
+REFRESH_TOKEN_COOKIE_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
+
+
+def _validate_password_strength(password: str) -> None:
+    """Server-side password policy enforcement.
+
+    Applied ONLY to new registrations to avoid breaking existing passwords.
+    Requirements:
+    - At least 8 characters
+    - Contains at least one letter and one digit
+    """
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 8 characters long",
+        )
+
+    has_letter = any(c.isalpha() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+
+    if not (has_letter and has_digit):
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least one letter and one digit",
+        )
 
 
 # ------------------------------
 # POST /register
 # ------------------------------
-from argon2 import PasswordHasher
-
-ph = PasswordHasher()
 
 @router.post("/register")
 async def register(data: RegisterRequest, db=Depends(get_db)):
+    # Enforce password policy for new accounts only
+    _validate_password_strength(data.password)
+
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -122,35 +156,84 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
 # ------------------------------
 
 @router.post("/login")
-async def login(data: LoginRequest, db=Depends(get_db)):
+async def login(
+    data: LoginRequest,
+    response: Response,
+    request: Request,
+    db=Depends(get_db),
+):
+    # Normalize email to prevent timing attacks on user enumeration
+    email = data.email.strip().lower()
+
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, email, password_hash, organization_id, supabase_id
             FROM users
             WHERE email = %s
-        """, (data.email,))
+            """,
+            (email,),
+        )
 
         user = cursor.fetchone()
 
+        # Generic error message to avoid user enumeration
+        invalid_credentials_exc = HTTPException(
+            status_code=401,
+            detail="Incorrect email or password",
+        )
+
         if not user or not user["password_hash"]:
-            raise HTTPException(status_code=401, detail="Incorrect email or password")
+            # Perform dummy hash to mitigate timing attacks
+            try:
+                ph.verify(ph.hash("dummy-password"), data.password)
+            except Exception:
+                pass
+            raise invalid_credentials_exc
 
         # --- Password verification using Argon2 ---
         try:
             ph.verify(user["password_hash"], data.password)
         except VerifyMismatchError:
-            raise HTTPException(status_code=401, detail="Incorrect email or password")
+            raise invalid_credentials_exc
 
-        # --- Create JWT token ---
+        # --- Create tokens ---
         token_data = {
-            "sub": user["supabase_id"],              # Keep your original JWT subject
+            "sub": user["supabase_id"],
             "email": user["email"],
-            "organization_id": user["organization_id"]
+            "organization_id": user["organization_id"],
         }
 
         access_token = create_access_token(token_data)
+        refresh_token, jti, expires_at = create_refresh_token(token_data)
+
+        # Store refresh token in database for revocation support
+        token_hash = hash_token(refresh_token)
+        user_agent = request.headers.get("user-agent", "")
+        # Note: request.client.host might be proxy IP; consider X-Forwarded-For
+        ip_address = request.client.host if request.client else None
+
+        cursor.execute(
+            """
+            INSERT INTO refresh_tokens (jti, user_id, token_hash, expires_at, user_agent, ip_address)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (jti, user["id"], token_hash, expires_at, user_agent, ip_address),
+        )
+        conn.commit()
+
+        # Set refresh token as httpOnly cookie
+        response.set_cookie(
+            key=REFRESH_TOKEN_COOKIE_NAME,
+            value=refresh_token,
+            max_age=REFRESH_TOKEN_COOKIE_MAX_AGE,
+            httponly=True,  # Cannot be accessed by JavaScript
+            secure=False,  # Set to True in production with HTTPS
+            samesite="lax",  # Lax is fine for localhost:3000 -> localhost:8000 (same-site)
+            path="/",  # Root path so /api/auth/refresh will see the cookie
+        )
 
         return {
             "success": True,
@@ -159,22 +242,169 @@ async def login(data: LoginRequest, db=Depends(get_db)):
             "user": {
                 "id": user["id"],
                 "email": user["email"],
-                "organization_id": user["organization_id"]
-            }
+                "organization_id": user["organization_id"],
+            },
         }
 
 
 
 
 # ------------------------------
+# POST /refresh
+# ------------------------------
+@router.post("/refresh")
+async def refresh(
+    request: Request,
+    response: Response,
+    db=Depends(get_db),
+):
+    """Issue a new access token using the refresh token from httpOnly cookie.
+
+    Security features:
+    - Validates refresh token signature and expiration
+    - Checks token hasn't been revoked in database
+    - Issues new short-lived access token
+    - Does NOT rotate refresh token (you can add rotation for extra security)
+    """
+    # Read refresh token from httpOnly cookie
+    refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)
+
+    if not refresh_token:
+        raise HTTPException(
+            status_code=401,
+            detail="No refresh token provided",
+        )
+
+    # Decode and validate refresh token
+    try:
+        payload = decode_refresh_token(refresh_token)
+    except HTTPException:
+        # Token is invalid or expired; clear the cookie
+        response.delete_cookie(
+            key=REFRESH_TOKEN_COOKIE_NAME,
+            path="/",
+        )
+        raise
+
+    jti = payload["jti"]
+    token_hash = hash_token(refresh_token)
+
+    with db as conn:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Verify token exists in DB and hasn't been revoked
+        cursor.execute(
+            """
+            SELECT user_id, revoked_at, expires_at
+            FROM refresh_tokens
+            WHERE jti = %s AND token_hash = %s
+            """,
+            (jti, token_hash),
+        )
+
+        token_record = cursor.fetchone()
+
+        if not token_record:
+            # Token not found in DB (possibly never issued or already deleted)
+            response.delete_cookie(
+                key=REFRESH_TOKEN_COOKIE_NAME,
+                path="/",
+            )
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid refresh token",
+            )
+
+        if token_record["revoked_at"] is not None:
+            # Token has been revoked (logout or security event)
+            response.delete_cookie(
+                key=REFRESH_TOKEN_COOKIE_NAME,
+                path="/",
+            )
+            raise HTTPException(
+                status_code=401,
+                detail="Refresh token has been revoked",
+            )
+
+        # Token is valid; issue new access token
+        token_data = {
+            "sub": payload["sub"],
+            "email": payload["email"],
+            "organization_id": payload["organization_id"],
+        }
+
+        access_token = create_access_token(token_data)
+
+        return {
+            "success": True,
+            "access_token": access_token,
+            "token_type": "bearer",
+        }
+
+
+# ------------------------------
+# POST /logout
+# ------------------------------
+@router.post("/logout")
+async def logout(
+    request: Request,
+    response: Response,
+    db=Depends(get_db),
+):
+    """Logout by revoking the refresh token and clearing the cookie.
+
+    Security features:
+    - Marks refresh token as revoked in database
+    - Clears httpOnly cookie
+    - Prevents reuse of the refresh token
+    """
+    refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)
+
+    if refresh_token:
+        try:
+            payload = decode_refresh_token(refresh_token)
+            jti = payload["jti"]
+            token_hash = hash_token(refresh_token)
+
+            with db as conn:
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+                # Mark token as revoked
+                cursor.execute(
+                    """
+                    UPDATE refresh_tokens
+                    SET revoked_at = NOW()
+                    WHERE jti = %s AND token_hash = %s
+                    """,
+                    (jti, token_hash),
+                )
+                conn.commit()
+
+        except HTTPException:
+            # Token is already invalid; just clear cookie
+            pass
+
+    # Clear refresh token cookie regardless of DB operation result
+    response.delete_cookie(
+        key=REFRESH_TOKEN_COOKIE_NAME,
+        path="/",
+    )
+
+    return {
+        "success": True,
+        "message": "Logged out successfully",
+    }
+
+
+# ------------------------------
 # GET /me
 # ------------------------------
 @router.get("/me")
-async def me(user = Depends(get_current_user)):
+async def me(user=Depends(get_current_user)):
     """
     Show user info extracted from token.
     """
     return {
         "success": True,
-        "data": user
+        "data": user,
     }

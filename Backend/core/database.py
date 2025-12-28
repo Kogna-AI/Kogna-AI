@@ -8,7 +8,11 @@ load_dotenv()
 
 @contextmanager
 def get_db():
-    conn = psycopg2.connect(os.getenv("DATABASE_URL"), cursor_factory=RealDictCursor)
+    conn = psycopg2.connect(
+        os.getenv("DATABASE_URL"),
+        cursor_factory=RealDictCursor,
+        options='-c client_encoding=UTF8'
+    )
     try:
         yield conn
         conn.commit() # <-- 3. Commit on success
