@@ -230,9 +230,9 @@ async def login(
             value=refresh_token,
             max_age=REFRESH_TOKEN_COOKIE_MAX_AGE,
             httponly=True,  # Cannot be accessed by JavaScript
-            secure=False,  # Only sent over HTTPS (disable in local dev if needed)
-            samesite="lax",  # CSRF protection while allowing normal navigation
-            path="/api/auth",  # Restrict cookie to auth endpoints only
+            secure=False,  # Set to True in production with HTTPS
+            samesite="lax",  # Lax is fine for localhost:3000 -> localhost:8000 (same-site)
+            path="/",  # Root path so /api/auth/refresh will see the cookie
         )
 
         return {
@@ -282,7 +282,7 @@ async def refresh(
         # Token is invalid or expired; clear the cookie
         response.delete_cookie(
             key=REFRESH_TOKEN_COOKIE_NAME,
-            path="/api/auth",
+            path="/",
         )
         raise
 
@@ -308,7 +308,7 @@ async def refresh(
             # Token not found in DB (possibly never issued or already deleted)
             response.delete_cookie(
                 key=REFRESH_TOKEN_COOKIE_NAME,
-                path="/api/auth",
+                path="/",
             )
             raise HTTPException(
                 status_code=401,
@@ -319,7 +319,7 @@ async def refresh(
             # Token has been revoked (logout or security event)
             response.delete_cookie(
                 key=REFRESH_TOKEN_COOKIE_NAME,
-                path="/api/auth",
+                path="/",
             )
             raise HTTPException(
                 status_code=401,
@@ -387,7 +387,7 @@ async def logout(
     # Clear refresh token cookie regardless of DB operation result
     response.delete_cookie(
         key=REFRESH_TOKEN_COOKIE_NAME,
-        path="/api/auth",
+        path="/",
     )
 
     return {
