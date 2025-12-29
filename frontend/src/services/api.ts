@@ -317,7 +317,16 @@ export const api = {
     });
     return handleResponse(response);
   },
-
+  listVisibleUsers: async () => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/users/visible`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
   listOrganizationUsers: async (orgId: number) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/users`,
@@ -391,6 +400,28 @@ export const api = {
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
+    return handleResponse(response);
+  },
+
+  // Get user's team (first team they belong to)
+  getUserTeam: async (userId: string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/user/${userId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
+  // List all teams in an organization
+  listOrganizationTeams: async (orgId: string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/organization/${orgId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 

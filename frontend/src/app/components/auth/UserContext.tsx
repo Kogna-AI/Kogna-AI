@@ -10,13 +10,23 @@ import {
 import api, { setAccessToken, getAccessToken } from "@/services/api";
 import { cleanupOldSupabaseAuth } from "@/utils/cleanupOldAuth";
 
-interface BackendUser {
+export interface BackendUserRbac {
+  role_name: string;
+  role_level: number;
+  permissions: string[];
+  team_ids: string[];
+}
+
+export interface BackendUser {
   id: string;
   email: string;
   first_name?: string;
   second_name?: string;
   role?: string;
-  organization_id?: number;
+  organization_id?: string;
+  organization_name?: string;
+  created_at?: string;
+  rbac?: BackendUserRbac;
 }
 
 interface SignupPayload {
