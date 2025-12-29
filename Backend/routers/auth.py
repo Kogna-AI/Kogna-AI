@@ -133,6 +133,47 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
             ))
 
             user = cursor.fetchone()
+            user_id = user["id"]
+
+            # 5. Auto-create default team for new organization
+            # Check if this is the first user in the organization
+            cursor.execute(
+                "SELECT COUNT(*) AS count FROM users WHERE organization_id = %s",
+                (organization_id,)
+            )
+            user_count = cursor.fetchone()["count"]
+
+            if user_count == 1:  # First user in the organization
+                # Create a default team
+                cursor.execute(
+                    """
+                    INSERT INTO teams (id, organization_id, name)
+                    VALUES (gen_random_uuid(), %s, %s)
+                    RETURNING id
+                    """,
+                    (organization_id, f"{data.organization} Team")
+                )
+                team = cursor.fetchone()
+                team_id = team["id"]
+
+                # Add user as a member of the team
+                cursor.execute(
+                    """
+                    INSERT INTO team_members (
+                        id,
+                        team_id,
+                        user_id,
+                        role,
+                        performance,
+                        capacity,
+                        project_count,
+                        status
+                    )
+                    VALUES (gen_random_uuid(), %s, %s, %s, 85, 80, 0, 'available')
+                    """,
+                    (team_id, user_id, data.role)
+                )
+
             conn.commit()
 
             return {
@@ -168,11 +209,12 @@ async def login(
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
+        # Case-insensitive email lookup
         cursor.execute(
             """
             SELECT id, email, password_hash, organization_id, supabase_id
             FROM users
-            WHERE email = %s
+            WHERE LOWER(email) = %s
             """,
             (email,),
         )
@@ -201,9 +243,9 @@ async def login(
 
         # --- Create tokens ---
         token_data = {
-            "sub": user["supabase_id"],
+            "sub": str(user["id"]),  # Use actual user ID, not supabase_id
             "email": user["email"],
-            "organization_id": user["organization_id"],
+            "organization_id": str(user["organization_id"]),
         }
 
         access_token = create_access_token(token_data)
@@ -400,11 +442,37 @@ async def logout(
 # GET /me
 # ------------------------------
 @router.get("/me")
-async def me(user=Depends(get_current_user)):
+async def me(user=Depends(get_current_user), db=Depends(get_db)):
     """
-    Show user info extracted from token.
+    Get complete user profile including database fields.
+    Returns user with id, email, organization info, etc.
     """
-    return {
-        "success": True,
-        "data": user,
-    }
+    user_id = user["id"]
+    
+    with db as conn:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT
+                u.id,
+                u.organization_id,
+                u.first_name,
+                u.second_name,
+                u.role,
+                u.email,
+                u.created_at,
+                o.name as organization_name
+            FROM users u
+            LEFT JOIN organizations o ON u.organization_id = o.id
+            WHERE u.id = %s
+        """, (user_id,))
+        
+        user_data = cursor.fetchone()
+        
+        if not user_data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "success": True,
+            "data": dict(user_data)
+        }

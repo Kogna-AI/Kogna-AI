@@ -193,11 +193,11 @@ def get_user_teams(user_id: str) -> List[str]:
         teams = cursor.fetchall()
         return [str(team['team_id']) for team in teams]
 
-#Build complete UserContext from Supabase user.This is the main function that connects authentication with RBAC.
-def build_user_context(supabase_user) -> UserContext:
+#Build complete UserContext from JWT user data. This is the main function that connects authentication with RBAC.
+def build_user_context(jwt_user: dict) -> UserContext:
     """
     Args:
-        supabase_user: User object from Supabase authentication
+        jwt_user: User dict from JWT token with 'id', 'email', 'organization_id'
 
     Returns:
         UserContext with full role and permission information
@@ -205,27 +205,35 @@ def build_user_context(supabase_user) -> UserContext:
     Raises:
         HTTPException: If user not found in database
     """
+    user_id = jwt_user["id"]
+    
     # Get user from database
-    db_user = get_user_from_supabase_id(supabase_user.id)
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, organization_id, first_name, second_name, email
+            FROM users
+            WHERE id = %s
+        """, (user_id,))
+        db_user = cursor.fetchone()
 
     if not db_user:
         raise HTTPException(
             status_code=404,
-            detail=f"User with Supabase ID {supabase_user.id} not found in database. "
-                   f"Please sync Supabase users with the database."
+            detail=f"User with ID {user_id} not found in database."
         )
 
     # Get role and permissions
-    role_data = get_user_role_and_permissions(db_user['id'])
+    role_data = get_user_role_and_permissions(user_id)
 
     # Get teams
-    team_ids = get_user_teams(db_user['id'])
+    team_ids = get_user_teams(user_id)
 
     # Build context
     return UserContext(
-        id=str(db_user['id']),
-        supabase_id=supabase_user.id,
-        email=supabase_user.email,
+        id=str(user_id),
+        supabase_id=None,  # Not used, keeping for backward compatibility
+        email=jwt_user["email"],
         organization_id=str(db_user['organization_id']) if db_user['organization_id'] else None,
         first_name=db_user.get('first_name'),
         second_name=db_user.get('second_name'),

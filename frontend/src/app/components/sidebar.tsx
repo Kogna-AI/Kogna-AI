@@ -26,6 +26,12 @@ interface SidebarProps {
   onNotificationsToggle: () => void;
 }
 
+const getUserDisplayName = (user: any) => {
+  if (!user) return "";
+  const fullName = [user.first_name, user.second_name].filter(Boolean).join(" ");
+  return fullName || user.email || "";
+};
+
 interface NavItem {
   id: string;
   label: string;
@@ -158,7 +164,9 @@ export function Sidebar({
           className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent"
         >
           <LogOut className="w-4 h-4" />
-          Sign Out ({user?.name})
+          {getUserDisplayName(user)
+            ? `Sign Out (${getUserDisplayName(user)})`
+            : "Sign Out"}
         </Button>
       </div>
     </div>
