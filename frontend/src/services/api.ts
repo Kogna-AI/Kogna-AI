@@ -317,7 +317,16 @@ export const api = {
     });
     return handleResponse(response);
   },
-
+  listVisibleUsers: async () => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/users/visible`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
   listOrganizationUsers: async (orgId: number) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/users`,

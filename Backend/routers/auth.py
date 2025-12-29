@@ -10,7 +10,7 @@ from core.security import (
     hash_token,
 )
 from core.database import get_db
-from auth.dependencies import get_current_user
+from core.permissions import UserContext, get_user_context
 from core.models import RegisterRequest, LoginRequest
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -442,17 +442,30 @@ async def logout(
 # GET /me
 # ------------------------------
 @router.get("/me")
-async def me(user=Depends(get_current_user), db=Depends(get_db)):
+async def me(
+    user_ctx: UserContext = Depends(get_user_context),
+    db=Depends(get_db),
+):
+    """Return authenticated user's profile plus RBAC context.
+
+    Response shape:
+    {
+        "success": True,
+        "data": {
+            ...user fields...,
+            "rbac": {
+                "role_name": ..., "role_level": ..., "permissions": [...], "team_ids": [...]
+            }
+        }
+    }
     """
-    Get complete user profile including database fields.
-    Returns user with id, email, organization info, etc.
-    """
-    user_id = user["id"]
-    
+    user_id = user_ctx.id
+
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        cursor.execute("""
+
+        cursor.execute(
+            """
             SELECT
                 u.id,
                 u.organization_id,
@@ -465,14 +478,24 @@ async def me(user=Depends(get_current_user), db=Depends(get_db)):
             FROM users u
             LEFT JOIN organizations o ON u.organization_id = o.id
             WHERE u.id = %s
-        """, (user_id,))
-        
+            """,
+            (user_id,),
+        )
+
         user_data = cursor.fetchone()
-        
+
         if not user_data:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
+        data = dict(user_data)
+        data["rbac"] = {
+            "role_name": user_ctx.role_name,
+            "role_level": user_ctx.role_level,
+            "permissions": user_ctx.permissions,
+            "team_ids": user_ctx.team_ids,
+        }
+
         return {
             "success": True,
-            "data": dict(user_data)
+            "data": data,
         }

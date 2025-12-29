@@ -443,6 +443,7 @@ function OneOnOneSchedulingDialog() {
 
 export function TeamOverview() {
   const { user } = useUser();
+  console.log(user);
   const [team, setTeam] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -460,26 +461,42 @@ export function TeamOverview() {
   };
 
   useEffect(() => {
-    const fetchTeamAndMembers = async () => {
+    const fetchVisiblePeople = async () => {
       if (!user?.id) return;
 
       try {
         setLoading(true);
         setError(null);
 
-        // Get user's team
-        const teamResponse = await api.getUserTeam(user.id);
-        const teamData = teamResponse?.data || teamResponse;
-        setTeam(teamData);
+        // 1. Get all people this user is allowed to see
+        const visibleResponse = await api.listVisibleUsers();
+        const visibleMembers = visibleResponse?.data || visibleResponse || [];
+        setMembers(visibleMembers);
 
-        // Get team members
-        if (teamData?.id) {
-          const membersResponse = await api.listTeamMembers(teamData.id);
-          const membersData = membersResponse?.data || membersResponse || [];
-          setMembers(membersData);
+        // 2. Optional: still fetch the user's primary team for the header
+        //    For executives/founders, we show an org-wide label instead.
+        let teamLabel: any = null;
+
+        try {
+          const teamResponse = await api.getUserTeam(user.id);
+          const teamData = teamResponse?.data || teamResponse || null;
+          teamLabel = teamData;
+        } catch {
+          // User might not belong to a specific team (e.g., founder/CEO),
+          // it's fine to just treat them as org-wide.
+        }
+
+        const isExecutive = user.rbac?.role_level >= 4;
+
+        if (isExecutive) {
+          setTeam({ name: teamLabel?.name || "Entire Organization" });
+        } else if (teamLabel?.id) {
+          setTeam(teamLabel);
+        } else {
+          setTeam(null);
         }
       } catch (err) {
-        console.error("Error loading team info:", err);
+        console.error("Error loading visible people:", err);
         setError(
           err instanceof Error ? err.message : "Failed to load team data"
         );
@@ -488,26 +505,22 @@ export function TeamOverview() {
       }
     };
 
-    fetchTeamAndMembers();
+    fetchVisiblePeople();
   }, [user]);
 
   const teamMembersCount = members.length;
 
   const averagePerformance = members.length
     ? Math.round(
-        members.reduce(
-          (sum, member) => sum + (member.performance || 0),
-          0
-        ) / members.length
+        members.reduce((sum, member) => sum + (member.performance || 0), 0) /
+          members.length
       )
     : 0;
 
   const averageCapacity = members.length
     ? Math.round(
-        members.reduce(
-          (sum, member) => sum + (member.capacity || 0),
-          0
-        ) / members.length
+        members.reduce((sum, member) => sum + (member.capacity || 0), 0) /
+          members.length
       )
     : 0;
 
@@ -616,72 +629,78 @@ export function TeamOverview() {
             ) : (
               <div className="space-y-4">
                 {members.map((member, index) => (
-                <div
-                  key={member.id || index}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Avatar>
-                        <AvatarImage
-                          src={member.avatar}
-                          alt={
-                            member.name ||
-                            `${member.first_name} ${member.second_name || ""}`
-                          }
+                  <div
+                    key={member.id || index}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Avatar>
+                          <AvatarImage
+                            src={member.avatar}
+                            alt={
+                              member.name ||
+                              `${member.first_name} ${member.second_name || ""}`
+                            }
+                          />
+                          <AvatarFallback>
+                            {member.first_name?.[0] || ""}
+                            {member.second_name?.[0] || member.name?.[1] || ""}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div
+                          className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
+                            member.status || "available"
+                          )} rounded-full border-2 border-background`}
                         />
-                        <AvatarFallback>
-                          {member.first_name?.[0] || ""}
-                          {member.second_name?.[0] || member.name?.[1] || ""}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div
-                        className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
-                          member.status || "available"
-                        )} rounded-full border-2 border-background`}
-                      />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">
+                          {member.name ||
+                            `${member.first_name} ${member.second_name || ""}`}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {member.role || member.user_role || "Team Member"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium">
-                        {member.name ||
-                          `${member.first_name} ${member.second_name || ""}`}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {member.role || member.user_role || "Team Member"}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="text-center">
-                      <p className="font-medium">{member.performance || 0}%</p>
-                      <p className="text-xs text-muted-foreground">
-                        Performance
-                      </p>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="text-center">
+                        <p className="font-medium">
+                          {member.performance || 0}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Performance
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium">{member.capacity || 0}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          Capacity
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium">
+                          {member.project_count || member.projects || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Projects
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          (member.status || "available") === "available"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {member.status || "available"}
+                      </Badge>
                     </div>
-                    <div className="text-center">
-                      <p className="font-medium">{member.capacity || 0}%</p>
-                      <p className="text-xs text-muted-foreground">Capacity</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-medium">
-                        {member.project_count || member.projects || 0}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Projects</p>
-                    </div>
-                    <Badge
-                      variant={
-                        (member.status || "available") === "available"
-                          ? "default"
-                          : "secondary"
-                      }
-                    >
-                      {member.status || "available"}
-                    </Badge>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
