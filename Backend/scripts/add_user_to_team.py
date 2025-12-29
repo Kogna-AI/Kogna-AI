@@ -132,8 +132,8 @@ def add_user_to_team(user_email: str):
         )
         
         conn.commit()
-        print(f"✅ Successfully added {user['first_name']} to {team['name']}")
-        print(f"\n📊 Team member details:")
+        print(f" Successfully added {user['first_name']} to {team['name']}")
+        print(f"\n Team member details:")
         print(f"   - Role: {user.get('role') or 'Member'}")
         print(f"   - Performance: 85%")
         print(f"   - Capacity: 80%")
@@ -155,7 +155,7 @@ if __name__ == "__main__":
         success = add_user_to_team(user_email)
         sys.exit(0 if success else 1)
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n Error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
