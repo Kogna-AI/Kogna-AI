@@ -12,6 +12,112 @@ supabase = get_supabase_manager().client
 logging.basicConfig(level=logging.INFO)
 
 # =================================================================
+# HELPER FUNCTIONS - KPI Extraction
+# =================================================================
+
+# Cache for organization lookups to avoid repeated queries
+_org_cache = {}
+
+async def get_organization_id_for_user(user_id: str) -> Optional[str]:
+    """
+    Looks up organization ID from users table with caching
+    Returns organization_id (UUID) or None
+    """
+    # Check cache first
+    if user_id in _org_cache:
+        return _org_cache[user_id]
+
+    try:
+        response = supabase.table("users") \
+            .select("organization_id") \
+            .eq("id", user_id) \
+            .maybe_single() \
+            .execute()
+
+        if response.data:
+            org_id = response.data.get('organization_id')
+            _org_cache[user_id] = org_id
+            return org_id
+        return None
+    except Exception as e:
+        logging.error(f"Failed to get organization_id for user {user_id}: {e}")
+        return None
+
+async def save_connector_kpi(
+    user_id: str,
+    organization_id: str,
+    connector_type: str,
+    source_id: str,
+    kpi_category: str,
+    kpi_name: str,
+    kpi_value: any,
+    kpi_unit: Optional[str] = None,
+    source_name: Optional[str] = None,
+    sync_job_id: Optional[str] = None,
+    period_start: Optional[str] = None,
+    period_end: Optional[str] = None
+) -> bool:
+    """
+    Inserts a KPI into the connector_kpis table
+
+    Args:
+        user_id: UUID of the user
+        organization_id: UUID of the organization
+        connector_type: Type of connector (jira, google_drive, asana, etc.)
+        source_id: Identifier of the source (project ID, file ID, etc.)
+        kpi_category: Category (velocity, burndown, completion_rate, financial, etc.)
+        kpi_name: Name of the KPI
+        kpi_value: Value (will be converted to JSONB)
+        kpi_unit: Optional unit of measurement
+        source_name: Optional human-readable source name
+        sync_job_id: Optional UUID linking to sync job
+        period_start: Optional ISO timestamp for KPI period start
+        period_end: Optional ISO timestamp for KPI period end
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Convert kpi_value to proper JSONB structure
+        if isinstance(kpi_value, (dict, list)):
+            jsonb_value = kpi_value
+        elif isinstance(kpi_value, (int, float)):
+            jsonb_value = {"value": kpi_value, "type": "numeric"}
+        elif isinstance(kpi_value, str):
+            jsonb_value = {"value": kpi_value, "type": "string"}
+        elif isinstance(kpi_value, bool):
+            jsonb_value = {"value": kpi_value, "type": "boolean"}
+        else:
+            jsonb_value = {"value": str(kpi_value), "type": "unknown"}
+
+        kpi_data = {
+            "user_id": user_id,
+            "organization_id": organization_id,
+            "connector_type": connector_type,
+            "source_id": source_id,
+            "kpi_category": kpi_category,
+            "kpi_name": kpi_name,
+            "kpi_value": jsonb_value,
+            "kpi_unit": kpi_unit,
+            "source_name": source_name
+        }
+
+        if sync_job_id:
+            kpi_data["sync_job_id"] = sync_job_id
+        if period_start:
+            kpi_data["period_start"] = period_start
+        if period_end:
+            kpi_data["period_end"] = period_end
+
+        # Upsert based on unique constraint
+        supabase.table("connector_kpis").upsert(kpi_data).execute()
+        return True
+
+    except Exception as e:
+        logging.error(f"Failed to save KPI {kpi_name} for {source_id}: {e}")
+        return False
+
+# =================================================================
 # CONSTANTS
 # =================================================================
 MAX_FILE_SIZE = 50_000_000  # 50MB max file size
@@ -438,14 +544,19 @@ async def run_master_etl(user_id: str, service: str):
 # JIRA ETL
 # =================================================================
 
-async def _run_jira_etl(user_id: str, access_token: str) -> tuple[bool, int]:
+async def _run_jira_etl(user_id: str, access_token: str, sync_job_id: Optional[str] = None) -> tuple[bool, int]:
     """
     Enhanced Jira ETL with KPI metrics extraction
     Extracts: issues, projects, sprint data, velocity, team metrics, and dashboard KPIs
     Returns: (success, files_count)
     """
     logging.info(f"--- Starting Jira ETL for user: {user_id} ---")
-    
+
+    # Get organization_id for KPI tracking
+    organization_id = await get_organization_id_for_user(user_id)
+    kpi_count = 0  # Track total KPIs extracted
+    kpi_start_time = time.time()  # Track extraction time
+
     try:
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -527,10 +638,15 @@ async def _run_jira_etl(user_id: str, access_token: str) -> tuple[bool, int]:
                     
                     # Calculate KPIs for this project
                     project_kpis = await calculate_project_kpis(
-                        client, base_url, project_key, project_name, issues
+                        client, base_url, project_key, project_name, issues,
+                        user_id=user_id,
+                        organization_id=organization_id,
+                        sync_job_id=sync_job_id,
+                        save_to_db=True
                     )
-                    
+
                     all_kpis['projects'].append(project_kpis)
+                    kpi_count += 6  # We save 6 KPIs per project
                     
                     # Save per-project issues
                     issues_json = json.dumps(issues, indent=2)
@@ -613,12 +729,26 @@ async def _run_jira_etl(user_id: str, access_token: str) -> tuple[bool, int]:
             )
 
             await queue_embedding(user_id, kpis_latest_path)
-            
+
+            # Calculate KPI extraction metrics
+            kpi_extraction_time_ms = int((time.time() - kpi_start_time) * 1000)
+
             logging.info(f"{'='*60}")
             logging.info(f"Finished Jira ETL: {len(all_issues)} issues, {len(projects)} projects")
-            logging.info(f"KPIs extracted: {len(all_kpis['projects'])} project KPIs")
+            logging.info(f"KPIs extracted: {kpi_count} KPIs saved to database")
+            logging.info(f"KPI extraction time: {kpi_extraction_time_ms}ms")
             logging.info(f"{'='*60}")
-            
+
+            # Update sync job with KPI metrics if sync_job_id provided
+            if sync_job_id:
+                try:
+                    supabase.table("sync_jobs").update({
+                        "kpis_extracted": kpi_count,
+                        "kpi_extraction_time_ms": kpi_extraction_time_ms
+                    }).eq("id", sync_job_id).execute()
+                except Exception as e:
+                    logging.error(f"Failed to update sync job KPI metrics: {e}")
+
             return True, len(projects) + 2  # Projects + combined + KPIs
 
     except httpx.HTTPStatusError as e:
@@ -637,11 +767,16 @@ async def calculate_project_kpis(
     base_url: str,
     project_key: str,
     project_name: str,
-    issues: list
+    issues: list,
+    user_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
+    sync_job_id: Optional[str] = None,
+    save_to_db: bool = True
 ) -> dict:
     """
     Calculate KPI metrics for a project
     Similar to what's shown in Jira dashboard
+    Now also saves KPIs to the database if user_id and organization_id are provided
     """
     from datetime import datetime, timedelta
     
@@ -752,7 +887,7 @@ async def calculate_project_kpis(
         reverse=True
     )
     
-    return {
+    kpis = {
         'project_key': project_key,
         'project_name': project_name,
         'total_work_items': total,
@@ -771,6 +906,108 @@ async def calculate_project_kpis(
             'total_assignees': len([a for a in assignee_counts.keys() if a != 'Unassigned'])
         }
     }
+
+    # Save KPIs to database if enabled and user info is provided
+    if save_to_db and user_id and organization_id:
+        try:
+            period_end = now.isoformat()
+            period_start = last_7_days.isoformat()
+
+            # Save velocity metrics
+            await save_connector_kpi(
+                user_id=user_id,
+                organization_id=organization_id,
+                connector_type="jira",
+                source_id=project_key,
+                source_name=project_name,
+                kpi_category="velocity",
+                kpi_name="issues_completed_7_days",
+                kpi_value=activity_7_days['completed'],
+                kpi_unit="issues",
+                sync_job_id=sync_job_id,
+                period_start=period_start,
+                period_end=period_end
+            )
+
+            # Calculate average cycle time (simplified - using days)
+            cycle_time_days = round(7 / max(activity_7_days['completed'], 1), 2)
+            await save_connector_kpi(
+                user_id=user_id,
+                organization_id=organization_id,
+                connector_type="jira",
+                source_id=project_key,
+                source_name=project_name,
+                kpi_category="velocity",
+                kpi_name="average_cycle_time_days",
+                kpi_value=cycle_time_days,
+                kpi_unit="days",
+                sync_job_id=sync_job_id,
+                period_start=period_start,
+                period_end=period_end
+            )
+
+            # Save burndown/completion metrics
+            await save_connector_kpi(
+                user_id=user_id,
+                organization_id=organization_id,
+                connector_type="jira",
+                source_id=project_key,
+                source_name=project_name,
+                kpi_category="burndown",
+                kpi_name="completion_percentage",
+                kpi_value=status_percentages['done'],
+                kpi_unit="percentage",
+                sync_job_id=sync_job_id
+            )
+
+            # Save workload metrics
+            active_assignees = len([a for a in assignee_counts.keys() if a != 'Unassigned'])
+            await save_connector_kpi(
+                user_id=user_id,
+                organization_id=organization_id,
+                connector_type="jira",
+                source_id=project_key,
+                source_name=project_name,
+                kpi_category="productivity",
+                kpi_name="active_assignees",
+                kpi_value=active_assignees,
+                kpi_unit="people",
+                sync_job_id=sync_job_id
+            )
+
+            await save_connector_kpi(
+                user_id=user_id,
+                organization_id=organization_id,
+                connector_type="jira",
+                source_id=project_key,
+                source_name=project_name,
+                kpi_category="productivity",
+                kpi_name="unassigned_count",
+                kpi_value=assignee_counts.get('Unassigned', 0),
+                kpi_unit="issues",
+                sync_job_id=sync_job_id
+            )
+
+            # Save priority metrics
+            high_priority = priority_counts.get('highest', 0) + priority_counts.get('high', 0)
+            await save_connector_kpi(
+                user_id=user_id,
+                organization_id=organization_id,
+                connector_type="jira",
+                source_id=project_key,
+                source_name=project_name,
+                kpi_category="quality",
+                kpi_name="high_priority_count",
+                kpi_value=high_priority,
+                kpi_unit="issues",
+                sync_job_id=sync_job_id
+            )
+
+            logging.info(f"✓ Saved 6 KPIs for project {project_key}")
+        except Exception as e:
+            logging.error(f"Failed to save KPIs for project {project_key}: {e}")
+
+    return kpis
 
 
 def calculate_overall_kpis(all_issues: list, projects: list) -> dict:
