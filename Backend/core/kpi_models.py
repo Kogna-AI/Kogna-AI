@@ -63,7 +63,7 @@ class TrendDirection(str, Enum):
 class AgentPerformanceMetricCreate(BaseModel):
     """Model for creating agent performance metrics"""
     user_id: str  # UUID
-    organization_id: int
+    organization_id: str  # UUID
     session_id: Optional[str] = None  # UUID
     message_id: Optional[str] = None  # UUID
     agent_name: AgentName
@@ -84,7 +84,7 @@ class AgentPerformanceMetricResponse(BaseModel):
     """Model for agent performance metric response"""
     id: int
     user_id: str
-    organization_id: int
+    organization_id: str  # UUID
     session_id: Optional[str]
     message_id: Optional[str]
     agent_name: str
@@ -107,7 +107,7 @@ class AgentPerformanceSummary(BaseModel):
     """Model for aggregated agent performance summary"""
     date: date
     hour: Optional[datetime]
-    organization_id: int
+    organization_id: str  # UUID
     agent_name: str
     model_used: Optional[str]
     execution_count: int
@@ -142,7 +142,7 @@ class AgentPerformanceSummary(BaseModel):
 class ConnectorKPICreate(BaseModel):
     """Model for creating connector KPIs"""
     user_id: str  # UUID
-    organization_id: int
+    organization_id: str  # UUID
     sync_job_id: Optional[str] = None  # UUID
     connector_type: ConnectorType
     source_id: str
@@ -159,7 +159,7 @@ class ConnectorKPIResponse(BaseModel):
     """Model for connector KPI response"""
     id: int
     user_id: str
-    organization_id: int
+    organization_id: str  # UUID
     sync_job_id: Optional[str]
     connector_type: str
     source_id: str
@@ -178,7 +178,7 @@ class ConnectorKPIResponse(BaseModel):
 class ConnectorKPITrend(BaseModel):
     """Model for connector KPI trends with analytics"""
     date: date
-    organization_id: int
+    organization_id: str  # UUID
     connector_type: str
     kpi_category: str
     kpi_name: str
@@ -204,7 +204,7 @@ class ConnectorKPITrend(BaseModel):
 class UserEngagementMetricCreate(BaseModel):
     """Model for creating user engagement metrics"""
     user_id: str  # UUID
-    organization_id: int
+    organization_id: str  # UUID
     date: date
     session_count: int = Field(default=0, ge=0)
     total_session_duration_seconds: int = Field(default=0, ge=0)
@@ -234,7 +234,7 @@ class UserEngagementMetricResponse(BaseModel):
     """Model for user engagement metric response"""
     id: int
     user_id: str
-    organization_id: int
+    organization_id: str  # UUID
     date: date
     session_count: int
     total_session_duration_seconds: int
@@ -287,7 +287,7 @@ class AgentTraceExtended(BaseModel):
     """Extended model for agent traces with performance metrics"""
     id: int
     user_id: str
-    organization_id: int
+    organization_id: str  # UUID
     session_id: Optional[str]
     message_id: Optional[str]
     agent_name: str
@@ -303,8 +303,8 @@ class AgentTraceExtended(BaseModel):
 class SyncJobExtended(BaseModel):
     """Extended model for sync jobs with KPI extraction metrics"""
     id: str  # UUID
-    user_id: str
-    organization_id: int
+    user_id: str  # UUID
+    organization_id: str  # UUID
     connector_type: str
     status: str
     started_at: Optional[datetime]
