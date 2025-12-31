@@ -4,43 +4,41 @@ import type {
   InsightsResponse,
   ObjectivesResponse,
   JiraDashboardData,
-} from '../types/dashboard';
-import { createClient } from '@supabase/supabase-js';
+} from "../types/dashboard";
+import { getAccessToken } from "@/services/api";
 
 // API base URL - adjust based on your environment
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-// Initialize Supabase client for auth
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // Generic fetch wrapper with error handling and authentication
 async function fetchApi<T>(endpoint: string): Promise<T> {
-  // Get the current session for authentication
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
+  // Get the current in-memory access token
+  const token = getAccessToken();
 
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
 
   // Add authorization header if we have a token
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   // Add /api prefix to endpoint if it doesn't already have it
-  const url = endpoint.startsWith('/api') ? `${API_BASE_URL}${endpoint}` : `${API_BASE_URL}/api${endpoint}`;
+  const url = endpoint.startsWith("/api")
+    ? `${API_BASE_URL}${endpoint}`
+    : `${API_BASE_URL}/api${endpoint}`;
 
   const response = await fetch(url, {
     headers,
-    credentials: 'include', // Include cookies
+    credentials: "include", // Include cookies
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`API Error ${response.status}: ${errorText || response.statusText}`);
+    throw new Error(
+      `API Error ${response.status}: ${errorText || response.statusText}`
+    );
   }
 
   return response.json();
@@ -65,7 +63,9 @@ export const dashboardApi = {
 
   // Get objectives
   getObjectives: async (orgId: number): Promise<ObjectivesResponse> => {
-    return fetchApi<ObjectivesResponse>(`/api/organizations/${orgId}/objectives`);
+    return fetchApi<ObjectivesResponse>(
+      `/api/organizations/${orgId}/objectives`
+    );
   },
 
   // Get metric trends (for charts)
@@ -75,8 +75,8 @@ export const dashboardApi = {
     days?: number
   ): Promise<any> => {
     const params = new URLSearchParams();
-    if (metricName) params.append('metric_name', metricName);
-    if (days) params.append('days', days.toString());
+    if (metricName) params.append("metric_name", metricName);
+    if (days) params.append("days", days.toString());
 
     return fetchApi<any>(`/api/metrics/trends?${params.toString()}`);
   },
@@ -93,19 +93,23 @@ export const dashboardApi = {
 
   // Jira API functions
   getJiraDashboard: async (): Promise<JiraDashboardData> => {
-    return fetchApi<JiraDashboardData>('/api/jira/dashboard');
+    return fetchApi<JiraDashboardData>("/api/jira/dashboard");
   },
 
-  getJiraIssues: async (limit = 50, offset = 0, status?: string): Promise<any> => {
+  getJiraIssues: async (
+    limit = 50,
+    offset = 0,
+    status?: string
+  ): Promise<any> => {
     const params = new URLSearchParams();
-    params.append('limit', limit.toString());
-    params.append('offset', offset.toString());
-    if (status) params.append('status', status);
+    params.append("limit", limit.toString());
+    params.append("offset", offset.toString());
+    if (status) params.append("status", status);
 
     return fetchApi<any>(`/api/jira/issues?${params.toString()}`);
   },
 
   getJiraProjects: async (): Promise<any> => {
-    return fetchApi<any>('/api/jira/projects');
+    return fetchApi<any>("/api/jira/projects");
   },
 };
