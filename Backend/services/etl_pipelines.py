@@ -1,12 +1,49 @@
-from googleapiclient.discovery import build
-from google.oauth2.credentials import Credentials
-from jira import JIRA
-from urllib.parse import quote
-import time, os, json, asyncio, httpx
-from supabase_connect import get_supabase_manager
-from services.embedding_service import embed_and_store_file
-from typing import Optional, Dict, List
+"""
+🔥 MASTER ETL PIPELINE - PRODUCTION READY
+
+This is the main ETL orchestrator that routes to individual ETL modules.
+All helper functions have been moved to base_etl.py to avoid duplication.
+
+Responsibilities:
+- Token management (centralized in base_etl.py)
+- Sync job tracking (centralized in base_etl.py)
+- ETL routing to individual modules
+- Embedding queue processing
+
+Supported Services:
+- jira: Jira project management
+- google: Google Drive files
+- microsoft-excel: Excel files from OneDrive
+- microsoft-teams: Teams channels and messages
+- microsoft-project: Planner/To Do tasks
+- asana: Asana tasks
+"""
+
+import os
+import time
 import logging
+from typing import Optional
+from dotenv import load_dotenv
+
+# Import all ETL modules
+from services.etl import (
+    run_jira_etl,
+    run_google_drive_etl,
+    run_microsoft_excel_etl,
+    run_microsoft_teams_etl,
+    run_microsoft_project_etl,
+    run_asana_etl
+)
+
+# Import base utilities
+from services.etl.base_etl import (
+    ensure_valid_token,
+    create_sync_job,
+    update_sync_progress,
+    complete_sync_job,
+    embedding_queue,
+    process_embedding_queue_batch
+)
 
 supabase = get_supabase_manager().client
 logging.basicConfig(level=logging.INFO)
@@ -252,283 +289,95 @@ async def ensure_valid_token(user_id: str, service: str) -> Optional[str]:
         logging.error(f"Error ensuring valid token: {e}")
         return None
 
-async def refresh_jira_token(refresh_token: str) -> Optional[Dict]:
-    """Refreshes Jira access token"""
-    token_url = "https://auth.atlassian.com/oauth/token"
-    data = {
-        "client_id": os.getenv("JIRA_CLIENT_ID"),
-        "client_secret": os.getenv("JIRA_CLIENT_SECRET"),
-        "refresh_token": refresh_token,
-        "grant_type": "refresh_token"
-    }
-    
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(token_url, data=data)
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPStatusError as e:
-        logging.error(f"Error refreshing Jira token: {e.response.status_code} - {e.response.text}")
-    except Exception as e:
-        logging.error(f"Unexpected error refreshing Jira token: {e}")
-    return None
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-async def refresh_google_token(refresh_token: str) -> Optional[Dict]:
-    """Refreshes Google access token"""
-    token_url = "https://oauth2.googleapis.com/token"
-    data = {
-        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-        "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
-        "refresh_token": refresh_token,
-        "grant_type": "refresh_token"
-    }
-    
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(token_url, data=data)
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPStatusError as e:
-        logging.error(f"Error refreshing Google token: {e.response.status_code} - {e.response.text}")
-    except Exception as e:
-        logging.error(f"Unexpected error refreshing Google token: {e}")
-    return None
+supabase = get_supabase_manager().client
 
-async def refresh_microsoft_token(refresh_token: str) -> Optional[Dict]:
-    """Refreshes Microsoft access token"""
-    token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-    data = {
-        "client_id": os.getenv("MICROSOFT_CLIENT_ID"),
-        "client_secret": os.getenv("MICROSOFT_CLIENT_SECRET"),
-        "refresh_token": refresh_token,
-        "grant_type": "refresh_token"
-    }
-    
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(token_url, data=data)
-            response.raise_for_status()
-            return response.json()
-    except Exception as e:
-        logging.error(f"Error refreshing Microsoft token: {e}")
-        return None
-
-async def refresh_asana_token(refresh_token: str) -> Optional[Dict]:
-    """Refreshes Asana access token"""
-    token_url = "https://app.asana.com/-/oauth_token"
-    data = {
-        "client_id": os.getenv("ASANA_CLIENT_ID"),
-        "client_secret": os.getenv("ASANA_CLIENT_SECRET"),
-        "refresh_token": refresh_token,
-        "grant_type": "refresh_token"
-    }
-    
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(token_url, data=data)
-            response.raise_for_status()
-            return response.json()
-    except Exception as e:
-        logging.error(f"Error refreshing Asana token: {e}")
-        return None
 
 # =================================================================
-# FILE UPLOAD HELPERS
+# MASTER ETL ORCHESTRATOR
 # =================================================================
 
-async def safe_upload_to_bucket(
-    bucket_name: str, 
-    file_path: str, 
-    content: bytes, 
-    mime_type: str,
-    enable_versioning: bool = True
-) -> bool:
-    """
-    Safely uploads file to Supabase Storage with change detection and versioning.
-    
-    Versioning Strategy:
-    - If enable_versioning=True: Creates timestamped versions (file_v1732014000.json)
-    - If enable_versioning=False: Overwrites with _latest.json
-    - Always keeps a "latest" pointer for quick access
-    
-    This allows tracking changes over time while maintaining easy access to current data.
-    """
-    import hashlib
-    
-    try:
-        # Generate content hash for change detection
-        content_hash = hashlib.sha256(content).hexdigest()[:16]
-        
-        # Split file path to create versioned path
-        path_parts = file_path.rsplit('/', 1)
-        if len(path_parts) == 2:
-            directory = path_parts[0]
-            filename = path_parts[1]
-        else:
-            directory = ""
-            filename = file_path
-        
-        # Remove extension
-        name_parts = filename.rsplit('.', 1)
-        base_name = name_parts[0]
-        extension = name_parts[1] if len(name_parts) == 2 else ""
-        
-        if enable_versioning:
-            # Create versioned path with timestamp
-            timestamp = int(time.time())
-            versioned_filename = f"{base_name}_v{timestamp}.{extension}" if extension else f"{base_name}_v{timestamp}"
-            versioned_path = f"{directory}/{versioned_filename}" if directory else versioned_filename
-            
-            # Also create/update a "latest" pointer
-            latest_filename = f"{base_name}_latest.{extension}" if extension else f"{base_name}_latest"
-            latest_path = f"{directory}/{latest_filename}" if directory else latest_filename
-            
-            # Upload versioned file
-            logging.info(f" Uploading versioned file: {versioned_path}")
-            version_response = supabase.storage.from_(bucket_name).upload(
-                path=versioned_path,
-                file=content,
-                file_options={"content-type": mime_type}
-            )
-            
-            if hasattr(version_response, 'error') and version_response.error:
-                logging.error(f" Versioned upload failed: {version_response.error}")
-                return False
-            
-            # Update latest pointer (with upsert)
-            logging.info(f" Updating latest pointer: {latest_path}")
-            latest_response = supabase.storage.from_(bucket_name).upload(
-                path=latest_path,
-                file=content,
-                file_options={"content-type": mime_type, "upsert": "true"}
-            )
-            
-            if hasattr(latest_response, 'error') and latest_response.error:
-                # Latest pointer failed, but versioned succeeded
-                logging.warning(f"  Latest pointer update failed, but version saved")
-            
-            logging.info(f" Uploaded: {versioned_path} (hash: {content_hash})")
-            return True
-        
-        else:
-            # No versioning - just use upsert
-            upload_response = supabase.storage.from_(bucket_name).upload(
-                path=file_path,
-                file=content,
-                file_options={"content-type": mime_type, "upsert": "true"}
-            )
-            
-            if hasattr(upload_response, 'error') and upload_response.error:
-                logging.error(f" Upload failed: {upload_response.error}")
-                return False
-            
-            logging.info(f" Uploaded: {file_path}")
-            return True
-        
-    except Exception as e:
-        error_str = str(e).lower()
-        
-        if "already exists" in error_str or "duplicate" in error_str:
-            try:
-                logging.info(f"  File exists, updating: {file_path}")
-                update_response = supabase.storage.from_(bucket_name).update(
-                    path=file_path,
-                    file=content,
-                    file_options={"content-type": mime_type}
-                )
-                
-                if hasattr(update_response, 'error') and update_response.error:
-                    logging.error(f" Update failed: {update_response.error}")
-                    return False
-                
-                logging.info(f" Updated: {file_path}")
-                return True
-            except Exception as update_error:
-                logging.error(f" Error updating file: {update_error}")
-                return False
-        else:
-            logging.error(f" Error uploading {file_path}: {e}")
-            return False
-
-# =================================================================
-# EMBEDDING QUEUE (Async Processing)
-# =================================================================
-
-embedding_queue = []
-
-async def queue_embedding(user_id: str, file_path: str):
-    """Adds file to embedding queue for background processing"""
-    embedding_queue.append({
-        "user_id": user_id,
-        "file_path": file_path,
-        "queued_at": time.time()
-    })
-    logging.info(f" Queued for embedding: {file_path}")
-
-async def process_embedding_queue_batch():
-    """
-    Processes a batch of embeddings from the queue.
-    Call this periodically or after ETL completes.
-    """
-    if not embedding_queue:
-        return
-    
-    logging.info(f" Processing {len(embedding_queue)} embeddings...")
-    
-    while embedding_queue:
-        item = embedding_queue.pop(0)
-        try:
-            await embed_and_store_file(item["user_id"], item["file_path"])
-            await asyncio.sleep(0.5)  # Rate limit embeddings
-        except Exception as e:
-            logging.error(f" Embedding failed for {item['file_path']}: {e}")
-
-# =================================================================
-# MASTER ETL FUNCTION
-# =================================================================
-
-async def run_master_etl(user_id: str, service: str):
+async def run_master_etl(user_id: str, service: str) -> bool:
     """
     Main ETL orchestrator with full error handling and progress tracking.
+    
+    Routes to the appropriate ETL module based on service type.
+    All ETL modules follow the same pattern:
+    - Extract data from API
+    - Clean and enrich data
+    - Generate analytics
+    - Create searchable text
+    - Save to Supabase Storage
+    - Queue for embeddings
+    
+    Args:
+        user_id: User ID
+        service: Service name (google, jira, microsoft-excel, microsoft-teams, 
+                               microsoft-project, asana)
+        
+    Returns:
+        bool: Success status
     """
+    global embedding_queue
+
     logging.info(f"{'='*60}")
-    logging.info(f" MASTER ETL: Starting sync for {service} (user: {user_id})")
+    logging.info(f"🚀 MASTER ETL: Starting sync for {service} (user: {user_id})")
     logging.info(f"{'='*60}")
     
+    # Create sync job
     job_id = await create_sync_job(user_id, service)
     
     try:
-        # Get valid token
+        # Get valid token (handles refresh automatically)
         access_token = await ensure_valid_token(user_id, service)
         if not access_token:
             raise ValueError(f"No valid token for {service}")
         
-        # Route to correct ETL
+        # Route to correct ETL module
         success = False
         files_count = 0
         
         if service == "jira":
-            success, files_count = await _run_jira_etl(user_id, access_token)
+            logging.info(" Using Jira ETL with data cleaning")
+            success, files_count = await run_jira_etl(user_id, access_token)
+            
         elif service == "google":
-            success, files_count = await _run_google_etl(user_id, access_token)
+            logging.info(" Using Google Drive ETL with data cleaning")
+            success, files_count = await run_google_drive_etl(user_id, access_token)
+            
         elif service == "microsoft-excel":
-            success, files_count = await _run_microsoft_excel_etl(user_id, access_token)
+            logging.info(" Using Microsoft Excel ETL with data cleaning")
+            success, files_count = await run_microsoft_excel_etl(user_id, access_token)
+            
         elif service == "microsoft-teams":
-            success, files_count = await _run_microsoft_teams_etl(user_id, access_token)
+            logging.info(" Using Microsoft Teams ETL with data cleaning")
+            success, files_count = await run_microsoft_teams_etl(user_id, access_token)
+            
         elif service == "microsoft-project":
-            success, files_count = await _run_microsoft_project_etl(user_id, access_token)
+            logging.info(" Using Microsoft Project ETL with data cleaning")
+            success, files_count = await run_microsoft_project_etl(user_id, access_token)
+            
         elif service == "asana":
-            success, files_count = await _run_asana_etl(user_id, access_token)
+            logging.info(" Using Asana ETL with data cleaning")
+            success, files_count = await run_asana_etl(user_id, access_token)
+            
         else:
             raise ValueError(f"Unknown service: {service}")
         
         # Complete sync job
         await complete_sync_job(user_id, service, success, files_count)
-        
+
+        logging.info(f" DEBUG: embedding_queue has {len(embedding_queue)} items")  
+        logging.info(f" DEBUG: success={success}")
+
         # Process embeddings in background
         if success and embedding_queue:
             logging.info(f" Processing {len(embedding_queue)} embeddings...")
-            asyncio.create_task(process_embedding_queue_batch())
+            await process_embedding_queue_batch()
+        else:
+            logging.warning(f"  Skipping embeddings - queue empty or sync failed")
         
         return success
         
@@ -2190,6 +2039,8 @@ async def _run_microsoft_teams_etl(user_id: str, access_token: str) -> tuple[boo
 
 async def run_test():
     """Simple test function to verify httpx is working"""
+    import httpx
+    
     logging.info("---  RUNNING TEST FUNCTION ---")
     try:
         test_url = "https://jsonplaceholder.typicode.com/todos/1"
@@ -2208,3 +2059,10 @@ async def run_test():
         logging.error(f"---  TEST FAILED ---")
         logging.error(f"Error: {e}")
         return {"status": "error", "message": str(e)}
+
+
+# =================================================================
+# EXPORTS
+# =================================================================
+
+__all__ = ['run_master_etl', 'run_test']

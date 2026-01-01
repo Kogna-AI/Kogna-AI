@@ -1,13 +1,10 @@
 /**
  * Kogna-AI API Service
- * Frontend API client for communicating with the FastAPI backend
- * AWS-Compatible Version with Timeout Handling and Enhanced Error Management
+ * Secure authentication with httpOnly cookies and in-memory access tokens
  */
 
-import { createClient } from '@supabase/supabase-js';
 import type { BackendUser } from "../app/components/auth/UserContext";
 
-// 1. API_BASE_URL is clean. It does NOT include '/api'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // AWS: Request timeout configuration
@@ -41,18 +38,104 @@ const fetchWithTimeout = async (
   }
 };
 
-/**
- * Get authentication headers
- */
+// ==================== SECURE TOKEN STORAGE ====================
+// Access token stored in memory only (never localStorage)
+let inMemoryAccessToken: string | null = null;
+
+export const setAccessToken = (token: string | null) => {
+  inMemoryAccessToken = token;
+};
+
+export const getAccessToken = (): string | null => {
+  return inMemoryAccessToken;
+};
+
 const getAuthHeaders = (): HeadersInit => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  console.log(token);
   return {
     "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
+    ...(inMemoryAccessToken && {
+      Authorization: `Bearer ${inMemoryAccessToken}`,
+    }),
   };
 };
+
+// ==================== AUTOMATIC TOKEN REFRESH ====================
+let isRefreshing = false;
+let refreshPromise: Promise<string> | null = null;
+
+async function refreshAccessToken(): Promise<string> {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        setAccessToken(null);
+        throw new Error("Session expired");
+      }
+
+      const data = await response.json();
+      const newToken = data.access_token || data.data?.access_token;
+
+      if (!newToken) {
+        throw new Error("No access token in refresh response");
+      }
+
+      setAccessToken(newToken);
+      return newToken;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+async function secureFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const fetchOptions: RequestInit = {
+    ...options,
+    credentials: "include",
+    headers: {
+      ...getAuthHeaders(),
+      ...options.headers,
+    },
+  };
+
+  let response = await fetchWithTimeout(url, fetchOptions);
+
+  // Auto-refresh on 401
+  if (response.status === 401 && !isRefreshing) {
+    try {
+      const newToken = await refreshAccessToken();
+      const retryOptions: RequestInit = {
+        ...options,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${newToken}`,
+          ...options.headers,
+        },
+      };
+      response = await fetchWithTimeout(url, retryOptions);
+    } catch {
+      // Refresh failed, propagate 401
+    }
+  }
+
+  return response;
+}
 
 /**
  * Handle API response with AWS-specific error handling
@@ -102,8 +185,9 @@ export const api = {
   // ==================== AUTHENTICATION (JWT ONLY) ====================
 
   login: async (email: string, password: string) => {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/auth/login`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: "POST",
+      credentials: "include", // Send/receive cookies
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
@@ -113,9 +197,9 @@ export const api = {
       user: any;
     }>(response);
 
-    // Save token
+    // Store access token in memory only
     if (data.access_token) {
-      localStorage.setItem("token", data.access_token);
+      setAccessToken(data.access_token);
     }
 
     return data;
@@ -127,46 +211,57 @@ export const api = {
     first_name: string;
     second_name?: string;
     role?: string;
-    organization: string; // name
+    organization: string;
   }) => {
-    const response = await fetchWithTimeout(
-      `${API_BASE_URL}/api/auth/register`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
 
-    const result = await handleResponse<{
+    return handleResponse<{
       user_id: string;
       organization_id: string;
     }>(response);
-
-    return result;
   },
 
   getCurrentUser: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-      headers: getAuthHeaders(),
+    const response = await secureFetch(`${API_BASE_URL}/api/auth/me`, {
+      method: "GET",
     });
-
     return handleResponse(response);
+  },
+
+  logout: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      await handleResponse(response);
+    } finally {
+      // Always clear in-memory token
+      setAccessToken(null);
+    }
+  },
+
+  refreshToken: async () => {
+    return refreshAccessToken();
   },
 
   // ==================== ORGANIZATIONS ====================
 
   getOrganization: async (orgId: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/organizations/${orgId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await secureFetch(
+      `${API_BASE_URL}/api/organizations/${orgId}`
+    );
     return handleResponse(response);
   },
 
   listOrganizations: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/organizations`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await secureFetch(`${API_BASE_URL}/api/organizations`);
     return handleResponse(response);
   },
 
@@ -177,9 +272,8 @@ export const api = {
     team?: string;
     project_number?: number;
   }) => {
-    const response = await fetch(`${API_BASE_URL}/api/organizations`, {
+    const response = await secureFetch(`${API_BASE_URL}/api/organizations`, {
       method: "POST",
-      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -223,7 +317,16 @@ export const api = {
     });
     return handleResponse(response);
   },
-
+  listVisibleUsers: async () => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/users/visible`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
   listOrganizationUsers: async (orgId: number) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/organizations/${orgId}/users`,
@@ -297,6 +400,28 @@ export const api = {
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
+    return handleResponse(response);
+  },
+
+  // Get user's team (first team they belong to)
+  getUserTeam: async (userId: string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/user/${userId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
+  // List all teams in an organization
+  listOrganizationTeams: async (orgId: string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/organization/${orgId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
@@ -811,7 +936,7 @@ export const api = {
       `${API_BASE_URL}/api/users/by-supabase/${supabaseId}`,
       {
         headers: getAuthHeaders(),
-      },
+      }
     );
     return handleResponse<BackendUser>(response);
   },
@@ -872,92 +997,96 @@ export const api = {
     }
   },
 
-exchangeCode: async (provider: string, code: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(code)}`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error exchanging ${provider} code:`, error);
-    throw error;
-  }
-},
+  exchangeCode: async (provider: string, code: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/exchange/${provider}?code=${encodeURIComponent(
+          code
+        )}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error exchanging ${provider} code:`, error);
+      throw error;
+    }
+  },
 
-manualSync: async (provider: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/sync/${provider}`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error syncing ${provider}:`, error);
-    throw error;
-  }
-},
+  manualSync: async (provider: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/connect/sync/${provider}`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error syncing ${provider}:`, error);
+      throw error;
+    }
+  },
 
-listConnections: async (userId: string | number) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/users/${userId}/connectors`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse<
-      {
-        id: number;
-        user_id: string;
-        service: string;
-        expires_at: number;
-        created_at: string;
-      }[]
-    >(response);
-  } catch (error) {
-    console.error('Error listing connections:', error);
-    throw error;
-  }
-},
+  listConnections: async (userId: string | number) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/users/${userId}/connectors`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse<
+        {
+          id: number;
+          user_id: string;
+          service: string;
+          expires_at: number;
+          created_at: string;
+        }[]
+      >(response);
+    } catch (error) {
+      console.error("Error listing connections:", error);
+      throw error;
+    }
+  },
 
-disconnect: async (provider: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/disconnect/${provider}`,
-      {
-        method: "DELETE",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  } catch (error) {
-    console.error(`Error disconnecting ${provider}:`, error);
-    throw error;
-  }
-},
+  disconnect: async (provider: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/connect/disconnect/${provider}`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse(response);
+    } catch (error) {
+      console.error(`Error disconnecting ${provider}:`, error);
+      throw error;
+    }
+  },
 
-// Add this to check connection status
-checkConnectionStatus: async (provider: string) => {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/connect/status/${provider}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse<{ connected: boolean; expires_at?: number }>(response);
-  } catch (error) {
-    console.error(`Error checking ${provider} connection status:`, error);
-    throw error;
-  }
-},
+  // Add this to check connection status
+  checkConnectionStatus: async (provider: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/connect/status/${provider}`,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+      return handleResponse<{ connected: boolean; expires_at?: number }>(
+        response
+      );
+    } catch (error) {
+      console.error(`Error checking ${provider} connection status:`, error);
+      throw error;
+    }
+  },
 };
 
 export default api;

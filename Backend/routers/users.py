@@ -158,6 +158,102 @@ async def get_current_user(user_ctx: UserContext = Depends(get_user_context)):
         }
 
 
+@router.get("/visible")
+async def list_visible_users(
+    user_ctx: UserContext = Depends(get_user_context),
+    limit: int = 100,
+    offset: int = 0,
+):
+    """List people the current user can see (for TeamOverview).
+
+    Rules:
+    - Users with `users:read:organization` can see everyone in their organization.
+    - Others see only members of their own teams.
+      If they have no teams, they only see themselves.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        organization_id = user_ctx.organization_id
+        has_org_permission = user_ctx.has_permission("users", "read", "organization")
+
+        # Base query scoped to organization
+        query = """
+            SELECT
+                u.id,
+                u.supabase_id,
+                u.organization_id,
+                u.first_name,
+                u.second_name,
+                u.role,
+                u.email,
+                u.created_at,
+                o.name as organization_name,
+                COUNT(DISTINCT tm.team_id) as team_count
+            FROM users u
+            LEFT JOIN organizations o ON u.organization_id = o.id
+            LEFT JOIN team_members tm ON u.id = tm.user_id
+            WHERE u.organization_id = %s
+        """
+        params = [organization_id]
+
+        # Restrict visibility for users without org-wide permission
+        if not has_org_permission:
+            if user_ctx.team_ids:
+                # See only members who share at least one team
+                team_ids_tuple = tuple(user_ctx.team_ids)
+                placeholders = ", ".join(["%s"] * len(team_ids_tuple))
+                query += f" AND tm.team_id IN ({placeholders})"
+                params.extend(team_ids_tuple)
+            else:
+                # No teams: they only see themselves
+                query += " AND u.id = %s"
+                params.append(user_ctx.id)
+
+        query += """
+            GROUP BY u.id, o.name
+            ORDER BY u.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        params.extend([limit, offset])
+
+        cursor.execute(query, params)
+        users = cursor.fetchall()
+
+        # Total count for pagination metadata, mirroring filters
+        count_query = """
+            SELECT COUNT(DISTINCT u.id) as count
+            FROM users u
+            LEFT JOIN team_members tm ON u.id = tm.user_id
+            WHERE u.organization_id = %s
+        """
+        count_params = [organization_id]
+
+        if not has_org_permission:
+            if user_ctx.team_ids:
+                team_ids_tuple = tuple(user_ctx.team_ids)
+                placeholders = ", ".join(["%s"] * len(team_ids_tuple))
+                count_query += f" AND tm.team_id IN ({placeholders})"
+                count_params.extend(team_ids_tuple)
+            else:
+                count_query += " AND u.id = %s"
+                count_params.append(user_ctx.id)
+
+        cursor.execute(count_query, count_params)
+        total = cursor.fetchone()["count"]
+
+        return {
+            "success": True,
+            "data": [dict(user) for user in users],
+            "pagination": {
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "has_more": (offset + limit) < total,
+            },
+        }
+
+
 @router.get("/{user_id}")
 async def get_user(
     user_id: int,
