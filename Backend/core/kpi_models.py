@@ -342,3 +342,65 @@ class PerformanceStats(BaseModel):
     change_percent: Optional[float]
     trend: TrendDirection
     unit: Optional[str]
+
+
+# ============================================================================
+# Dashboard & API Response Models
+# ============================================================================
+
+class AgentPerformanceKPI(BaseModel):
+    """Agent performance KPIs for dashboard"""
+    avg_response_time_ms: float
+    total_queries: int
+    total_cost_usd: Decimal
+    success_rate: float
+    by_agent: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class ConnectorKPI(BaseModel):
+    """Connector KPIs for dashboard"""
+    connector_type: str
+    total_syncs: int
+    total_kpis_extracted: int
+    last_sync: Optional[datetime]
+    kpis_by_category: Dict[str, int] = Field(default_factory=dict)
+
+
+class UserEngagementKPI(BaseModel):
+    """User engagement KPIs for dashboard"""
+    active_users: int
+    avg_satisfaction: Optional[Decimal]
+    total_sessions: int
+    total_queries: int
+    avg_session_duration_seconds: float
+
+
+class KPIDashboard(BaseModel):
+    """Comprehensive KPI dashboard response"""
+    agent_performance: AgentPerformanceKPI
+    connector_kpis: Dict[str, ConnectorKPI]
+    user_engagement: UserEngagementKPI
+    period_start: datetime
+    period_end: datetime
+
+
+class KPITrendPoint(BaseModel):
+    """Single point in a KPI trend time-series"""
+    timestamp: datetime
+    value: Any
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class FeedbackSubmission(BaseModel):
+    """User feedback submission for satisfaction tracking"""
+    message_id: str
+    satisfaction_score: int = Field(ge=1, le=5)
+    feedback_text: Optional[str] = None
+
+
+class KPIExportParams(BaseModel):
+    """Parameters for KPI export requests"""
+    format: str = Field(default="json", pattern="^(json|csv)$")
+    kpi_types: Optional[List[str]] = None
+    date_range_start: Optional[datetime] = None
+    date_range_end: Optional[datetime] = None
