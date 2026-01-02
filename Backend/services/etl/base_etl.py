@@ -1,13 +1,19 @@
 """
-🔥 BASE ETL UTILITIES - SHARED ACROSS ALL ETL MODULES
+BASE ETL UTILITIES - SHARED ACROSS ALL ETL MODULES
 
 This module contains all shared functionality used by ETL pipelines:
 - Token management (refresh logic)
-- File upload helpers
+- File upload helpers (with intelligent change detection)
 - Progress tracking
 - Embedding queue management
 
 All ETL modules import from this to avoid code duplication.
+
+CRITICAL DESIGN:
+- Files are UPLOADED immediately
+- Files are QUEUED for processing (not processed immediately)
+- Processing happens in BATCH at the end (via process_embedding_queue_batch)
+- This ensures proper note generation after all embeddings are done
 """
 
 import os
@@ -41,37 +47,233 @@ TOKEN_REFRESH_BUFFER = 300  # Refresh if expiring within 5 minutes
 embedding_queue = deque()
 
 
-def queue_embedding(user_id: str, file_path: str):
-    """Add file to embedding queue"""
-    embedding_queue.append({'user_id': user_id, 'file_path': file_path})
-    logging.info(f" Queued for embedding: {file_path}")
+def queue_embedding(user_id: str, file_path: str, source_type: str = "upload", source_id: Optional[str] = None, source_metadata: Optional[Dict] = None):
+    """
+    Add file to embedding queue.
+    
+    Args:
+        user_id: User ID
+        file_path: Path in storage bucket
+        source_type: 'google_drive', 'jira', 'asana', 'upload', etc.
+        source_id: External ID (optional)
+        source_metadata: Connector-specific metadata (optional)
+    """
+    embedding_queue.append({
+        'user_id': user_id, 
+        'file_path': file_path,
+        'source_type': source_type,
+        'source_id': source_id,
+        'source_metadata': source_metadata
+    })
+    logging.info(f"Queued for embedding: {file_path}")
 
 
 async def process_embedding_queue_batch():
-    """Process all items in embedding queue"""
+    """
+    Process all items in embedding queue with change detection.
+    
+    This is where the actual embedding and note generation happens.
+    Call this AFTER all files have been uploaded and queued.
+    
+    Returns:
+        Dict with processed, skipped, and failed counts
+    """
     from services.embedding_service import embed_and_store_file
     
-    logging.info(f" Processing {len(embedding_queue)} embeddings...")
+    logging.info(f"Processing {len(embedding_queue)} embeddings...")
     
     processed = 0
+    skipped = 0
     failed = 0
     
     while embedding_queue:
         item = embedding_queue.popleft()
         user_id = item['user_id']
         file_path = item['file_path']
+        source_type = item.get('source_type', 'upload')
+        source_id = item.get('source_id')
+        source_metadata = item.get('source_metadata')
         
         try:
-            await embed_and_store_file(user_id, file_path)
-            processed += 1
-            logging.info(f" Embedded ({processed}): {file_path}")
+            result = await embed_and_store_file(
+                user_id=user_id,
+                file_path_in_bucket=file_path,
+                source_type=source_type,
+                source_id=source_id,
+                source_metadata=source_metadata
+            )
+            
+            if result['status'] == 'skipped':
+                skipped += 1
+                logging.info(f"Skipped ({skipped}): {file_path}")
+            elif result['status'] == 'success':
+                processed += 1
+                logging.info(f"Embedded ({processed}): {file_path}")
+            else:
+                failed += 1
+                logging.error(f"Failed ({failed}): {file_path}")
+                
         except Exception as e:
             failed += 1
-            logging.error(f" Failed embedding: {file_path} - {e}")
+            logging.error(f"Failed embedding: {file_path} - {e}")
         
         await asyncio.sleep(0.1)
     
-    logging.info(f" Embedding complete: {processed} succeeded, {failed} failed")
+    logging.info(f"Embedding complete: {processed} processed, {skipped} skipped, {failed} failed")
+    
+    return {
+        'processed': processed,
+        'skipped': skipped,
+        'failed': failed
+    }
+
+
+# =================================================================
+# SMART UPLOAD AND QUEUE (CORRECT NAME!)
+# =================================================================
+
+async def smart_upload_and_embed(
+    user_id: str,
+    bucket_name: str,
+    file_path: str,
+    content: bytes,
+    mime_type: str,
+    source_type: str,
+    source_id: Optional[str] = None,
+    source_metadata: Optional[Dict] = None,
+    enable_versioning: bool = False,
+    process_content_directly: bool = True  # Kept for API compatibility
+) -> Dict:
+    """
+    UPLOADS file and QUEUES for batch processing.
+    
+    IMPORTANT: This does NOT process files immediately!
+    - Uploads file to storage
+    - Queues file for batch processing
+    - Returns 'queued' status
+    
+    Actual processing (embedding + note generation) happens later
+    when process_embedding_queue_batch() is called.
+    
+    Workflow:
+    1. Upload to Supabase Storage
+    2. Queue for batch processing
+    3. Return 'queued' status
+    
+    Later (in etl_pipelines.py):
+    4. process_embedding_queue_batch() runs
+    5. All files processed with change detection
+    6. Notes generated for ALL files together
+    
+    Args:
+        user_id: User ID
+        bucket_name: Storage bucket (usually "Kogna")
+        file_path: Path in bucket (e.g., "user123/google_drive/report.pdf")
+        content: File content as bytes
+        mime_type: MIME type (e.g., "application/pdf")
+        source_type: 'google_drive', 'jira', 'asana', 'upload', etc.
+        source_id: External ID (e.g., Google Drive file ID, Jira issue key)
+        source_metadata: Connector-specific metadata (modified_time, etc.)
+        enable_versioning: If True, keeps timestamped versions
+        process_content_directly: Kept for API compatibility (not used)
+    
+    Returns:
+        {
+            'status': 'queued',  # Always queued, never 'success' immediately
+            'message': 'File uploaded and queued for processing',
+            'storage_path': str
+        }
+    
+    Example usage:
+        result = await smart_upload_and_embed(
+            user_id=user_id,
+            bucket_name="Kogna",
+            file_path=f"{user_id}/jira/{issue_key}.json",
+            content=json_content.encode('utf-8'),
+            mime_type="application/json",
+            source_type="jira",
+            source_id=issue_key
+        )
+        
+        if result['status'] == 'queued':
+            files_queued += 1  # Count as queued, will process in batch
+    """
+    
+    try:
+        # =====================================================================
+        # STEP 1: UPLOAD TO STORAGE
+        # =====================================================================
+        
+        logging.info(f"Uploading: {file_path}")
+        
+        # Upload file to storage
+        try:
+            upload_result = supabase.storage.from_(bucket_name).upload(
+                path=file_path,
+                file=content,
+                file_options={
+                    "content-type": mime_type,
+                    "upsert": "true"  # FIXED: String instead of boolean
+                }
+            )
+            
+            logging.info(f"Uploaded to storage: {file_path}")
+            
+        except Exception as upload_error:
+            logging.error(f"Upload failed: {upload_error}")
+            return {
+                'status': 'error',
+                'message': f'Upload failed: {str(upload_error)}',
+                'storage_path': file_path
+            }
+        
+        # Optional: Store versioned copy
+        if enable_versioning:
+            try:
+                timestamp = int(time.time())
+                version_path = f"{file_path}_v{timestamp}"
+                
+                supabase.storage.from_(bucket_name).upload(
+                    path=version_path,
+                    file=content,
+                    file_options={
+                        "content-type": mime_type,
+                        "upsert": "true"  # FIXED: String instead of boolean
+                    }
+                )
+                
+                logging.info(f"Versioned copy: {version_path}")
+                
+            except Exception as version_error:
+                # Non-critical, just log
+                logging.warning(f"Versioning failed (non-critical): {version_error}")
+        
+        # =====================================================================
+        # STEP 2: QUEUE FOR BATCH PROCESSING (DON'T PROCESS NOW!)
+        # =====================================================================
+        
+        queue_embedding(
+            user_id=user_id,
+            file_path=file_path,
+            source_type=source_type,
+            source_id=source_id,
+            source_metadata=source_metadata
+        )
+        
+        # Return queued status (processing happens later in batch)
+        return {
+            'status': 'queued',  # NOT 'success' - will be processed later
+            'message': 'File uploaded and queued for processing',
+            'storage_path': file_path
+        }
+        
+    except Exception as e:
+        logging.error(f"Error in smart_upload_and_embed: {e}")
+        return {
+            'status': 'error',
+            'message': f'Error: {str(e)}',
+            'storage_path': file_path
+        }
 
 
 # =================================================================
@@ -87,16 +289,17 @@ async def create_sync_job(user_id: str, service: str) -> Optional[str]:
             "status": "running",
             "started_at": int(time.time()),
             "progress": "0/0",
-            "files_processed": 0
+            "files_processed": 0,
+            "files_skipped": 0  # Track skipped files
         }).execute()
         
         if response.data:
             job_id = response.data[0]['id']
-            logging.info(f" Created sync job {job_id} for {service}")
+            logging.info(f"Created sync job {job_id} for {service}")
             return job_id
         return None
     except Exception as e:
-        logging.error(f" Failed to create sync job: {e}")
+        logging.error(f"Failed to create sync job: {e}")
         return None
 
 
@@ -110,16 +313,35 @@ async def update_sync_progress(user_id: str, service: str, **updates):
             .eq("status", "running") \
             .execute()
     except Exception as e:
-        logging.error(f" Failed to update sync progress: {e}")
+        logging.error(f"Failed to update sync progress: {e}")
 
 
-async def complete_sync_job(user_id: str, service: str, success: bool, files_count: int = 0, error: str = None):
-    """Marks sync job as completed or failed"""
+async def complete_sync_job(
+    user_id: str, 
+    service: str, 
+    success: bool, 
+    files_count: int = 0,
+    skipped_count: int = 0,  # NEW: Track skipped files
+    error: str = None
+):
+    """
+    Marks sync job as completed or failed.
+    
+    Args:
+        user_id: User ID
+        service: Service name
+        success: Whether sync succeeded
+        files_count: Number of files processed (new/modified only)
+        skipped_count: Number of files skipped (unchanged)
+        error: Error message if failed
+    """
     try:
         updates = {
             "status": "completed" if success else "failed",
             "finished_at": int(time.time()),
-            "files_processed": files_count
+            "files_processed": files_count,
+            "files_skipped": skipped_count,  # NEW
+            "total_files": files_count + skipped_count  # NEW
         }
         if error:
             updates["error_message"] = str(error)[:500]
@@ -131,10 +353,11 @@ async def complete_sync_job(user_id: str, service: str, success: bool, files_cou
             .eq("status", "running") \
             .execute()
         
-        status = " COMPLETED" if success else " FAILED"
-        logging.info(f"{status} sync job for {service} ({files_count} files)")
+        status = "COMPLETED" if success else "FAILED"
+        logging.info(f"{status} sync job for {service}")
+        logging.info(f"   Processed: {files_count}, Skipped: {skipped_count}, Total: {files_count + skipped_count}")
     except Exception as e:
-        logging.error(f" Failed to complete sync job: {e}")
+        logging.error(f"Failed to complete sync job: {e}")
 
 
 # =================================================================
@@ -165,7 +388,7 @@ async def ensure_valid_token(user_id: str, service: str) -> Optional[str]:
 
         data = getattr(response, "data", None)
         if not data:
-            logging.error(f" No connector found for {service}")
+            logging.error(f"No connector found for {service}")
             return None
 
         expires_at = int(data.get("expires_at", 0))
@@ -173,11 +396,11 @@ async def ensure_valid_token(user_id: str, service: str) -> Optional[str]:
         
         # Refresh if expiring within buffer time
         if current_time + TOKEN_REFRESH_BUFFER > expires_at:
-            logging.info(f" Token expiring soon for {service}. Refreshing...")
+            logging.info(f"Token expiring soon for {service}. Refreshing...")
             refresh_token = data.get("refresh_token")
             
             if not refresh_token:
-                logging.error(" No refresh token available")
+                logging.error("No refresh token available")
                 return None
 
             # Select refresh function based on service
@@ -199,16 +422,16 @@ async def ensure_valid_token(user_id: str, service: str) -> Optional[str]:
                     "expires_at": new_expires_at
                 }).eq("id", data["id"]).execute()
                 
-                logging.info(" Token refreshed successfully")
+                logging.info("Token refreshed successfully")
                 return new_token_data["access_token"]
             else:
-                logging.error(f" Failed to refresh token for {service}")
+                logging.error(f"Failed to refresh token for {service}")
                 return None
 
         return data["access_token"]
         
     except Exception as e:
-        logging.error(f" Error ensuring valid token: {e}")
+        logging.error(f"Error ensuring valid token: {e}")
         return None
 
 
@@ -228,9 +451,9 @@ async def refresh_jira_token(refresh_token: str) -> Optional[Dict]:
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError as e:
-        logging.error(f" Error refreshing Jira token: {e.response.status_code} - {e.response.text}")
+        logging.error(f"Error refreshing Jira token: {e.response.status_code} - {e.response.text}")
     except Exception as e:
-        logging.error(f" Unexpected error refreshing Jira token: {e}")
+        logging.error(f"Unexpected error refreshing Jira token: {e}")
     return None
 
 
@@ -250,9 +473,9 @@ async def refresh_google_token(refresh_token: str) -> Optional[Dict]:
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError as e:
-        logging.error(f" Error refreshing Google token: {e.response.status_code} - {e.response.text}")
+        logging.error(f"Error refreshing Google token: {e.response.status_code} - {e.response.text}")
     except Exception as e:
-        logging.error(f" Unexpected error refreshing Google token: {e}")
+        logging.error(f"Unexpected error refreshing Google token: {e}")
     return None
 
 
@@ -272,7 +495,7 @@ async def refresh_microsoft_token(refresh_token: str) -> Optional[Dict]:
             response.raise_for_status()
             return response.json()
     except Exception as e:
-        logging.error(f" Error refreshing Microsoft token: {e}")
+        logging.error(f"Error refreshing Microsoft token: {e}")
         return None
 
 
@@ -292,12 +515,12 @@ async def refresh_asana_token(refresh_token: str) -> Optional[Dict]:
             response.raise_for_status()
             return response.json()
     except Exception as e:
-        logging.error(f" Error refreshing Asana token: {e}")
+        logging.error(f"Error refreshing Asana token: {e}")
         return None
 
 
 # =================================================================
-# FILE UPLOAD HELPERS
+# LEGACY FILE UPLOAD (BACKWARD COMPATIBILITY)
 # =================================================================
 
 async def safe_upload_to_bucket(
@@ -305,119 +528,35 @@ async def safe_upload_to_bucket(
     file_path: str, 
     content: bytes, 
     mime_type: str,
-    enable_versioning: bool = True
+    enable_versioning: bool = False
 ) -> bool:
     """
-    Safely uploads file to Supabase Storage with change detection and versioning.
+    LEGACY FUNCTION - For backward compatibility only
     
-    Versioning Strategy:
-    - If enable_versioning=True: Creates timestamped versions (file_v1732014000.json)
-    - If enable_versioning=False: Overwrites with _latest.json
-    - Always keeps a "latest" pointer for quick access
+    NEW CODE SHOULD USE: smart_upload_and_embed()
     
-    Args:
-        bucket_name: Supabase bucket name
-        file_path: Target file path in bucket
-        content: File content as bytes
-        mime_type: MIME type
-        enable_versioning: Enable versioning (default True)
-        
-    Returns:
-        bool: Success status
+    This is a simple upload without change detection or embedding.
     """
     try:
-        # Generate content hash for change detection
-        content_hash = hashlib.sha256(content).hexdigest()[:16]
+        upload_response = supabase.storage.from_(bucket_name).upload(
+            path=file_path,
+            file=content,
+            file_options={
+                "content-type": mime_type,
+                "upsert": "true"  # FIXED: String instead of boolean
+            }
+        )
         
-        # Split file path to create versioned path
-        path_parts = file_path.rsplit('/', 1)
-        if len(path_parts) == 2:
-            directory = path_parts[0]
-            filename = path_parts[1]
-        else:
-            directory = ""
-            filename = file_path
+        if hasattr(upload_response, 'error') and upload_response.error:
+            logging.error(f"Upload failed: {upload_response.error}")
+            return False
         
-        # Remove extension
-        name_parts = filename.rsplit('.', 1)
-        base_name = name_parts[0]
-        extension = name_parts[1] if len(name_parts) == 2 else ""
-        
-        if enable_versioning:
-            # Create versioned path with timestamp
-            timestamp = int(time.time())
-            versioned_filename = f"{base_name}_v{timestamp}.{extension}" if extension else f"{base_name}_v{timestamp}"
-            versioned_path = f"{directory}/{versioned_filename}" if directory else versioned_filename
-            
-            # Also create/update a "latest" pointer
-            latest_filename = f"{base_name}_latest.{extension}" if extension else f"{base_name}_latest"
-            latest_path = f"{directory}/{latest_filename}" if directory else latest_filename
-            
-            # Upload versioned file
-            logging.debug(f" Uploading versioned file: {versioned_path}")
-            version_response = supabase.storage.from_(bucket_name).upload(
-                path=versioned_path,
-                file=content,
-                file_options={"content-type": mime_type}
-            )
-            
-            if hasattr(version_response, 'error') and version_response.error:
-                logging.error(f" Versioned upload failed: {version_response.error}")
-                return False
-            
-            # Update latest pointer (with upsert)
-            logging.debug(f" Updating latest pointer: {latest_path}")
-            latest_response = supabase.storage.from_(bucket_name).upload(
-                path=latest_path,
-                file=content,
-                file_options={"content-type": mime_type, "upsert": "true"}
-            )
-            
-            if hasattr(latest_response, 'error') and latest_response.error:
-                logging.warning(f" Latest pointer update failed, but version saved")
-            
-            logging.debug(f" Uploaded: {versioned_path} (hash: {content_hash})")
-            return True
-        
-        else:
-            # No versioning - just use upsert
-            upload_response = supabase.storage.from_(bucket_name).upload(
-                path=file_path,
-                file=content,
-                file_options={"content-type": mime_type, "upsert": "true"}
-            )
-            
-            if hasattr(upload_response, 'error') and upload_response.error:
-                logging.error(f" Upload failed: {upload_response.error}")
-                return False
-            
-            logging.debug(f" Uploaded: {file_path}")
-            return True
+        logging.info(f"Uploaded: {file_path}")
+        return True
         
     except Exception as e:
-        error_str = str(e).lower()
-        
-        if "already exists" in error_str or "duplicate" in error_str:
-            try:
-                logging.info(f" File exists, updating: {file_path}")
-                update_response = supabase.storage.from_(bucket_name).update(
-                    path=file_path,
-                    file=content,
-                    file_options={"content-type": mime_type}
-                )
-                
-                if hasattr(update_response, 'error') and update_response.error:
-                    logging.error(f" Update failed: {update_response.error}")
-                    return False
-                
-                logging.info(f" Updated: {file_path}")
-                return True
-            except Exception as update_error:
-                logging.error(f" Error updating file: {update_error}")
-                return False
-        else:
-            logging.error(f" Error uploading {file_path}: {e}")
-            return False
+        logging.error(f"Error uploading {file_path}: {e}")
+        return False
 
 
 # =================================================================
@@ -435,6 +574,9 @@ __all__ = [
     'queue_embedding',
     'process_embedding_queue_batch',
     
+    # Smart upload (uploads + queues, does NOT process immediately)
+    'smart_upload_and_embed',
+    
     # Progress tracking
     'create_sync_job',
     'update_sync_progress',
@@ -447,6 +589,6 @@ __all__ = [
     'refresh_microsoft_token',
     'refresh_asana_token',
     
-    # File upload
+    # Legacy file upload (backward compatibility)
     'safe_upload_to_bucket',
 ]
