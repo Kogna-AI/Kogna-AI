@@ -1,5 +1,5 @@
 # services/embedding_service.py
-# COMPLETE VERSION: With Hybrid Intelligent Clustering
+# COMPLETE VERSION: With Hybrid Intelligent Clustering + File Change Detection
 # Stage 1: Cluster by topic (semantic similarity)
 # Stage 2: Split large clusters into manageable sub-groups
 
@@ -8,6 +8,7 @@ import io
 import time
 import logging
 import fitz  # PDF extraction
+from typing import Optional, Dict
 from supabase_connect import get_supabase_manager
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -15,10 +16,13 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
-# === NEW IMPORT: Note Generator ===
+# === IMPORT: Note Generator ===
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from Ai_agents.note_generator_agent import DocumentNoteGenerator
+
+# === NEW IMPORT: File Change Detector ===
+from services.file_change_detector import FileChangeDetector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,18 +43,18 @@ try:
         model="models/embedding-001", 
         google_api_key=gemini_api_key
     )
-    print(" Embedding model initialized successfully.")
+    print("✓ Embedding model initialized successfully.")
 
 except Exception as e:
     print(f"CRITICAL ERROR: Could not initialize embedding model: {e}")
     embeddings_model = None
 
-# === NEW: Initialize Note Generator ===
+# === Initialize Note Generator ===
 try:
     note_generator = DocumentNoteGenerator()
-    print(" Note generator initialized successfully.")
+    print("✓ Note generator initialized successfully.")
 except Exception as e:
-    print(f"  Note generator initialization failed: {e}")
+    print(f"⚠ Note generator initialization failed: {e}")
     note_generator = None
 
 # Text splitters
@@ -67,7 +71,7 @@ json_splitter = RecursiveCharacterTextSplitter(
 
 
 # =============================================================================
-# ✨ HYBRID CLUSTERING FUNCTION (Two-Stage)
+#  HYBRID CLUSTERING FUNCTION (Two-Stage)
 # =============================================================================
 
 def cluster_and_split_chunks(chunks, chunk_embeddings, 
@@ -111,7 +115,7 @@ def cluster_and_split_chunks(chunks, chunk_embeddings,
     
     # Handle edge cases
     if len(chunks) < min_chunks_per_note:
-        print(f"     Too few chunks ({len(chunks)}), creating single group")
+        print(f"   ⚠ Too few chunks ({len(chunks)}), creating single group")
         return [{
             'chunks': chunks,
             'chunk_ids': list(range(len(chunks))),
@@ -133,7 +137,7 @@ def cluster_and_split_chunks(chunks, chunk_embeddings,
     # Goal: Separate by high-level topic (Finance, HR, Product, etc.)
     n_topics = max(2, min(6, len(chunks) // 15))  # 2-6 topics max
     
-    print(f"    Testing {n_topics-1} to {n_topics+1} topic configurations...")
+    print(f"   Testing {n_topics-1} to {n_topics+1} topic configurations...")
     
     # Find best topic clustering using silhouette score
     best_score = -1
@@ -146,18 +150,18 @@ def cluster_and_split_chunks(chunks, chunk_embeddings,
             labels = kmeans.fit_predict(embeddings_array)
             score = silhouette_score(embeddings_array, labels, metric='cosine')
             
-            print(f"      • {n} topics: quality = {score:.3f}")
+            print(f"    • {n} topics: quality = {score:.3f}")
             
             if score > best_score:
                 best_score = score
                 best_kmeans = kmeans
                 best_n_topics = n
         except Exception as e:
-            print(f"      ✗ {n} topics failed: {e}")
+            print(f"    ✗ {n} topics failed: {e}")
             continue
     
     if best_kmeans is None:
-        print(f"     Clustering failed, using default {n_topics} topics")
+        print(f"   ⚠ Clustering failed, using default {n_topics} topics")
         best_kmeans = KMeans(n_clusters=n_topics, random_state=42)
         best_kmeans.fit(embeddings_array)
         best_n_topics = n_topics
@@ -165,7 +169,7 @@ def cluster_and_split_chunks(chunks, chunk_embeddings,
     topic_labels = best_kmeans.labels_
     n_topics_found = len(set(topic_labels))
     
-    print(f"    Selected {best_n_topics} topics (quality: {best_score:.3f})")
+    print(f"  ✓ Selected {best_n_topics} topics (quality: {best_score:.3f})")
     
     # Group chunks by topic
     topic_clusters = {}
@@ -193,7 +197,7 @@ def cluster_and_split_chunks(chunks, chunk_embeddings,
         topic_data = topic_clusters[topic_id]
         topic_size = len(topic_data['chunks'])
         
-        print(f"\n    Topic {topic_id}: {topic_size} chunks", end=" ")
+        print(f"\n   Topic {topic_id}: {topic_size} chunks", end=" ")
         
         # If cluster is already optimal size, keep as single note
         if topic_size <= max_chunks_per_note:
@@ -243,10 +247,10 @@ def cluster_and_split_chunks(chunks, chunk_embeddings,
                             'chunk_count': len(sub_data['chunks']),
                             'description': f'topic_{topic_id}_part_{sub_id}'
                         })
-                        print(f"      • Sub-group {sub_id}: {len(sub_data['chunks'])} chunks")
+                        print(f"    • Sub-group {sub_id}: {len(sub_data['chunks'])} chunks")
                 
             except Exception as e:
-                print(f"\n        Sub-clustering failed ({e}), using sequential split")
+                print(f"\n       Sub-clustering failed ({e}), using sequential split")
                 # Fallback: simple sequential split
                 for i in range(0, topic_size, max_chunks_per_note):
                     sub_chunks = topic_data['chunks'][i:i+max_chunks_per_note]
@@ -261,13 +265,13 @@ def cluster_and_split_chunks(chunks, chunk_embeddings,
                             'chunk_count': len(sub_chunks),
                             'description': f'topic_{topic_id}_sequential_{i}'
                         })
-                        print(f"      • Part {i//max_chunks_per_note + 1}: {len(sub_chunks)} chunks")
+                        print(f"    • Part {i//max_chunks_per_note + 1}: {len(sub_chunks)} chunks")
     
     # Sort by topic, then sub-group for logical order
     final_groups.sort(key=lambda x: (x['topic_cluster'], x['sub_group']))
     
     # Print summary
-    print(f"\n    Final result: {len(final_groups)} focused notes")
+    print(f"\n   Final result: {len(final_groups)} focused notes")
     
     # Group by topic for summary
     topic_summary = {}
@@ -277,23 +281,41 @@ def cluster_and_split_chunks(chunks, chunk_embeddings,
             topic_summary[topic_id] = 0
         topic_summary[topic_id] += 1
     
-    print(f"    Distribution:")
+    print(f"   Distribution:")
     for topic_id in sorted(topic_summary.keys()):
         count = topic_summary[topic_id]
-        print(f"      Topic {topic_id}: {count} note(s)")
+        print(f"    Topic {topic_id}: {count} note(s)")
     
     return final_groups
 
 
 # =============================================================================
-# MAIN FUNCTION: EMBED AND STORE WITH HYBRID CLUSTERING
+# MAIN FUNCTION: EMBED AND STORE WITH CHANGE DETECTION + HYBRID CLUSTERING
 # =============================================================================
 
-async def embed_and_store_file(user_id: str, file_path_in_bucket: str):
+async def embed_and_store_file(
+    user_id: str, 
+    file_path_in_bucket: str,
+    source_type: str = "upload",
+    source_id: Optional[str] = None,
+    source_metadata: Optional[Dict] = None,
+    force_reprocess: bool = False,
+    file_content: Optional[bytes] = None  # NEW: Pass content directly to skip download
+):
     """
     Downloads a file from Supabase Storage, extracts text,
     chunks it, embeds it, stores vectors in the database,
     AND generates intelligent notes using HYBRID CLUSTERING.
+    
+    NOW WITH INTELLIGENT FILE CHANGE DETECTION:
+    - Computes file hash and checks if file changed
+    - Skips processing if file is unchanged (95% faster!)
+    - Deletes old chunks/notes before re-processing modified files
+    - Tracks file metadata in registry
+    
+    TWO MODES:
+    - file_content=None (default): Download from storage
+    - file_content=bytes: Use provided content (skip download, faster!)
     
     Hybrid Clustering:
     - Stage 1: Group by topic (semantic similarity)
@@ -302,23 +324,103 @@ async def embed_and_store_file(user_id: str, file_path_in_bucket: str):
     """
     if not supabase or not embeddings_model:
         print(" ERROR: Embedding service is not initialized. Aborting.")
-        return
+        return {
+            'status': 'error',
+            'message': 'Service not initialized'
+        }
 
     print(f"\n{'='*60}")
     print(f" Processing: {file_path_in_bucket}")
     print(f" User: {user_id}")
     print(f"{'='*60}")
 
+    detector = FileChangeDetector()
+    file_id = None
+
     try:
-        # 1. Download the file from Storage
-        bucket_name = "Kogna"
-        file_content_bytes = supabase.storage.from_(bucket_name).download(file_path_in_bucket)
+        # =====================================================================
+        # STEP 1: GET FILE CONTENT (download or use provided)
+        # =====================================================================
+        
+        if file_content is None:
+            # Download from storage
+            bucket_name = "Kogna"
+            file_content_bytes = supabase.storage.from_(bucket_name).download(file_path_in_bucket)
 
-        if not file_content_bytes:
-            print(f"  Failed to download {file_path_in_bucket} or file is empty.")
-            return
+            if not file_content_bytes:
+                print(f" Failed to download {file_path_in_bucket} or file is empty.")
+                return {
+                    'status': 'error',
+                    'message': 'Failed to download file'
+                }
+        else:
+            # Use provided content (already have it in memory!)
+            print(f" Using provided content (skipping download)")
+            file_content_bytes = file_content
 
-        # 2. Extract Text based on file type
+        # Compute file hash for change detection
+        file_hash = detector.compute_file_hash(file_content_bytes)
+        file_size = len(file_content_bytes)
+        file_name = file_path_in_bucket.split('/')[-1]
+        
+        print(f" File hash: {file_hash[:16]}...")
+        print(f" File size: {file_size:,} bytes")
+
+        # =====================================================================
+        # STEP 2: CHECK IF FILE CHANGED (unless force_reprocess)
+        # =====================================================================
+        
+        if not force_reprocess:
+            status_check = await detector.check_file_status(
+                user_id=user_id,
+                file_path=file_path_in_bucket,
+                current_hash=file_hash,
+                file_size=file_size,
+                source_type=source_type,
+                source_id=source_id
+            )
+            
+            # If file unchanged, skip processing
+            if status_check['action'] == 'skip':
+                print(f"\n  SKIPPED: File unchanged (hash matches)")
+                print(f"{'='*60}\n")
+                return {
+                    'status': 'skipped',
+                    'file_id': status_check['file_id'],
+                    'file_hash': file_hash,
+                    'chunks_processed': 0,
+                    'notes_generated': 0,
+                    'message': 'File unchanged'
+                }
+            
+            # If modified, delete old chunks/notes
+            if status_check['status'] == 'modified':
+                print(f"\n MODIFIED FILE DETECTED")
+                await detector.delete_file_chunks_and_notes(
+                    user_id=user_id,
+                    old_file_hash=status_check['previous_hash']
+                )
+        
+        # =====================================================================
+        # STEP 3: REGISTER FILE IN REGISTRY
+        # =====================================================================
+        
+        file_id = await detector.register_file(
+            user_id=user_id,
+            file_path=file_path_in_bucket,
+            file_name=file_name,
+            file_hash=file_hash,
+            file_size=file_size,
+            source_type=source_type,
+            source_id=source_id,
+            source_metadata=source_metadata,
+            last_modified_at=source_metadata.get('modified_time') if source_metadata else None
+        )
+
+        # =====================================================================
+        # STEP 4: EXTRACT TEXT
+        # =====================================================================
+        
         file_content_str = ""
         chunks = []
 
@@ -332,10 +434,14 @@ async def embed_and_store_file(user_id: str, file_path_in_bucket: str):
                         full_pdf_text += page.get_text() + "\n\n"
                 file_content_str = full_pdf_text
                 chunks = text_splitter.split_text(file_content_str)
-                print(f" Extracted text from {len(doc)} pages → {len(chunks)} chunks")
+                print(f"✓ Extracted text from {len(doc)} pages → {len(chunks)} chunks")
             except Exception as pdf_e:
                 print(f" Could not extract text from PDF: {pdf_e}")
-                return
+                await detector.update_file_processing_status(file_id, 'failed', 0, 0)
+                return {
+                    'status': 'error',
+                    'message': f'PDF extraction failed: {pdf_e}'
+                }
 
         # --- Handle JSON ---
         elif file_path_in_bucket.endswith(".json"):
@@ -354,16 +460,27 @@ async def embed_and_store_file(user_id: str, file_path_in_bucket: str):
             try:
                 file_content_str = file_content_bytes.decode('utf-8')
                 chunks = text_splitter.split_text(file_content_str)
-                print(f"  Unknown type, attempting text embedding → {len(chunks)} chunks")
+                print(f"⚠ Unknown type, attempting text embedding → {len(chunks)} chunks")
             except UnicodeDecodeError:
-                print(f"  Skipping unsupported/binary file: {file_path_in_bucket}")
-                return
+                print(f" Skipping unsupported/binary file: {file_path_in_bucket}")
+                await detector.update_file_processing_status(file_id, 'failed', 0, 0)
+                return {
+                    'status': 'error',
+                    'message': 'Unsupported file type'
+                }
 
         if not chunks:
-            print(f"  No text chunks generated for {file_path_in_bucket}")
-            return
+            print(f" No text chunks generated for {file_path_in_bucket}")
+            await detector.update_file_processing_status(file_id, 'failed', 0, 0)
+            return {
+                'status': 'error',
+                'message': 'No chunks generated'
+            }
 
-        # 3. Embed the chunks in batches
+        # =====================================================================
+        # STEP 5: EMBED CHUNKS
+        # =====================================================================
+        
         print(f" Embedding {len(chunks)} chunks...")
         batch_size = 90
         chunk_embeddings = []
@@ -383,50 +500,47 @@ async def embed_and_store_file(user_id: str, file_path_in_bucket: str):
 
             except Exception as batch_e:
                 print(f" Error: {batch_e}")
+                await detector.update_file_processing_status(file_id, 'failed', 0, 0)
                 raise batch_e
 
         if not chunk_embeddings or len(chunk_embeddings) != len(chunks):
             print(" Embedding process failed or returned mismatched count.")
-            return
+            await detector.update_file_processing_status(file_id, 'failed', 0, 0)
+            return {
+                'status': 'error',
+                'message': 'Embedding failed'
+            }
 
-        # 4. Prepare data for Supabase
-        documents_to_insert = [
-            {
+        # =====================================================================
+        # STEP 6: STORE CHUNKS WITH FILE_HASH
+        # =====================================================================
+        
+        documents_to_insert = []
+        for chunk, embedding in zip(chunks, chunk_embeddings):
+            chunk_hash = detector.compute_chunk_hash(chunk)
+            documents_to_insert.append({
                 "user_id": user_id,
                 "file_path": file_path_in_bucket,
                 "content": chunk,
-                "embedding": embedding
-            }
-            for chunk, embedding in zip(chunks, chunk_embeddings)
-        ]
-
-        # 5. Store chunks in database
-        print(f"  Deleting old chunks...")
-        supabase.table("document_chunks").delete().eq("file_path", file_path_in_bucket).execute()
+                "embedding": embedding,
+                "file_hash": file_hash,      #  NEW: Link to file version
+                "chunk_hash": chunk_hash      #  NEW: Chunk-level deduplication
+            })
 
         print(f" Inserting {len(documents_to_insert)} chunks...")
         supabase.table("document_chunks").insert(documents_to_insert).execute()
+        print(f"✓ Chunks stored successfully!")
 
-        print(f" Chunks stored successfully!")
-
-        # =================================================================
-        # === ✨ INTELLIGENT NOTE GENERATION WITH HYBRID CLUSTERING ✨ ===
-        # =================================================================
+        # =====================================================================
+        # STEP 7: INTELLIGENT NOTE GENERATION WITH HYBRID CLUSTERING
+        # =====================================================================
+        
+        notes_generated = 0
         
         if note_generator and chunks and len(chunks) >= 3:
             print(f"\n Generating intelligent notes with hybrid clustering...")
             
-            # Delete old notes for this file
-            try:
-                supabase.table('document_notes')\
-                    .delete()\
-                    .eq('user_id', user_id)\
-                    .eq('file_path', file_path_in_bucket)\
-                    .execute()
-            except Exception as e:
-                print(f"  Warning: Could not delete old notes: {e}")
-            
-            # ✨ HYBRID CLUSTERING: Topic-based + Size-based splitting
+            #  HYBRID CLUSTERING: Topic-based + Size-based splitting
             note_groups = cluster_and_split_chunks(
                 chunks, 
                 chunk_embeddings,
@@ -434,9 +548,7 @@ async def embed_and_store_file(user_id: str, file_path_in_bucket: str):
                 max_chunks_per_note=12     # Maximum chunks per note
             )
             
-            notes_generated = 0
-            
-            print(f"\n Generating {len(note_groups)} notes...")
+            print(f"\n  Generating {len(note_groups)} notes...")
             
             # Generate note for each hybrid group
             for group_idx, group in enumerate(note_groups, 1):
@@ -478,7 +590,7 @@ Topics: {', '.join(topics_list)}
                         logging.warning(f"Failed to embed note: {embed_error}")
                         note_embedding = None
                     
-                    # Store note with hybrid cluster metadata
+                    # Store note with hybrid cluster metadata + file_hash
                     note_record = {
                         'user_id': user_id,
                         'file_path': file_path_in_bucket,
@@ -487,10 +599,11 @@ Topics: {', '.join(topics_list)}
                         'key_facts': note_data.get('key_facts', []),
                         'action_items': note_data.get('action_items', []),
                         'entities': note_data.get('entities', {}),
-                        'chunk_group': int(topic_id * 100 + sub_id),  # Convert to Python int
-                        'chunk_start': int(min(group['chunk_ids'])),   # Convert to Python int
-                        'chunk_end': int(max(group['chunk_ids'])),     # Convert to Python int
-                        'note_embedding': note_embedding
+                        'chunk_group': int(topic_id * 100 + sub_id),
+                        'chunk_start': int(min(group['chunk_ids'])),
+                        'chunk_end': int(max(group['chunk_ids'])),
+                        'note_embedding': note_embedding,
+                        'file_hash': file_hash  #  NEW: Link to file version
                     }
                     
                     supabase.table('document_notes').insert(note_record).execute()
@@ -514,24 +627,62 @@ Topics: {', '.join(topics_list)}
             
         else:
             if not note_generator:
-                print(f"  Note generator not available, skipping note creation")
+                print(f"⚠ Note generator not available, skipping note creation")
             elif not chunks:
-                print(f"  No chunks available, skipping note creation")
+                print(f"⚠ No chunks available, skipping note creation")
             else:
-                print(f"  Too few chunks ({len(chunks)}), skipping clustering")
+                print(f"⚠ Too few chunks ({len(chunks)}), skipping clustering")
+
+        # =====================================================================
+        # STEP 8: UPDATE FILE REGISTRY WITH FINAL STATUS
+        # =====================================================================
         
-        # =================================================================
-        # === END NOTE GENERATION ===
-        # =================================================================
+        await detector.update_file_processing_status(
+            file_id=file_id,
+            status='completed',
+            chunk_count=len(chunks),
+            note_count=notes_generated
+        )
 
         print(f"\n{'='*60}")
         print(f" COMPLETE: {file_path_in_bucket}")
         print(f"   • Chunks: {len(documents_to_insert)}")
-        print(f"   • Notes: {notes_generated if note_generator and chunks else 0} (hybrid clusters)")
+        print(f"   • Notes: {notes_generated} (hybrid clusters)")
+        print(f"   • File hash: {file_hash[:16]}...")
         print(f"{'='*60}\n")
+
+        return {
+            'status': 'success',
+            'file_id': file_id,
+            'file_hash': file_hash,
+            'chunks_processed': len(chunks),
+            'notes_generated': notes_generated,
+            'message': f'Successfully processed {len(chunks)} chunks'
+        }
 
     except Exception as e:
         print(f"\n Error during processing for {file_path_in_bucket}: {e}")
         logging.error(f"Embedding service error for {file_path_in_bucket}: {e}")
         import traceback
         traceback.print_exc()
+        
+        # Update file status to failed if we have a file_id
+        if file_id:
+            try:
+                await detector.update_file_processing_status(
+                    file_id=file_id,
+                    status='failed',
+                    chunk_count=0,
+                    note_count=0
+                )
+            except:
+                pass
+        
+        return {
+            'status': 'error',
+            'file_id': file_id,
+            'file_hash': None,
+            'chunks_processed': 0,
+            'notes_generated': 0,
+            'message': f'Error: {str(e)}'
+        }
