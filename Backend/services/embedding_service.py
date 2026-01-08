@@ -536,7 +536,8 @@ async def embed_and_store_file(
         # =====================================================================
         
         notes_generated = 0
-        
+        generated_note_ids = [] 
+
         if note_generator and chunks and len(chunks) >= 3:
             print(f"\n Generating intelligent notes with hybrid clustering...")
             
@@ -606,7 +607,12 @@ Topics: {', '.join(topics_list)}
                         'file_hash': file_hash  #  NEW: Link to file version
                     }
                     
-                    supabase.table('document_notes').insert(note_record).execute()
+                    # Capture the insert result
+                    insert_result = supabase.table('document_notes').insert(note_record).execute()
+                    
+                    # Capture note ID if insert succeeded
+                    if insert_result.data and len(insert_result.data) > 0:
+                        generated_note_ids.append(insert_result.data[0]['id'])
                     
                     notes_generated += 1
                     print("✓")
@@ -634,7 +640,68 @@ Topics: {', '.join(topics_list)}
                 print(f"⚠ Too few chunks ({len(chunks)}), skipping clustering")
 
         # =====================================================================
-        # STEP 8: UPDATE FILE REGISTRY WITH FINAL STATUS
+        # STEP 8: SMART TREE UPDATE
+        # =====================================================================
+        
+        if notes_generated > 0:
+            print(f"\n🌳 Smart tree update for user {user_id}...")
+            
+            try:
+                from services.tree_updater import TreeUpdater
+                from services.tree_builder import build_tree_for_user
+                
+                # Check if tree exists
+                tree_check = supabase.table('super_notes').select('id').eq(
+                    'user_id', user_id
+                ).eq('is_root', True).execute()
+                
+                tree_exists = bool(tree_check.data)
+                
+                if not tree_exists:
+                    # NO TREE - BUILD INITIAL
+                    print("    Building initial tree...")
+                    tree_result = await build_tree_for_user(user_id)
+                    print(f"    Initial tree built!")
+                    print(f"      • Levels: {tree_result['levels']}")
+                    print(f"      • Super-notes: {tree_result['nodes_created']}")
+                
+                else:
+                    # TREE EXISTS - SMART UPDATE
+                    print("    Using smart update...")
+                    
+                    if not generated_note_ids:
+                        print("    No note IDs - skipping update")
+                    else:
+                        updater = TreeUpdater(user_id)
+                        
+                        # Mark affected branches
+                        update_result = await updater.on_new_notes(
+                            new_note_ids=generated_note_ids,
+                            file_hash=file_hash
+                        )
+                        
+                        if update_result['status'] == 'success':
+                            print(f"    Smart update complete!")
+                            print(f"      • Branches marked: {update_result['branches_marked']}")
+                            print(f"      • Nodes marked: {update_result['nodes_marked']}")
+                            print(f"     Nodes will regenerate in background")
+                        
+                        elif update_result['status'] == 'full_rebuild_needed':
+                            print("     New topics - full rebuild needed")
+                            supabase.table('super_notes').delete().eq(
+                                'user_id', user_id
+                            ).execute()
+                            tree_result = await build_tree_for_user(user_id)
+                            print(f"    Tree rebuilt!")
+            
+            except Exception as tree_error:
+                logging.error(f" Tree update failed: {tree_error}")
+                import traceback
+                traceback.print_exc()
+                print("    Tree update failed, but document processing succeeded")
+        
+        # =====================================================================
+        # STEP 9: UPDATE FILE REGISTRY WITH FINAL STATUS
         # =====================================================================
         
         await detector.update_file_processing_status(
