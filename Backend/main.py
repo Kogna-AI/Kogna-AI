@@ -125,10 +125,28 @@ async def startup_event():
     logger.info("Environment: Production-ready with AWS support")
     logger.info("=" * 50)
 
+    # Start KPI Scheduler (Phase 5)
+    try:
+        from services.kpi_scheduler import run_kpi_scheduler
+        import asyncio
+        asyncio.create_task(run_kpi_scheduler())
+        logger.info("KPI Scheduler initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to start KPI Scheduler: {e}")
+        # Don't fail startup if scheduler fails to start
+
 @app.on_event("shutdown")
 async def shutdown_event():
     """Run on application shutdown"""
     logger.info("Shutting down KognaDash API")
+
+    # Stop KPI Scheduler gracefully
+    try:
+        from services.kpi_scheduler import stop_scheduler
+        await stop_scheduler()
+        logger.info("KPI Scheduler stopped successfully")
+    except Exception as e:
+        logger.error(f"Error stopping KPI Scheduler: {e}")
 
 # ==================== GLOBAL EXCEPTION HANDLER ====================
 
