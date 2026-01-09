@@ -443,9 +443,12 @@ function OneOnOneSchedulingDialog() {
 
 export function TeamOverview() {
   const { user } = useUser();
+  console.log(user);
   const [team, setTeam] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
-  const [teamMembersCount, setTeamMembersCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "available":
@@ -456,32 +459,74 @@ export function TeamOverview() {
         return "bg-gray-500";
     }
   };
-  useEffect(() => {
-    const fetchTeamAndMembers = async () => {
-      if (!user?.id) return;
-      try {
-        const teamData = await api.getUserTeam(user?.backend_id);
-        setTeam(teamData);
 
-        const teamMembers = await api.listTeamMembers(teamData.id);
-        setMembers(teamMembers);
-        setTeamMembersCount(teamMembers.length);
+  useEffect(() => {
+    const fetchVisiblePeople = async () => {
+      if (!user?.id) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        // 1. Get all people this user is allowed to see
+        const visibleResponse = await api.listVisibleUsers();
+        const visibleMembers = visibleResponse?.data || visibleResponse || [];
+        setMembers(visibleMembers);
+
+        // 2. Optional: still fetch the user's primary team for the header
+        //    For executives/founders, we show an org-wide label instead.
+        let teamLabel: any = null;
+
+        try {
+          const teamResponse = await api.getUserTeam(user.id);
+          const teamData = teamResponse?.data || teamResponse || null;
+          teamLabel = teamData;
+        } catch {
+          // User might not belong to a specific team (e.g., founder/CEO),
+          // it's fine to just treat them as org-wide.
+        }
+
+        const isExecutive = user.rbac?.role_level >= 4;
+
+        if (isExecutive) {
+          setTeam({ name: teamLabel?.name || "Entire Organization" });
+        } else if (teamLabel?.id) {
+          setTeam(teamLabel);
+        } else {
+          setTeam(null);
+        }
       } catch (err) {
-        console.error("Error loading team info:", err);
+        console.error("Error loading visible people:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load team data"
+        );
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchTeamAndMembers();
+    fetchVisiblePeople();
   }, [user]);
 
-  const averagePerformance = Math.round(
-    teamMembers.reduce((sum, member) => sum + member.performance, 0) /
-      teamMembers.length
-  );
+  const teamMembersCount = members.length;
 
-  const averageCapacity = Math.round(
-    teamMembers.reduce((sum, member) => sum + member.capacity, 0) /
-      teamMembers.length
+  const averagePerformance = members.length
+    ? Math.round(
+        members.reduce((sum, member) => sum + (member.performance || 0), 0) /
+          members.length
+      )
+    : 0;
+
+  const averageCapacity = members.length
+    ? Math.round(
+        members.reduce((sum, member) => sum + (member.capacity || 0), 0) /
+          members.length
+      )
+    : 0;
+
+  const totalProjects = members.reduce(
+    (sum, member) => sum + (member.project_count || member.projects || 0),
+    0
   );
 
   return (
@@ -491,7 +536,9 @@ export function TeamOverview() {
         <div>
           <h1>Team Overview</h1>
           <p className="text-muted-foreground">
-            Monitor team performance, capacity, and well-being
+            {team?.name
+              ? `${team.name} - Monitor team performance, capacity, and well-being`
+              : "Monitor team performance, capacity, and well-being"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -548,9 +595,7 @@ export function TeamOverview() {
             <Target className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {teamMembers.reduce((sum, member) => sum + member.projects, 0)}
-            </div>
+            <div className="text-2xl font-bold">{totalProjects}</div>
             <p className="text-xs text-muted-foreground">Across all members</p>
           </CardContent>
         </Card>
@@ -567,63 +612,96 @@ export function TeamOverview() {
             </p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {teamMembers.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Avatar>
-                        <AvatarImage src={member.avatar} alt={member.name} />
-                        <AvatarFallback>
-                          {member.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div
-                        className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
-                          member.status
-                        )} rounded-full border-2 border-background`}
-                      />
+            {loading && (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading team members...
+              </div>
+            )}
+            {error && (
+              <div className="text-center py-4 text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                Error loading team data: {error}
+              </div>
+            )}
+            {!loading && members.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No Team Member Found
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {members.map((member, index) => (
+                  <div
+                    key={member.id || index}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Avatar>
+                          <AvatarImage
+                            src={member.avatar}
+                            alt={
+                              member.name ||
+                              `${member.first_name} ${member.second_name || ""}`
+                            }
+                          />
+                          <AvatarFallback>
+                            {member.first_name?.[0] || ""}
+                            {member.second_name?.[0] || member.name?.[1] || ""}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div
+                          className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
+                            member.status || "available"
+                          )} rounded-full border-2 border-background`}
+                        />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">
+                          {member.name ||
+                            `${member.first_name} ${member.second_name || ""}`}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {member.role || member.user_role || "Team Member"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium">{member.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {member.role}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="text-center">
-                      <p className="font-medium">{member.performance}%</p>
-                      <p className="text-xs text-muted-foreground">
-                        Performance
-                      </p>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="text-center">
+                        <p className="font-medium">
+                          {member.performance || 0}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Performance
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium">{member.capacity || 0}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          Capacity
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium">
+                          {member.project_count || member.projects || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Projects
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          (member.status || "available") === "available"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {member.status || "available"}
+                      </Badge>
                     </div>
-                    <div className="text-center">
-                      <p className="font-medium">{member.capacity}%</p>
-                      <p className="text-xs text-muted-foreground">Capacity</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-medium">{member.projects}</p>
-                      <p className="text-xs text-muted-foreground">Projects</p>
-                    </div>
-                    <Badge
-                      variant={
-                        member.status === "available" ? "default" : "secondary"
-                      }
-                    >
-                      {member.status}
-                    </Badge>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
