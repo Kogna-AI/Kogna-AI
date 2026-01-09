@@ -137,7 +137,11 @@ class KPIQueryTool(BaseTool):
         # Detect specific KPI mentions
         if 'cycle time' in query_lower:
             params['kpi_names'].append('average_cycle_time_days')
-        if 'issues completed' in query_lower or 'completion' in query_lower:
+        if (
+            'issues completed' in query_lower
+            or 'completed issues' in query_lower
+            or 'issue completion' in query_lower
+        ):
             params['kpi_names'].append('issues_completed_7_days')
         if 'high priority' in query_lower:
             params['kpi_names'].append('high_priority_count')
