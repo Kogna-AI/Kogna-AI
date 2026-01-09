@@ -9,8 +9,7 @@ from core.models import UserUpdate, CreateUserRequest
 from core.permissions import (
     get_user_context,
     UserContext,
-    require_role_level,
-    require_organization_access
+    require_permission,
 )
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -177,6 +176,15 @@ async def list_visible_users(
         organization_id = user_ctx.organization_id
         has_org_permission = user_ctx.has_permission("users", "read", "organization")
 
+        # DEBUG: log visibility context (can be removed after verification)
+        print(
+            "[users.visible] user=", user_ctx.id,
+            "role=", user_ctx.role_name,
+            "perms=", user_ctx.permissions,
+            "has_org_permission=", has_org_permission,
+            "team_ids=", user_ctx.team_ids,
+        )
+
         # Base query scoped to organization
         query = """
             SELECT
@@ -257,21 +265,20 @@ async def list_visible_users(
 @router.get("/{user_id}")
 async def get_user(
     user_id: int,
-    user_ctx: UserContext = Depends(get_user_context)
+    user_ctx: UserContext = Depends(get_user_context),
 ):
-    """
-    Get a specific user by ID.
+    """Get a specific user by ID.
 
-    Access control:
-    - Users can view their own profile
-    - Managers can view users in their organization
-    - Executives can view any user in their organization
+    Access control (permission-based):
+    - Callers with `users:read:organization` can view any user in their org.
+    - Others can only view their own profile (`users:read:own`).
     """
     with get_db() as conn:
         cursor = conn.cursor()
 
         # Fetch user
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 u.id,
                 u.supabase_id,
@@ -285,7 +292,9 @@ async def get_user(
             FROM users u
             LEFT JOIN organizations o ON u.organization_id = o.id
             WHERE u.id = %s
-        """, (user_id,))
+            """,
+            (user_id,),
+        )
 
         result = cursor.fetchone()
 
@@ -294,29 +303,30 @@ async def get_user(
 
         user_data = dict(result)
 
-        # Access control: Can only view users in same organization
-        if user_data['organization_id'] != int(user_ctx.organization_id):
+        # Hard org boundary: can only view users in same organization
+        if int(user_data["organization_id"]) != int(user_ctx.organization_id):
             raise HTTPException(
                 status_code=403,
-                detail="You can only view users in your own organization"
+                detail="You can only view users in your own organization",
             )
 
-        # Non-managers can only view their own profile
-        if not user_ctx.is_manager() and user_id != int(user_ctx.id):
+        is_self = user_id == int(user_ctx.id)
+        has_org_read = user_ctx.has_permission("users", "read", "organization")
+
+        if not (is_self or has_org_read):
             raise HTTPException(
                 status_code=403,
-                detail="You can only view your own profile"
+                detail="You can only view your own profile",
             )
 
-        return {
-            "success": True,
-            "data": user_data
-        }
+        return {"success": True, "data": user_data}
 
 
 @router.get("")
 async def list_users(
-    user_ctx: UserContext = Depends(require_organization_access),
+    user_ctx: UserContext = Depends(
+        require_permission("users", "read", "organization")
+    ),
     organization_id: Optional[int] = None,
     team_id: Optional[int] = None,
     role: Optional[str] = None,
@@ -338,16 +348,8 @@ async def list_users(
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # Default to user's organization
-        if not organization_id:
-            organization_id = int(user_ctx.organization_id)
-
-        # Managers can only see their own organization
-        if organization_id != int(user_ctx.organization_id):
-            raise HTTPException(
-                status_code=403,
-                detail="You can only view users in your own organization"
-            )
+        # Enforce org boundary: always scope to caller's organization
+        organization_id = int(user_ctx.organization_id)
 
         # Build query with filters
         query = """
@@ -417,14 +419,13 @@ async def list_users(
 async def update_user(
     user_id: int,
     updates: UserUpdate,
-    user_ctx: UserContext = Depends(get_user_context)
+    user_ctx: UserContext = Depends(get_user_context),
 ):
-    """
-    Update user information.
+    """Update user information.
 
-    Access control:
-    - Users can update their own profile (limited fields)
-    - Managers can update users in their organization
+    Access control (permission-based):
+    - Callers with `users:write:organization` can update users in their org.
+    - Others can only update their own profile (no role/org changes).
     """
     with get_db() as conn:
         cursor = conn.cursor()
@@ -443,27 +444,30 @@ async def update_user(
 
         # Access control
         is_self = user_id == int(user_ctx.id)
-        is_same_org = existing_user['organization_id'] == int(user_ctx.organization_id)
+        is_same_org = existing_user["organization_id"] == int(
+            user_ctx.organization_id
+        )
+        has_org_write = user_ctx.has_permission("users", "write", "organization")
 
         if not is_same_org:
             raise HTTPException(
                 status_code=403,
-                detail="You can only update users in your own organization"
+                detail="You can only update users in your own organization",
             )
 
-        # Non-managers can only update themselves
-        if not user_ctx.is_manager() and not is_self:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only update your own profile"
-            )
-
-        # Non-managers cannot change their role or organization
-        if not user_ctx.is_manager() and (updates.role or updates.organization_id):
-            raise HTTPException(
-                status_code=403,
-                detail="You cannot change your role or organization"
-            )
+        # Callers without org-wide write can only update themselves and cannot
+        # change role or organization.
+        if not has_org_write:
+            if not is_self:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can only update your own profile",
+                )
+            if updates.role or updates.organization_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You cannot change your role or organization",
+                )
 
         # Build dynamic update query
         update_fields = []
@@ -530,12 +534,13 @@ async def update_user(
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: int,
-    user_ctx: UserContext = Depends(require_role_level(3, "manager"))
+    user_ctx: UserContext = Depends(
+        require_permission("users", "write", "organization")
+    ),
 ):
-    """
-    Delete a user (soft delete by setting inactive).
+    """Delete a user (soft delete by setting inactive).
 
-    Requires: Manager role or higher
+    Requires: `users:write:organization` and same-organization constraint.
     """
     with get_db() as conn:
         cursor = conn.cursor()
@@ -592,12 +597,13 @@ async def delete_user(
 @router.get("/organization/{org_id}/stats")
 async def get_organization_user_stats(
     org_id: int,
-    user_ctx: UserContext = Depends(require_organization_access)
+    user_ctx: UserContext = Depends(
+        require_permission("users", "read", "organization")
+    ),
 ):
-    """
-    Get user statistics for an organization.
+    """Get user statistics for an organization.
 
-    Requires: Manager role or higher
+    Requires: `users:read:organization` and same-organization constraint.
     """
     # Verify user has access to this organization
     if org_id != int(user_ctx.organization_id):

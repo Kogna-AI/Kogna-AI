@@ -11,6 +11,7 @@ from auth.dependencies import get_current_user
 from core.database import get_db
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from core.permission_registry import get_permission
 
 load_dotenv()
 
@@ -24,7 +25,11 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # USER CONTEXT CLASS
 # ============================================
 
-#Enhanced user context that includes role and permission information. This is passed to AI agents to filter data based on user's access level.
+# NOTE: RBAC v1 invariant – all authorization decisions must be permission-based,
+# not role-level based. Role name/level are retained for UX and labeling only.
+
+# Enhanced user context that includes role and permission information. This is
+# passed to AI agents and business logic to filter data based on user's access.
 class UserContext:
     def __init__(
         self,
@@ -35,8 +40,8 @@ class UserContext:
         first_name: Optional[str],
         second_name: Optional[str],
         role_name: Optional[str],         # e.g., 'executive', 'manager', 'analyst'
-        role_level: int,                  # Hierarchy: 1=viewer, 2=analyst, 3=manager, 4=executive
-        permissions: List[str],           # e.g., ['agents:invoke', 'insights:read:organization']
+        role_level: int,                  # Hierarchy for UX only (v1): 1=viewer, 2=analyst, 3=manager, 4=executive
+        permissions: List[str],           # Canonical keys: 'resource:action:scope'
         team_ids: List[str]               # Teams user belongs to
     ):
         self.id = id
@@ -50,25 +55,35 @@ class UserContext:
         self.permissions = permissions
         self.team_ids = team_ids
 
-    # this checks if user has a specific permission.
-    def has_permission(self, resource: str, action: str, scope: str = None) -> bool:
-        """
+    # Permission check helper used for ALL authorization decisions (v1).
+    def has_permission(self, resource: str, action: str, scope: str | None = None) -> bool:
+        """Return True if the user has the requested permission.
+
         Args:
             resource: 'agents', 'insights', 'objectives', etc.
             action: 'read', 'write', 'invoke', etc.
-            scope: 'own', 'team', 'organization' (optional)
+            scope: One of 'self', 'team', 'org' (optional).
 
-        Returns:
-            True if user has the permission, False otherwise.
+        If scope is omitted, this returns True when the user has *any* scope
+        for the given resource+action.
         """
-        if scope:
-            permission_string = f"{resource}:{action}:{scope}"
-        else:
-            # Check if user has ANY scope for this resource:action
-            permission_prefix = f"{resource}:{action}:"
-            return any(p.startswith(permission_prefix) for p in self.permissions)
+        if scope is None:
+            prefix = f"{resource}:{action}:"
+            return any(p.startswith(prefix) for p in self.permissions)
 
-        return permission_string in self.permissions
+        # Normalize scope names to the current DB convention.
+        # NOTE: DB currently stores scopes as: 'own', 'team', 'organization'.
+        # We also accept 'self' and 'org' from callers and map them accordingly.
+        normalized_scope = {
+            "self": "own",
+            "own": "own",
+            "team": "team",
+            "organization": "organization",
+            "org": "organization",
+        }.get(scope, scope)
+
+        permission_key = f"{resource}:{action}:{normalized_scope}"
+        return permission_key in self.permissions
 
     def is_executive(self) -> bool:
         """Check if user is executive level (level 4+)"""
@@ -167,9 +182,22 @@ def get_user_role_and_permissions(user_id: str) -> Dict[str, Any]:
             for perm in permissions_data
         ]
 
+        role_name = role_data["name"]
+        role_level = role_data["level"]
+
+        # NOTE: RBAC v1: Role is used here only to derive default permissions.
+        # All actual authorization checks still go through has_permission().
+        # Until the full permission_registry + ROLE_DEFAULTS wiring is done,
+        # ensure executives/admins have org-wide user visibility so views like
+        # TeamOverview behave correctly.
+        if role_name in {"executive", "admin"}:
+            org_users_perm = "users:read:organization"
+            if org_users_perm not in permissions:
+                permissions.append(org_users_perm)
+
         return {
-            "role_name": role_data['name'],
-            "role_level": role_data['level'],
+            "role_name": role_name,
+            "role_level": role_level,
             "permissions": permissions
         }
 
@@ -245,6 +273,47 @@ def build_user_context(jwt_user: dict) -> UserContext:
 
 
 # ============================================
+# AUTHORIZATION HELPER (SERVICE LAYER)
+# ============================================
+
+
+def authorize(user_ctx: UserContext, permission_key: str, *, target: dict | None = None) -> None:
+    """Service-layer authorization helper.
+
+    Args:
+        user_ctx: Current user context.
+        permission_key: Canonical "resource:action:scope" string.
+        target: Optional dict with target metadata (resource_id, org_id, team_id, etc.)
+                reserved for future audit/explain usage.
+
+    Raises:
+        HTTPException(403) if the user lacks the permission.
+    """
+    perm = get_permission(permission_key)
+    if not perm:
+        # Default-deny unknown permissions; treat as configuration error.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "unknown_permission",
+                "required_permission": permission_key,
+                "message": "The required permission is not defined in the registry.",
+            },
+        )
+
+    resource, action, scope = permission_key.split(":", 2)
+    if not user_ctx.has_permission(resource, action, scope):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "missing_permission",
+                "required_permission": permission_key,
+                "message": "You do not have the required permission to perform this action.",
+            },
+        )
+
+
+# ============================================
 # FASTAPI DEPENDENCY FUNCTIONS
 # ============================================
 
@@ -264,24 +333,34 @@ async def get_user_context(user = Depends(get_current_user)) -> UserContext:
 
 
 #this factory function to create a dependency that requires a specific permission.
-def require_permission(resource: str, action: str, scope: str = None):
-    """
-    Args:
-        resource: 'agents', 'insights', 'objectives', etc.
-        action: 'read', 'write', 'invoke', etc.
-        scope: 'own', 'team', 'organization' (optional)
+def require_permission(resource: str, action: str, scope: str | None = None):
+    """FastAPI dependency that enforces a specific permission.
 
-    Returns:
-        FastAPI dependency function that checks permission
+    All authorization decisions must go through permission checks, not role
+    level. This function is the primary API-layer gate.
     """
-    async def permission_checker(user_ctx: UserContext = Depends(get_user_context)) -> UserContext:
+
+    async def permission_checker(
+        user_ctx: UserContext = Depends(get_user_context),
+    ) -> UserContext:
         if not user_ctx.has_permission(resource, action, scope):
-            permission_str = f"{resource}:{action}:{scope}" if scope else f"{resource}:{action}"
+            if scope is None:
+                permission_str = f"{resource}:{action}:*"
+            else:
+                permission_str = f"{resource}:{action}:{scope}"
+
+            # NOTE: 403 is intentional even when the underlying resource might
+            # not exist; we do not leak existence information for unauthorized
+            # resources.
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Missing required permission: {permission_str}. "
-                       f"Your role '{user_ctx.role_name}' does not have access to this resource."
+                detail={
+                    "error": "missing_permission",
+                    "required_permission": permission_str,
+                    "message": "You do not have the required permission to perform this action.",
+                },
             )
+
         return user_ctx
 
     return permission_checker
