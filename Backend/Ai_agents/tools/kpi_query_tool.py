@@ -113,10 +113,12 @@ class KPIQueryTool(BaseTool):
             params['connector_type'] = 'asana'
 
         # Detect KPI category
-        if any(word in query_lower for word in ['velocity', 'speed', 'throughput', 'completed', 'completion']):
-            params['kpi_category'] = 'velocity'
-        elif any(word in query_lower for word in ['burndown', 'progress', 'completion rate']):
+        # Check for more specific burndown-related phrases (like "completion rate") before
+        # more general velocity-related terms (like "completion") to avoid misclassification.
+        if any(word in query_lower for word in ['burndown', 'progress', 'completion rate']):
             params['kpi_category'] = 'burndown'
+        elif any(word in query_lower for word in ['velocity', 'speed', 'throughput', 'completed', 'completion']):
+            params['kpi_category'] = 'velocity'
         elif any(word in query_lower for word in ['productivity', 'efficiency', 'assignee', 'workload']):
             params['kpi_category'] = 'productivity'
         elif any(word in query_lower for word in ['quality', 'priority']):
