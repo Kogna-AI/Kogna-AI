@@ -5,7 +5,7 @@ Generates natural language summaries from KPI data for embedding into the vector
 This enables AI agents to discover and understand KPI information through conversational queries.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 import logging
 from supabase_connect import get_supabase_manager
 
