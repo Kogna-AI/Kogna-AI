@@ -6,7 +6,6 @@ This enables AI agents to discover and understand KPI information through conver
 """
 
 from typing import Dict, List, Optional
-from datetime import datetime, timedelta
 import logging
 from supabase_connect import get_supabase_manager
 
