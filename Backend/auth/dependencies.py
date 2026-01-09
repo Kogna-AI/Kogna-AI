@@ -11,11 +11,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     """
     Reads the JWT and returns basic user identity.
+    User ID is in the 'sub' claim.
     """
     payload = decode_access_token(token)
     return {
-        "supabase_id": payload["sub"],
+        "id": payload["sub"],
         "email": payload.get("email"),
+        "organization_id": payload.get("organization_id"),
     }
 
 
@@ -24,22 +26,10 @@ async def get_backend_user_id(
     db = Depends(get_db)
 ):
     """
-    Uses the ID from JWT to look up user entry in database.
+    Returns user_id and organization_id from JWT payload.
+    No DB lookup needed since we store the user ID directly in JWT.
     """
-    supabase_id = user["supabase_id"]
-
-    with db as conn:
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute(
-            "SELECT id, organization_id FROM users WHERE supabase_id = %s",
-            (supabase_id,)
-        )
-        row = cursor.fetchone()
-
-        if not row:
-            raise HTTPException(status_code=404, detail="User not found in backend DB")
-
-        return {
-            "user_id": str(row["id"]),
-            "organization_id": str(row["organization_id"]),
-        }
+    return {
+        "user_id": str(user["id"]),
+        "organization_id": str(user["organization_id"]),
+    }

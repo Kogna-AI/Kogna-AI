@@ -21,6 +21,12 @@ interface DashboardOverviewProps {
   user?: any;
 }
 
+const getUserDisplayName = (user: any) => {
+  if (!user) return "there";
+  const fullName = [user.first_name, user.second_name].filter(Boolean).join(" ");
+  return fullName || user.email || "there";
+};
+
 export function DashboardOverview({
   onStrategySession,
   user,
@@ -42,7 +48,7 @@ export function DashboardOverview({
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1>Good morning, {user?.name}</h1>
+          <h1>Good morning, {getUserDisplayName(user)}</h1>
           <p className="text-muted-foreground">
             Here's your strategic overview and AI-powered insights
           </p>

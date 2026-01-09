@@ -16,7 +16,6 @@ import { Alert, AlertDescription } from "../../ui/alert";
 import { Eye, EyeOff, AlertCircle, UserPlus } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabaseClient";
 import { useUser } from "./UserContext";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
