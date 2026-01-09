@@ -6,7 +6,7 @@ Provides structured KPI data with trend analysis for AI agents.
 """
 
 from crewai.tools import BaseTool
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import logging
 
