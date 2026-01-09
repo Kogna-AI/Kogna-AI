@@ -184,16 +184,26 @@ def format_trend_summary(trend_data: Dict) -> str:
             if abs(change_pct) > 0.1:  # Only mention if change is significant
                 direction = 'increase' if change_pct > 0 else 'decrease'
                 parts.append(f"with a {abs(change_pct):.1f}% {direction} from the previous day")
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.debug(
+                "Unable to parse day_over_day_change as float in format_trend_summary; "
+                "skipping day-over-day change detail. Raw value: %r. Error: %s",
+                day_over_day_change,
+                e,
+            )
 
     # Moving average
     if moving_avg is not None:
         try:
             avg_value = float(moving_avg)
             parts.append(f"The 7-day moving average is {avg_value:.2f}")
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.debug(
+                "Unable to parse moving_avg_7day as float in format_trend_summary; "
+                "skipping moving average detail. Raw value: %r. Error: %s",
+                moving_avg,
+                e,
+            )
 
     if parts:
         return ". ".join(parts) + "."
