@@ -54,7 +54,7 @@ CREW_RETRY_CONFIG = RetryConfig(
 class WorkflowState(TypedDict):
     user_id: str
     organization_id: Optional[str]  # <-- Organization UUID for KPI queries
-    session_id: Optional[str] # <-- NEW: Key to link history
+    session_id: Optional[str] # <-- Key to link history
     query_classification: Optional[str]
     query_scope: Optional[str]  # ✨ NEW: "broad", "specific", "mixed"
     user_query: str
