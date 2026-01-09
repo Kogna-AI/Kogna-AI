@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from langchain_litellm import ChatLiteLLM
 # --- New Import ---
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from .tools.kpi_query_tool import KPIQueryTool
 
 from .prompt import ( # Use relative import if in the same directory
     INTERNAL_ANALYST_ROLE,
@@ -99,10 +100,15 @@ class VectorSearchTool(BaseTool):
 
 # --- 2. Define the Agent and Crew (Updated) ---
 
-def create_internal_analyst_crew(gemini_api_key: str, user_id: str):
+def create_internal_analyst_crew(gemini_api_key: str, user_id: str, organization_id: str):
     """
-    Creates the Internal Data Analyst Crew using the RAG pipeline.
+    Creates the Internal Data Analyst Crew using the RAG pipeline and KPI Query Tool.
     Returns the Crew instance.
+
+    Args:
+        gemini_api_key: Google Gemini API key
+        user_id: User UUID
+        organization_id: Organization UUID
     """
     if not supabase:
         raise ConnectionError("Cannot create internal analyst crew: Supabase client failed to initialize.")
@@ -114,7 +120,7 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str):
         api_key=gemini_api_key
     )
 
-    # 2. Initialize the Embedding Model for the Tool
+    # 2. Initialize the Embedding Model for the RAG Tool
     try:
         embeddings_model = GoogleGenerativeAIEmbeddings(
             model="models/embedding-001",
@@ -124,7 +130,7 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str):
         print(f"CRITICAL ERROR: Could not initialize embedding model in agent: {e}")
         raise ConnectionError(f"Failed to initialize embedding model: {e}")
 
-    # 3. Create the new RAG Tool, passing the user_id
+    # 3. Create the RAG Tool for vector search
     rag_tool = VectorSearchTool(
         llm=llm,
         supabase_client=supabase,
@@ -132,22 +138,29 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str):
         user_id=user_id
     )
 
-    # 4. Create the Agent (No changes needed here)
+    # 4. Create the KPI Query Tool for real-time database queries
+    kpi_tool = KPIQueryTool(
+        supabase_client=supabase,
+        user_id=user_id,
+        organization_id=organization_id
+    )
+
+    # 5. Create the Agent with BOTH tools
     internal_analyst = Agent(
         role=INTERNAL_ANALYST_ROLE,          # <-- Use variable
         goal=INTERNAL_ANALYST_GOAL,          # <-- Use variable
         backstory=INTERNAL_ANALYST_BACKSTORY,# <-- Use variable
         verbose=False,
         llm=llm,
-        tools=[rag_tool]
+        tools=[rag_tool, kpi_tool]  # <-- Pass both tools
     )
 
-    # 5. Create the Task (USE IMPORTED PROMPTS)
+    # 6. Create the Task (USE IMPORTED PROMPTS)
     analysis_task = Task(
         description=INTERNAL_ANALYST_TASK_DESCRIPTION, # <-- Use variable
         expected_output=INTERNAL_ANALYST_EXPECTED_OUTPUT, # <-- Use variable
         agent=internal_analyst
     )
 
-    # 6. Create the Crew
+    # 7. Create the Crew
     return Crew(agents=[internal_analyst], tasks=[analysis_task], verbose=False)
