@@ -267,14 +267,14 @@ class KPIQueryTool(BaseTool):
                         direction = "increased" if change_pct > 0 else "decreased"
                         response_parts.append(f"  Day-over-day: {direction} by {abs(change_pct):.1f}%")
                 except (ValueError, TypeError):
-                    pass
+                    logger.debug("Unable to parse day_change value '%s' as float; skipping day-over-day line.", day_change)
 
             if moving_avg is not None:
                 try:
                     avg_value = float(moving_avg)
                     response_parts.append(f"  7-day average: {avg_value:.2f} {kpi_unit}")
                 except (ValueError, TypeError):
-                    pass
+                    logger.debug("Unable to parse moving_avg value '%s' as float; skipping 7-day average line.", moving_avg)
 
             # Add historical context if multiple records
             if len(records) > 1:
