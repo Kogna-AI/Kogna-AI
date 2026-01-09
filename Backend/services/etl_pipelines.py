@@ -56,7 +56,7 @@ async def save_connector_kpi(
     sync_job_id: Optional[str] = None,
     period_start: Optional[str] = None,
     period_end: Optional[str] = None
-) -> bool:
+) -> Optional[Dict]:
     """
     Inserts a KPI into the connector_kpis table
 
@@ -75,7 +75,7 @@ async def save_connector_kpi(
         period_end: Optional ISO timestamp for KPI period end
 
     Returns:
-        True if successful, False otherwise
+        Dictionary with KPI record (including 'id') if successful, None otherwise
     """
     try:
         # Convert kpi_value to proper JSONB structure
@@ -109,13 +109,96 @@ async def save_connector_kpi(
         if period_end:
             kpi_data["period_end"] = period_end
 
-        # Upsert based on unique constraint
-        supabase.table("connector_kpis").upsert(kpi_data).execute()
-        return True
+        # Upsert based on unique constraint and return the record
+        result = supabase.table("connector_kpis").upsert(kpi_data).execute()
+
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+        return None
 
     except Exception as e:
         logging.error(f"Failed to save KPI {kpi_name} for {source_id}: {e}")
-        return False
+        return None
+
+
+async def queue_kpi_for_embedding(kpi_record: Dict):
+    """
+    Queues a KPI for embedding generation and storage.
+    This runs asynchronously to not block ETL pipeline.
+
+    Args:
+        kpi_record: Complete KPI record from connector_kpis table
+                    Must contain: id, user_id, organization_id, connector_type,
+                    source_id, kpi_name, kpi_value, kpi_category, kpi_unit,
+                    source_name, extracted_at (or created_at)
+    """
+    try:
+        from services.kpi_summary_service import generate_kpi_summary_text
+        from services.embedding_service import embed_and_store_kpi_summary
+
+        # Extract required fields
+        kpi_id = kpi_record.get('id')
+        user_id = kpi_record.get('user_id')
+        organization_id = kpi_record.get('organization_id')
+        connector_type = kpi_record.get('connector_type')
+        source_id = kpi_record.get('source_id')
+
+        if not all([kpi_id, user_id, organization_id, connector_type, source_id]):
+            logging.warning(f"KPI record missing required fields for embedding: {kpi_record}")
+            return
+1
+        # Prepare KPI data dict for summary generation
+        kpi_data = {
+            'kpi_name': kpi_record.get('kpi_name'),
+            'kpi_category': kpi_record.get('kpi_category'),
+            'kpi_value': kpi_record.get('kpi_value'),
+            'kpi_unit': kpi_record.get('kpi_unit'),
+            'source_name': kpi_record.get('source_name', source_id),
+            'extracted_at': kpi_record.get('extracted_at') or kpi_record.get('created_at'),
+            'period_start': kpi_record.get('period_start'),
+            'period_end': kpi_record.get('period_end')
+        }
+
+        # Generate natural language summary
+        logging.info(f"Generating summary for KPI {kpi_id}: {kpi_data['kpi_name']}")
+        summary_text = await generate_kpi_summary_text(
+            kpi_data=kpi_data,
+            organization_id=organization_id,
+            connector_type=connector_type,
+            source_id=source_id,
+            include_trends=True
+        )
+
+        # Prepare metadata
+        metadata = {
+            'connector_type': connector_type,
+            'source_id': source_id,
+            'source_name': kpi_record.get('source_name'),
+            'kpi_name': kpi_record.get('kpi_name'),
+            'kpi_category': kpi_re1cord.get('kpi_category')
+        }
+
+        # Embed and store
+        logging.info(f"Embedding KPI {kpi_id}")
+        success = await embed_and_store_kpi_summary(
+            user_id=user_id,
+            organization_id=organization_id,
+            kpi_id=kpi_id,
+            summary_text=summary_text,1
+            metadata=metadata
+        )
+
+        if success:
+            logging.info(f"✓ KPI {kpi_id} successfully embedded")
+        else:
+            logging.warning(f"✗ Failed to embed KPI {kpi_id}")
+
+    except Exception as e:
+        logging.error(f"Failed to queue KPI for embedding: {e}")
+        # Don't raise - embedding failure shouldn't break KPI save
+        import traceback
+        traceback.print_exc()
+
 
 # =================================================================
 # CONSTANTS
@@ -1004,6 +1087,18 @@ async def calculate_project_kpis(
             )
 
             logging.info(f"✓ Saved 6 KPIs for project {project_key}")
+
+            # Queue KPIs for embedding (async, non-blocking)
+            # Fetch the most recent KPIs for this project and trigger embedding
+            try:
+                recent_kpis = supabase.table("connector_kpis").select("*").eq("organization_id", organization_id).eq("connector_type", "jira").eq("source_id", project_key).order("created_at", desc=True).limit(6).execute()
+                if recent_kpis.data:
+                    for kpi_record in recent_kpis.data:
+                        asyncio.create_task(queue_kpi_for_embedding(kpi_record))
+                    logging.info(f"✓ Queued {len(recent_kpis.data)} KPIs for embedding")
+            except Exception as embed_error:
+                logging.warning(f"Failed to queue KPIs for embedding: {embed_error}")
+
         except Exception as e:
             logging.error(f"Failed to save KPIs for project {project_key}: {e}")
 

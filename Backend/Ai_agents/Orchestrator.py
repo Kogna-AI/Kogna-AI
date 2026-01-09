@@ -49,6 +49,7 @@ CREW_RETRY_CONFIG = RetryConfig(
 # --- 1. Define the State for the Graph (UPDATED) ---
 class WorkflowState(TypedDict):
     user_id: str
+    organization_id: Optional[str]  # <-- Organization UUID for KPI queries
     session_id: Optional[str] # <-- NEW: Key to link history
     query_classification: Optional[str]
     user_query: str
@@ -197,45 +198,53 @@ def decide_after_triage(state: WorkflowState) -> str:
 
 # --- UPDATED NODE: Internal Analyst (with retry) ---
 @retry_with_backoff(CREW_RETRY_CONFIG)
-def _run_internal_analyst_crew(user_id: str, user_query: str, chat_history_str: str):
+def _run_internal_analyst_crew(user_id: str, organization_id: str, user_query: str, chat_history_str: str):
     """Helper function to run the internal analyst crew with retry logic."""
     google_key = os.getenv("GOOGLE_API_KEY")
-    
+
     internal_analyst_crew = create_internal_analyst_crew(
         gemini_api_key=google_key,
-        user_id=user_id
+        user_id=user_id,
+        organization_id=organization_id
     )
-    
+
     inputs = {
         'user_query': user_query,
         'chat_history_str': chat_history_str
     }
-    
+
     analysis_result = internal_analyst_crew.kickoff(inputs=inputs)
     return analysis_result.raw
 
 
 def node_internal_analyst(state: WorkflowState) -> dict:
-    print("\n--- [Node] Executing Internal Analyst Crew (RAG) ---")
+    print("\n--- [Node] Executing Internal Analyst Crew (RAG + KPI Query) ---")
     user_id = state.get("user_id")
-    
+    organization_id = state.get("organization_id")
+
     if not user_id:
         print("--- [Error] user_id is missing from state in node_internal_analyst ---")
         return {"internal_analysis_report": "Error: user_id is missing."}
-    
+
+    if not organization_id:
+        print("--- [Warning] organization_id is missing from state - KPI queries may fail ---")
+        # Don't fail completely, but KPI tool won't work without organization_id
+        organization_id = ""
+
     try:
         chat_history_str = "\n".join(state.get("chat_history", []))
-        
+
         # This will retry the crew execution if it times out
         analysis_report = _run_internal_analyst_crew(
             user_id=user_id,
+            organization_id=organization_id,
             user_query=state['user_query'],
             chat_history_str=chat_history_str
         )
-        
+
         print(f"--- [Node] Internal Analyst finished. ---")
         return {"internal_analysis_report": analysis_report}
-        
+
     except Exception as e:
         error_msg = f"Internal analysis failed after retries: {str(e)[:200]}"
         print(f"--- [Error] {error_msg} ---")
