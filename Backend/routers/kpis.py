@@ -783,3 +783,104 @@ def kpi_health_check(db=Depends(get_db)):
             },
             "checked_at": datetime.utcnow().isoformat()
         }
+
+
+# ============================================================================
+# Scheduler Endpoints (Phase 5)
+# ============================================================================
+
+@router.get("/scheduler/status")
+def get_scheduler_status():
+    """
+    Get current scheduler status and job information.
+
+    Returns information about:
+    - Scheduler running state
+    - Registered jobs and their next run times
+    - Recent execution logs
+    """
+    try:
+        from services.kpi_scheduler import get_scheduler_status
+
+        # Get scheduler status
+        status_info = get_scheduler_status()
+
+        # Get recent execution logs from database
+        from supabase_connect import get_supabase_manager
+        supabase = get_supabase_manager().client
+
+        logs_response = supabase.table("scheduler_logs") \
+            .select("*") \
+            .order("executed_at", desc=True) \
+            .limit(20) \
+            .execute()
+
+        recent_logs = logs_response.data if logs_response.data else []
+
+        return {
+            "success": True,
+            "scheduler": status_info,
+            "recent_executions": recent_logs,
+            "checked_at": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "scheduler": {"status": "error"},
+            "checked_at": datetime.utcnow().isoformat()
+        }
+
+
+@router.post("/scheduler/trigger/{task_name}")
+async def trigger_scheduler_task(
+    task_name: str,
+    user=Depends(get_backend_user_id)
+):
+    """
+    Manually trigger a scheduled task for testing or on-demand execution.
+
+    Available tasks:
+    - refresh_views: Refresh materialized views
+    - daily_engagement: Aggregate daily engagement metrics
+    - weekly_report: Generate weekly KPI report
+    - cleanup: Clean up old metrics
+
+    Requires authentication. Returns task execution results.
+    """
+    # Only allow admin users to trigger tasks (you can add role checking here)
+    # For now, any authenticated user can trigger
+
+    try:
+        from services import kpi_scheduler
+
+        if task_name == "refresh_views":
+            result = await kpi_scheduler.trigger_refresh_views()
+        elif task_name == "daily_engagement":
+            result = await kpi_scheduler.trigger_daily_engagement()
+        elif task_name == "weekly_report":
+            result = await kpi_scheduler.trigger_weekly_report()
+        elif task_name == "cleanup":
+            result = await kpi_scheduler.trigger_cleanup()
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown task: {task_name}. Valid tasks: refresh_views, daily_engagement, weekly_report, cleanup"
+            )
+
+        return {
+            "success": True,
+            "task_name": task_name,
+            "result": result,
+            "triggered_at": datetime.utcnow().isoformat(),
+            "triggered_by": user["user_id"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to trigger task: {str(e)}"
+        )
