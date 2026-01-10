@@ -753,3 +753,138 @@ Topics: {', '.join(topics_list)}
             'notes_generated': 0,
             'message': f'Error: {str(e)}'
         }
+
+
+# =============================================================================
+# KPI EMBEDDING FUNCTION - WITH VERSION CONTROL
+# =============================================================================
+
+async def embed_and_store_kpi_summary(
+    user_id: str,
+    organization_id: str,
+    kpi_id: int,
+    summary_text: str,
+    metadata: dict
+):
+    """
+    Embeds a KPI summary and stores it in the vector database.
+
+    VERSION CONTROL: Uses "latest" in file path to automatically replace old versions.
+    When a new summary is embedded, the old one is automatically deleted via upsert pattern.
+
+    File path format: kpi://{connector_type}/{source_id}/{kpi_name}/latest
+
+    This ensures:
+    - Only the latest KPI summary is kept
+    - No accumulation of outdated embeddings
+    - Automatic version control without manual cleanup
+
+    Args:
+        user_id: User UUID
+        organization_id: Organization UUID
+        kpi_id: KPI record ID
+        summary_text: Natural language summary of the KPI
+        metadata: Dict containing:
+            - connector_type: e.g., "jira", "asana"
+            - source_id: Project/board/workspace ID
+            - source_name: Human-readable source name
+            - kpi_name: KPI metric name
+            - kpi_category: Category (velocity, burndown, etc.)
+            - kpi_value: Current value
+            - extracted_at: Timestamp
+
+    Returns:
+        Dict with status and details
+    """
+    if not supabase or not embeddings_model:
+        print(" ERROR: Embedding service not initialized")
+        return {
+            'status': 'error',
+            'message': 'Service not initialized'
+        }
+
+    try:
+        # Extract metadata
+        connector_type = metadata.get('connector_type', 'unknown')
+        source_id = metadata.get('source_id', 'unknown')
+        source_name = metadata.get('source_name', 'Unknown Source')
+        kpi_name = metadata.get('kpi_name', 'unknown_kpi')
+        kpi_category = metadata.get('kpi_category', 'general')
+
+        # VERSION CONTROL: Use "latest" instead of kpi_id
+        # This ensures automatic replacement of old embeddings
+        file_path = f"kpi://{connector_type}/{source_id}/{kpi_name}/latest"
+
+        print(f"\n--- [KPI Embedding] ---")
+        print(f"  KPI ID: {kpi_id}")
+        print(f"  Source: {source_name} ({connector_type})")
+        print(f"  Metric: {kpi_name}")
+        print(f"  File path: {file_path}")
+
+        # Generate embedding for the summary
+        print(f"  Generating embedding...")
+        embedding = embeddings_model.embed_query(summary_text)
+        print(f" Embedding generated ({len(embedding)} dimensions)")
+
+        # AUTOMATIC VERSION CONTROL: Delete old embedding first
+        # This ensures only the latest version exists
+        print(f"  Deleting old versions...")
+        delete_result = (
+            supabase.table("document_chunks")
+            .delete()
+            .eq("file_path", file_path)
+            .eq("user_id", user_id)
+            .filter("metadata->>organization_id", "eq", organization_id)
+            .execute()
+        )
+
+        old_count = len(delete_result.data) if delete_result.data else 0
+        if old_count > 0:
+            print(f"Deleted {old_count} old version(s)")
+        else:
+            print(f"No old versions found (first embedding)")
+
+        # Insert new embedding
+        document = {
+            "user_id": user_id,
+            "file_path": file_path,
+            "content": summary_text,
+            "embedding": embedding,
+            "metadata": {
+                "document_type": "kpi_summary",  # ← For filtering
+                "connector_type": connector_type,
+                "source_id": source_id,
+                "source_name": source_name,
+                "kpi_category": kpi_category,
+                "kpi_name": kpi_name,
+                "kpi_id": kpi_id,
+                "organization_id": organization_id,
+                "extracted_at": metadata.get('extracted_at'),
+                "kpi_value": str(metadata.get('kpi_value', ''))  # Store as string for JSON
+            }
+        }
+
+        print(f"  Inserting new embedding...")
+        supabase.table("document_chunks").insert(document).execute()
+        print(f"KPI embedding stored successfully")
+        print(f"--- [KPI Embedding Complete] ---\n")
+
+        return {
+            'status': 'success',
+            'file_path': file_path,
+            'kpi_id': kpi_id,
+            'old_versions_deleted': old_count,
+            'message': f'Successfully embedded KPI: {kpi_name}'
+        }
+
+    except Exception as e:
+        print(f"\n  ERROR: KPI embedding failed: {e}")
+        logging.error(f"KPI embedding error for KPI {kpi_id}: {e}")
+        import traceback
+        traceback.print_exc()
+
+        return {
+            'status': 'error',
+            'kpi_id': kpi_id,
+            'message': f'Error: {str(e)}'
+        }

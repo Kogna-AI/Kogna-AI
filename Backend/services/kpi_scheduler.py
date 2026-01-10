@@ -766,6 +766,160 @@ async def cleanup_old_metrics():
 
 
 # ============================================================================
+# Task 5: Cleanup Orphaned KPI Embeddings (Daily at 2 AM)
+# ============================================================================
+
+async def cleanup_orphaned_kpi_embeddings():
+    """
+    Removes KPI embeddings that no longer have corresponding KPI records.
+
+    This happens when:
+    - KPIs are deleted from connector_kpis table
+    - Sources are disconnected or removed
+    - Old embeddings weren't cleaned up properly
+
+    Also removes KPI embeddings older than 90 days as a safety net.
+
+    Runs: Daily at 2:00 AM UTC
+    Duration: ~5-10 seconds
+    """
+    start_time = datetime.utcnow()
+    logger.info("=" * 60)
+    logger.info("Starting orphaned KPI embedding cleanup")
+    logger.info(f"Started at: {start_time.isoformat()}")
+
+    orphaned_deleted = 0
+    old_deleted = 0
+    errors = []
+
+    try:
+        conn = get_postgres_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # =====================================================================
+        # STEP 1: Delete orphaned KPI embeddings (no matching KPI record)
+        # =====================================================================
+
+        logger.info("Finding orphaned KPI embeddings...")
+
+        try:
+            # Guard against deleting all embeddings when no KPIs exist
+            cursor.execute("SELECT EXISTS (SELECT 1 FROM connector_kpis) AS has_kpis")
+            has_kpis_row = cursor.fetchone()
+            has_kpis = bool(has_kpis_row and has_kpis_row.get("has_kpis"))
+
+            if not has_kpis:
+                logger.info(
+                    "Skipping orphaned KPI embedding cleanup because connector_kpis is empty"
+                )
+            else:
+                # Find KPI embeddings that don't have a matching KPI in connector_kpis
+                orphaned_query = """
+                    DELETE FROM document_chunks dc
+                    WHERE dc.file_path LIKE 'kpi://%'
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM connector_kpis k
+                        WHERE k.id = (dc.metadata->>'kpi_id')::int
+                    )
+                    RETURNING id
+                """
+
+                cursor.execute(orphaned_query)
+                orphaned_deleted = cursor.rowcount
+                conn.commit()
+
+                logger.info(f"Deleted {orphaned_deleted} orphaned KPI embeddings")
+
+        except Exception as e:
+            error_msg = f"Failed to delete orphaned embeddings: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+            conn.rollback()
+
+        # =====================================================================
+        # STEP 2: Delete KPI embeddings older than 90 days
+        # =====================================================================
+
+        logger.info("Deleting KPI embeddings older than 90 days...")
+
+        try:
+            cutoff_date = (datetime.utcnow() - timedelta(days=90)).date()
+
+            old_kpi_query = """
+                DELETE FROM document_chunks
+                WHERE file_path LIKE 'kpi://%'
+                AND metadata->>'extracted_at' IS NOT NULL
+                AND metadata->>'extracted_at' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                AND (metadata->>'extracted_at')::date < %s
+                RETURNING id
+            """
+
+            cursor.execute(old_kpi_query, (cutoff_date,))
+            old_deleted = cursor.rowcount
+            conn.commit()
+
+            logger.info(f"Deleted {old_deleted} old KPI embeddings (>90 days)")
+
+        except Exception as e:
+            error_msg = f"Failed to delete old KPI embeddings: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+            conn.rollback()
+
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        error_msg = f"Database connection failed: {str(e)}"
+        logger.error(error_msg)
+        errors.append(error_msg)
+
+    # Calculate duration
+    end_time = datetime.utcnow()
+    duration_ms = int((end_time - start_time).total_seconds() * 1000)
+
+    total_deleted = orphaned_deleted + old_deleted
+
+    # Log execution
+    try:
+        log_data = {
+            "task_name": "cleanup_orphaned_kpi_embeddings",
+            "status": "success" if not errors else "failed",
+            "execution_time_ms": duration_ms,
+            "details": {
+                "orphaned_deleted": orphaned_deleted,
+                "old_deleted": old_deleted,
+                "total_deleted": total_deleted,
+                "errors": errors,
+                "started_at": start_time.isoformat(),
+                "completed_at": end_time.isoformat()
+            }
+        }
+
+        supabase.table("scheduler_logs").insert(log_data).execute()
+
+    except Exception as e:
+        logger.error(f"Failed to log scheduler execution: {e}")
+
+    logger.info(f"KPI embedding cleanup completed in {duration_ms}ms")
+    logger.info(f"Orphaned embeddings deleted: {orphaned_deleted}")
+    logger.info(f"Old embeddings deleted: {old_deleted}")
+    logger.info(f"Total deleted: {total_deleted}")
+    if errors:
+        logger.warning(f"Errors encountered: {len(errors)}")
+    logger.info("=" * 60)
+
+    return {
+        "orphaned_deleted": orphaned_deleted,
+        "old_deleted": old_deleted,
+        "total_deleted": total_deleted,
+        "duration_ms": duration_ms,
+        "errors": errors
+    }
+
+
+# ============================================================================
 # Scheduler Management
 # ============================================================================
 
@@ -853,6 +1007,18 @@ async def run_kpi_scheduler():
     )
     logger.info("✓ Scheduled: cleanup_old_metrics (Sunday at 3:00 AM)")
 
+    # Task 5: Cleanup orphaned KPI embeddings daily at 2:00 AM UTC
+    _scheduler.add_job(
+        cleanup_orphaned_kpi_embeddings,
+        trigger=CronTrigger(hour=2, minute=0),
+        id="cleanup_orphaned_kpi_embeddings",
+        name="Cleanup Orphaned KPI Embeddings",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True
+    )
+    logger.info("✓ Scheduled: cleanup_orphaned_kpi_embeddings (daily at 2:00 AM)")
+
     # Start scheduler
     _scheduler.start()
     logger.info("=" * 60)
@@ -923,3 +1089,8 @@ async def trigger_weekly_report():
 async def trigger_cleanup():
     """Manual trigger for metric cleanup (for testing)"""
     return await cleanup_old_metrics()
+
+
+async def trigger_kpi_embedding_cleanup():
+    """Manual trigger for KPI embedding cleanup (for testing)"""
+    return await cleanup_orphaned_kpi_embeddings()
