@@ -1003,7 +1003,7 @@ async def run_kpi_scheduler():
         max_instances=1,
         coalesce=True
     )
-    logger.info("Scheduled: cleanup_orphaned_kpi_embeddings (daily at 2:00 AM)")
+    logger.info("✓ Scheduled: cleanup_orphaned_kpi_embeddings (daily at 2:00 AM)")
 
     # Start scheduler
     _scheduler.start()
