@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { UserProvider } from "./components/auth/UserContext";
-import { KogniiAssistant } from "./components/KogniiAssistant";
+import { KogniiAssistant } from "./components/kognii/KogniiAssistant";
 import { MainDashboard } from "./components/Maindashboard";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { Sidebar } from "./components/sidebar";
