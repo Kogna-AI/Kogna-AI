@@ -803,21 +803,33 @@ async def cleanup_orphaned_kpi_embeddings():
         logger.info("Finding orphaned KPI embeddings...")
 
         try:
-            # Find KPI embeddings that don't have a matching KPI in connector_kpis
-            orphaned_query = """
-                DELETE FROM document_chunks
-                WHERE file_path LIKE 'kpi://%'
-                AND (metadata->>'kpi_id')::int NOT IN (
-                    SELECT id FROM connector_kpis
+            # Guard against deleting all embeddings when no KPIs exist
+            cursor.execute("SELECT EXISTS (SELECT 1 FROM connector_kpis) AS has_kpis")
+            has_kpis_row = cursor.fetchone()
+            has_kpis = bool(has_kpis_row and has_kpis_row.get("has_kpis"))
+
+            if not has_kpis:
+                logger.info(
+                    "Skipping orphaned KPI embedding cleanup because connector_kpis is empty"
                 )
-                RETURNING id
-            """
+            else:
+                # Find KPI embeddings that don't have a matching KPI in connector_kpis
+                orphaned_query = """
+                    DELETE FROM document_chunks dc
+                    WHERE dc.file_path LIKE 'kpi://%'
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM connector_kpis k
+                        WHERE k.id = (dc.metadata->>'kpi_id')::int
+                    )
+                    RETURNING id
+                """
 
-            cursor.execute(orphaned_query)
-            orphaned_deleted = cursor.rowcount
-            conn.commit()
+                cursor.execute(orphaned_query)
+                orphaned_deleted = cursor.rowcount
+                conn.commit()
 
-            logger.info(f"Deleted {orphaned_deleted} orphaned KPI embeddings")
+                logger.info(f"Deleted {orphaned_deleted} orphaned KPI embeddings")
 
         except Exception as e:
             error_msg = f"Failed to delete orphaned embeddings: {str(e)}"
