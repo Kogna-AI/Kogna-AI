@@ -837,7 +837,7 @@ async def cleanup_orphaned_kpi_embeddings():
             old_kpi_query = """
                 DELETE FROM document_chunks
                 WHERE file_path LIKE 'kpi://%'
-                AND (metadata->>'extracted_at')::timestamp < %s::date
+                AND (metadata->>'extracted_at')::date < %s
                 RETURNING id
             """
 
