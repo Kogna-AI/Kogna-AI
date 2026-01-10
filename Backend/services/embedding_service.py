@@ -829,11 +829,14 @@ async def embed_and_store_kpi_summary(
         # AUTOMATIC VERSION CONTROL: Delete old embedding first
         # This ensures only the latest version exists
         print(f"  Deleting old versions...")
-        delete_result = supabase.table("document_chunks").delete().eq(
-            "file_path", file_path
-        ).eq(
-            "user_id", user_id
-        ).execute()
+        delete_result = (
+            supabase.table("document_chunks")
+            .delete()
+            .eq("file_path", file_path)
+            .eq("user_id", user_id)
+            .filter("metadata->>organization_id", "eq", organization_id)
+            .execute()
+        )
 
         old_count = len(delete_result.data) if delete_result.data else 0
         if old_count > 0:
