@@ -11,15 +11,21 @@ Performance: 70% faster, 80% cheaper, 25% more accurate
 
 import os
 import json
+import asyncio
 from crewai import Agent, Task, Crew, Process
 from crewai.tools import BaseTool
 from supabase_connect import get_supabase_manager
 from dotenv import load_dotenv
 from langchain_litellm import ChatLiteLLM
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-import asyncio
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+# Import custom tools
+try:
+    from .tools.kpi_query_tool import KPIQueryTool
+    KPI_TOOL_AVAILABLE = True
+except ImportError:
+    KPI_TOOL_AVAILABLE = False
+    print("⚠️ KPIQueryTool not available (tools/kpi_query_tool.py not found)")
 
 from .prompt import (
     INTERNAL_ANALYST_ROLE,
@@ -386,7 +392,7 @@ USER CONTEXT (From Past Conversations)
 # AGENT CREATION (Updated to use Three-Layer Intelligence)
 # ============================================================================
 
-def create_internal_analyst_crew(gemini_api_key: str, user_id: str):
+def create_internal_analyst_crew(gemini_api_key: str, user_id: str, organization_id: str):
     """
     Creates the Internal Data Analyst Crew using three-layer intelligence:
     
@@ -397,6 +403,11 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str):
     This is HCR (Hierarchical Contextual Retrieval) - our secret sauce!
     
     Returns the Crew instance.
+
+    Args:
+        gemini_api_key: Google Gemini API key
+        user_id: User UUID
+        organization_id: Organization UUID
     """
     if not supabase:
         raise ConnectionError("Cannot create internal analyst crew: Supabase client failed to initialize.")
@@ -408,7 +419,7 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str):
         api_key=gemini_api_key
     )
 
-    # 2. Initialize the Embedding Model for the Tool
+    # 2. Initialize the Embedding Model for the RAG Tool
     try:
         embeddings_model = GoogleGenerativeAIEmbeddings(
             model="models/embedding-001",
@@ -426,14 +437,27 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str):
         user_id=user_id
     )
 
-    # 4. Create the Agent
+    # 4. Create the KPI Query Tool (if available)
+    tools = [notes_search_tool]
+    if KPI_TOOL_AVAILABLE:
+        kpi_tool = KPIQueryTool(
+            supabase_client=supabase,
+            user_id=user_id,
+            organization_id=organization_id
+        )
+        tools.append(kpi_tool)
+        print("✓ KPI Query Tool added to Internal Analyst")
+    else:
+        print("⚠️ KPI Query Tool not available - agent will use document search only")
+
+    # 5. Create the Agent with all available tools
     internal_analyst = Agent(
         role=INTERNAL_ANALYST_ROLE,
         goal=INTERNAL_ANALYST_GOAL,
         backstory=INTERNAL_ANALYST_BACKSTORY,
         verbose=False,
         llm=llm,
-        tools=[notes_search_tool]  # ← Using three-layer intelligent search!
+        tools=tools  # ← Using three-layer search + KPI queries!
     )
 
     # 5. Create the Task

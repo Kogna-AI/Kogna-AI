@@ -53,7 +53,8 @@ CREW_RETRY_CONFIG = RetryConfig(
 # --- 1. Define the State for the Graph (UPDATED) ---
 class WorkflowState(TypedDict):
     user_id: str
-    session_id: Optional[str]
+    organization_id: Optional[str]  # <-- Organization UUID for KPI queries
+    session_id: Optional[str] # <-- Key to link history
     query_classification: Optional[str]
     query_scope: Optional[str]  # ✨ NEW: "broad", "specific", "mixed"
     user_query: str
@@ -336,23 +337,24 @@ async def node_hierarchical_retrieval(state: WorkflowState) -> dict:
 
 
 # -----------------------------------------------------------------
-# --- ✨ UPDATED NODE: Internal Analyst (uses tree results) ---
+# --- ✨ UPDATED NODE: Internal Analyst (uses tree results + KPI queries) ---
 # -----------------------------------------------------------------
 @retry_with_backoff(CREW_RETRY_CONFIG)
 def _run_internal_analyst_with_tree(
-    user_id: str, 
-    user_query: str, 
+    user_id: str,
+    organization_id: str,
+    user_query: str,
     chat_history_str: str,
     retrieval_results: dict
 ):
     """
-    Enhanced internal analyst that uses hierarchical retrieval results.
+    Enhanced internal analyst that uses hierarchical retrieval results and KPI queries.
     """
     google_key = os.getenv("GOOGLE_API_KEY")
-    
+
     # Format retrieval results for the analyst
     formatted_context = _format_retrieval_results(retrieval_results)
-    
+
     # Add to chat history
     enhanced_history = f"""
 CONTEXT FROM KNOWLEDGE BASE:
@@ -361,17 +363,18 @@ CONTEXT FROM KNOWLEDGE BASE:
 CONVERSATION HISTORY:
 {chat_history_str}
     """.strip()
-    
+
     internal_analyst_crew = create_internal_analyst_crew(
         gemini_api_key=google_key,
-        user_id=user_id
+        user_id=user_id,
+        organization_id=organization_id
     )
-    
+
     inputs = {
         'user_query': user_query,
         'chat_history_str': enhanced_history
     }
-    
+
     analysis_result = internal_analyst_crew.kickoff(inputs=inputs)
     return analysis_result.raw
 
@@ -423,29 +426,35 @@ Relevance: {relevance:.2f}
 
 def node_internal_analyst(state: WorkflowState) -> dict:
     """
-    UPDATED: Now uses hierarchical retrieval results!
+    UPDATED: Now uses hierarchical retrieval results + KPI queries!
     """
-    print("\n--- [Node] Executing Internal Analyst (with Tree) ---")
+    print("\n--- [Node] Executing Internal Analyst (with Tree + KPI Query) ---")
     user_id = state.get("user_id")
-    
+    organization_id = state.get("organization_id")
+
     if not user_id:
         print("--- [Error] user_id missing ---")
         return {"internal_analysis_report": "Error: user_id is missing."}
-    
+
+    if not organization_id:
+        print("--- [Warning] organization_id is missing from state - KPI queries may fail ---")
+        # Don't fail completely, but KPI tool won't work without organization_id
+        organization_id = ""
+
     try:
         # Get user context from past conversations
         user_context = None
         try:
             user_context = asyncio.run(get_user_context(user_id))
-            
+
             if user_context and user_context.get('user_priorities'):
                 print(f"--- [Info] User context loaded ---")
         except Exception as ctx_error:
             logging.warning(f"Could not load user context: {ctx_error}")
-        
+
         # Build chat history
         chat_history_str = "\n".join(state.get("chat_history", []))
-        
+
         # Add user context if available
         if user_context and user_context.get('user_priorities'):
             context_prefix = f"""
@@ -460,25 +469,26 @@ Recent concerns:
 ---
 """
             chat_history_str = context_prefix + chat_history_str
-        
+
         # Get retrieval results
         retrieval_results = state.get("retrieval_results")
-        
+
         if not retrieval_results:
             print("--- [Warning] No retrieval results available ---")
             retrieval_results = {"results": [], "strategy_used": "none"}
-        
-        # Run analyst with tree context
+
+        # Run analyst with tree context + KPI queries
         analysis_report = _run_internal_analyst_with_tree(
             user_id=user_id,
+            organization_id=organization_id,
             user_query=state['user_query'],
             chat_history_str=chat_history_str,
             retrieval_results=retrieval_results
         )
-        
+
         print(f"--- [Node] Internal Analyst finished ---")
         return {"internal_analysis_report": analysis_report}
-        
+
     except Exception as e:
         error_msg = f"Internal analysis failed: {str(e)[:200]}"
         print(f"--- [Error] {error_msg} ---")
