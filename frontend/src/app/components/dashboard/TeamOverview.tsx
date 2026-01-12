@@ -471,6 +471,7 @@ function TeamManagementDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
 
   const canCreateTeam = roleLevel >= 4;
   const canManageMembers = roleLevel >= 3;
@@ -503,6 +504,7 @@ function TeamManagementDialog({
   const resetMessages = () => {
     setError(null);
     setSuccess(null);
+    setConfirmingRemove(false);
   };
 
   const handleCreateTeam = async () => {
@@ -557,7 +559,7 @@ function TeamManagementDialog({
     }
   };
 
-  const handleRemoveMember = async () => {
+  const handleRemoveMember = () => {
     resetMessages();
     if (!selectedMemberId) {
       setError("Please select a member to remove");
@@ -567,21 +569,23 @@ function TeamManagementDialog({
       setError("Please select a team");
       return;
     }
+    setConfirmingRemove(true);
+  };
 
-    const confirmed = window.confirm(
-      "Are you sure you want to remove this member from the team? This will not delete their account, only the team membership."
-    );
-    if (!confirmed) return;
-
+  const handleConfirmRemove = async () => {
+    resetMessages();
+    if (!selectedMemberId || !targetTeamId) {
+      return;
+    }
     setLoading(true);
     try {
       await api.removeTeamMember(targetTeamId, selectedMemberId);
       setSuccess("Member removed from team");
       onMemberRemoved(selectedMemberId);
       setSelectedMemberId(undefined);
+      setConfirmingRemove(false);
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Failed to remove member";
+      const message = e instanceof Error ? e.message : "Failed to remove member";
       setError(message);
     } finally {
       setLoading(false);
@@ -735,10 +739,7 @@ function TeamManagementDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {members.map((m) => (
-                      <SelectItem
-                        key={m.id || m.user_id}
-                        value={String(m.user_id || m.id)}
-                      >
+                      <SelectItem key={m.id || m.user_id} value={String(m.user_id || m.id)}>
                         {m.name || `${m.first_name} ${m.second_name || ""}`}
                       </SelectItem>
                     ))}
@@ -746,10 +747,24 @@ function TeamManagementDialog({
                 </Select>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Removing a member only detaches them from the team. Their user
-              account in the organization remains active.
-            </p>
+            <div className={`rounded-md border px-3 py-2 text-xs ${
+              confirmingRemove
+                ? "border-red-500 bg-red-50 text-red-700"
+                : "border-muted bg-muted text-muted-foreground"
+            }`}>
+              {confirmingRemove ? (
+                <p>
+                  Confirm removal: this will detach the member from the selected team but
+                  will <span className="font-semibold">not</span> delete their user account
+                  in the organization.
+                </p>
+              ) : (
+                <p>
+                  Removing a member only detaches them from the team. Their user account
+                  in the organization remains active.
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -778,15 +793,35 @@ function TeamManagementDialog({
               {loading ? "Creating invite..." : "Create invite"}
             </Button>
           )}
-          {mode === "remove" && canManageMembers && (
+          {mode === "remove" && canManageMembers && !confirmingRemove && (
             <Button
               type="button"
               variant="destructive"
               onClick={handleRemoveMember}
               disabled={loading}
             >
-              {loading ? "Removing..." : "Remove member"}
+              Remove member
             </Button>
+          )}
+          {mode === "remove" && canManageMembers && confirmingRemove && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmingRemove(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmRemove}
+                disabled={loading}
+              >
+                {loading ? "Removing..." : "Confirm removal"}
+              </Button>
+            </>
           )}
         </div>
       </DialogContent>
