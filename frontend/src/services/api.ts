@@ -379,7 +379,18 @@ export const api = {
     return handleResponse(response);
   },
 
-  createTeam: async (data: { organization_id: number; name: string }) => {
+  removeTeamMember: async (teamId: string, userId: string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/${teamId}/members/${userId}`,
+      {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
+  createTeam: async (data: { organization_id: string; name: string }) => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/teams`, {
       method: "POST",
       headers: await getAuthHeaders(),

@@ -35,6 +35,7 @@ import {
   Award,
   Bot,
   UserPlus,
+  PlusCircle,
 } from "lucide-react";
 import {
   PieChart,
@@ -441,27 +442,41 @@ function OneOnOneSchedulingDialog() {
   );
 }
 
-interface InviteMemberDialogProps {
+interface TeamManagementDialogProps {
   organizationId: string;
   roleLevel: number;
-  defaultTeamId?: string;
+  members: any[];
+  onMemberRemoved: (userId: string) => void;
 }
 
-function InviteMemberDialog({ organizationId, roleLevel, defaultTeamId }: InviteMemberDialogProps) {
+function TeamManagementDialog({
+  organizationId,
+  roleLevel,
+  members,
+  onMemberRemoved,
+}: TeamManagementDialogProps) {
   const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("member");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [mode, setMode] = useState<"create" | "invite" | "remove">("invite");
+
+  const [teamName, setTeamName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("member");
+  const [selectedMemberId, setSelectedMemberId] = useState<
+    string | undefined
+  >();
+  const [targetTeamId, setTargetTeamId] = useState<string | undefined>();
+
   const [teams, setTeams] = useState<any[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
-  const [selectedTeamId, setSelectedTeamId] = useState<string | undefined>(defaultTeamId);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const canChooseTeam = roleLevel >= 4; // founders/executives see all teams
+  const canCreateTeam = roleLevel >= 4;
+  const canManageMembers = roleLevel >= 3;
 
   useEffect(() => {
-    if (!canChooseTeam || !organizationId) return;
+    if (!organizationId || !canManageMembers || !open) return;
 
     const loadTeams = async () => {
       setTeamsLoading(true);
@@ -469,9 +484,8 @@ function InviteMemberDialog({ organizationId, roleLevel, defaultTeamId }: Invite
         const res = await api.listOrganizationTeams(organizationId);
         const data = (res as any).data || res || [];
         setTeams(data);
-        // Default to first team if none selected yet
-        if (!selectedTeamId && data.length > 0) {
-          setSelectedTeamId(String(data[0].id));
+        if (!targetTeamId && data.length > 0) {
+          setTargetTeamId(String(data[0].id));
         }
       } catch (e) {
         console.error("Failed to load organization teams", e);
@@ -484,34 +498,90 @@ function InviteMemberDialog({ organizationId, roleLevel, defaultTeamId }: Invite
     };
 
     loadTeams();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canChooseTeam, organizationId]);
+  }, [organizationId, canManageMembers, open, targetTeamId]);
+
+  const resetMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleCreateTeam = async () => {
+    resetMessages();
+    if (!teamName.trim()) {
+      setError("Please enter a team name");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.createTeam({
+        organization_id: organizationId,
+        name: teamName.trim(),
+      });
+      setSuccess("Team created successfully");
+      setTeamName("");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to create team";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInvite = async () => {
-    setError(null);
-    setInviteLink(null);
-    if (!email.trim()) {
+    resetMessages();
+    if (!inviteEmail.trim()) {
       setError("Please enter an email address");
       return;
     }
-
-    const targetTeamId = canChooseTeam
-      ? selectedTeamId
-      : defaultTeamId;
-
     if (!targetTeamId) {
       setError("Please select a team to invite into");
       return;
     }
+    setLoading(true);
+    try {
+      const result = await api.createTeamInvitation(targetTeamId, {
+        email: inviteEmail,
+        role: inviteRole,
+      });
+      const token = (result as any).token || result.token;
+      const baseUrl =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const link = `${baseUrl}/signup/invite/${token}`;
+      setSuccess(`Invite link created: ${link}`);
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Failed to create invitation";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async () => {
+    resetMessages();
+    if (!selectedMemberId) {
+      setError("Please select a member to remove");
+      return;
+    }
+    if (!targetTeamId) {
+      setError("Please select a team");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to remove this member from the team? This will not delete their account, only the team membership."
+    );
+    if (!confirmed) return;
 
     setLoading(true);
     try {
-      const result = await api.createTeamInvitation(targetTeamId, { email, role });
-      const token = (result as any).token || result.token;
-      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-      setInviteLink(`${baseUrl}/signup/invite/${token}`);
+      await api.removeTeamMember(targetTeamId, selectedMemberId);
+      setSuccess("Member removed from team");
+      onMemberRemoved(selectedMemberId);
+      setSelectedMemberId(undefined);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to create invitation";
+      const message =
+        e instanceof Error ? e.message : "Failed to remove member";
       setError(message);
     } finally {
       setLoading(false);
@@ -522,105 +592,202 @@ function InviteMemberDialog({ organizationId, roleLevel, defaultTeamId }: Invite
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
-          <UserPlus className="w-4 h-4" />
-          Invite Member
+          <Users className="w-4 h-4" />
+          Manage Team
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Invite team member</DialogTitle>
+          <DialogTitle>Team management</DialogTitle>
           <DialogDescription>
-            Send an email-based invite link so they can create an account and
-            join a specific team in your organization.
+            Create teams, invite members, or remove members from teams.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          {canChooseTeam ? (
+
+        <div className="flex gap-2 mb-4">
+          {canCreateTeam && (
+            <Button
+              type="button"
+              variant={mode === "create" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setMode("create");
+                resetMessages();
+              }}
+            >
+              New Team
+            </Button>
+          )}
+          {canManageMembers && (
+            <Button
+              type="button"
+              variant={mode === "invite" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setMode("invite");
+                resetMessages();
+              }}
+            >
+              Invite Member
+            </Button>
+          )}
+          {canManageMembers && (
+            <Button
+              type="button"
+              variant={mode === "remove" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setMode("remove");
+                resetMessages();
+              }}
+            >
+              Remove Member
+            </Button>
+          )}
+        </div>
+
+        {/* Shared team selector for invite/remove */}
+        {canManageMembers && (mode === "invite" || mode === "remove") && (
+          <div className="space-y-2 mb-4">
+            <Label htmlFor="mgmt-team">Team</Label>
+            {teamsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading teams...</p>
+            ) : teams.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No teams found in this organization. Create a team first.
+              </p>
+            ) : (
+              <Select
+                value={targetTeamId}
+                onValueChange={(value) => setTargetTeamId(value)}
+              >
+                <SelectTrigger id="mgmt-team">
+                  <SelectValue placeholder="Select a team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={String(t.id)}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
+
+        {mode === "create" && canCreateTeam && (
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="invite-team">Team</Label>
-              {teamsLoading ? (
-                <p className="text-sm text-muted-foreground">Loading teams...</p>
-              ) : teams.length === 0 ? (
+              <Label htmlFor="team-name">Team name</Label>
+              <Input
+                id="team-name"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="e.g. Product, Sales, Data Science"
+              />
+            </div>
+          </div>
+        )}
+
+        {mode === "invite" && canManageMembers && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Email</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="person@company.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-role">Role</Label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger id="invite-role">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Team Member</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
+        {mode === "remove" && canManageMembers && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="remove-member">Team member</Label>
+              {members.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No teams found in this organization. Create a team first.
+                  No visible team members to remove.
                 </p>
               ) : (
                 <Select
-                  value={selectedTeamId}
-                  onValueChange={(value) => setSelectedTeamId(value)}
+                  value={selectedMemberId}
+                  onValueChange={(value) => setSelectedMemberId(value)}
                 >
-                  <SelectTrigger id="invite-team">
-                    <SelectValue placeholder="Select a team" />
+                  <SelectTrigger id="remove-member">
+                    <SelectValue placeholder="Select a member" />
                   </SelectTrigger>
                   <SelectContent>
-                    {teams.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>
-                        {t.name}
+                    {members.map((m) => (
+                      <SelectItem
+                        key={m.id || m.user_id}
+                        value={String(m.user_id || m.id)}
+                      >
+                        {m.name || `${m.first_name} ${m.second_name || ""}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             </div>
-          ) : (
-            defaultTeamId && (
-              <p className="text-sm text-muted-foreground">
-                Inviting into your current team.
-              </p>
-            )
-          )}
+            <p className="text-xs text-muted-foreground">
+              Removing a member only detaches them from the team. Their user
+              account in the organization remains active.
+            </p>
+          </div>
+        )}
 
-          <div className="space-y-2">
-            <Label htmlFor="invite-email">Email</Label>
-            <Input
-              id="invite-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="person@company.com"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="invite-role">Role</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger id="invite-role">
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="member">Team Member</SelectItem>
-                <SelectItem value="manager">Manager</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
-          {inviteLink && (
-            <div className="space-y-2">
-              <Label>Invitation link</Label>
-              <Input
-                readOnly
-                value={inviteLink}
-                onFocus={(e) => e.target.select()}
-              />
-              <p className="text-xs text-muted-foreground">
-                Copy this link and send it to the invitee. In production, you
-                can hook this up to an email service.
-              </p>
-            </div>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
+        {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+        {success && (
+          <p className="text-sm text-green-600 mt-2 whitespace-pre-wrap">
+            {success}
+          </p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
+            Close
+          </Button>
+          {mode === "create" && canCreateTeam && (
+            <Button type="button" onClick={handleCreateTeam} disabled={loading}>
+              {loading ? "Creating..." : "Create team"}
             </Button>
+          )}
+          {mode === "invite" && canManageMembers && (
             <Button type="button" onClick={handleInvite} disabled={loading}>
               {loading ? "Creating invite..." : "Create invite"}
             </Button>
-          </div>
+          )}
+          {mode === "remove" && canManageMembers && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleRemoveMember}
+              disabled={loading}
+            >
+              {loading ? "Removing..." : "Remove member"}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -729,13 +896,20 @@ export function TeamOverview() {
         </div>
         <div className="flex gap-2">
           <OneOnOneSchedulingDialog />
-          {user?.rbac?.role_level && user.rbac.role_level >= 3 && user.organization_id && (
-            <InviteMemberDialog
-              organizationId={user.organization_id}
-              roleLevel={user.rbac.role_level}
-              defaultTeamId={team?.id}
-            />
-          )}
+          {user?.rbac?.role_level &&
+            user.rbac.role_level >= 3 &&
+            user.organization_id && (
+              <TeamManagementDialog
+                organizationId={user.organization_id}
+                roleLevel={user.rbac.role_level}
+                members={members}
+                onMemberRemoved={(removedId) => {
+                  setMembers((prev) =>
+                    prev.filter((m) => String(m.user_id || m.id) !== removedId)
+                  );
+                }}
+              />
+            )}
           <Button className="gap-2">
             <MessageSquare className="w-4 h-4" />
             Team Feedback

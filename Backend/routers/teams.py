@@ -72,6 +72,61 @@ def get_team_members(team_id: UUID, db=Depends(get_db)):
     return {"success": True, "data": members}
 
 
+@router.delete("/{team_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_team_member(
+    team_id: UUID,
+    user_id: UUID,
+    user_ctx: UserContext = Depends(get_user_context),
+    db=Depends(get_db),
+):
+    """Remove a user from a team (manager or above within same organization)."""
+
+    if not user_ctx.is_manager():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only managers or above can remove team members",
+        )
+
+    with db as conn:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # Ensure team belongs to the same organization as the acting user
+        cursor.execute(
+            "SELECT id, organization_id FROM teams WHERE id = %s",
+            (str(team_id),),
+        )
+        team_row = cursor.fetchone()
+        if not team_row:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        if str(team_row["organization_id"]) != str(user_ctx.organization_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot modify a team in a different organization",
+            )
+
+        # Check membership
+        cursor.execute(
+            """
+            SELECT id FROM team_members
+            WHERE team_id = %s AND user_id = %s
+            """,
+            (str(team_id), str(user_id)),
+        )
+        membership = cursor.fetchone()
+        if not membership:
+            raise HTTPException(status_code=404, detail="User is not in this team")
+
+        # Remove membership
+        cursor.execute(
+            "DELETE FROM team_members WHERE id = %s",
+            (membership["id"],),
+        )
+        conn.commit()
+
+    return {"success": True}
+
+
 @router.get("/{team_id}")
 def get_team(team_id: UUID, db=Depends(get_db)):
     """Get a team by ID."""

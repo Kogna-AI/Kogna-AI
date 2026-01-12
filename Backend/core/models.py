@@ -70,7 +70,7 @@ class UserResponse(BaseModel):
 
 # ====== Teams ======
 class TeamCreate(BaseModel):
-    organization_id: int
+    organization_id: str  # UUID as string
     name: str
 
 class TeamMemberAdd(BaseModel):
