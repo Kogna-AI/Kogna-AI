@@ -357,7 +357,7 @@ export const api = {
 
   // ==================== TEAMS ====================
 
-  getTeam: async (teamId: number) => {
+  getTeam: async (teamId: number | string) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/teams/${teamId}`,
       {
@@ -401,6 +401,62 @@ export const api = {
       body: JSON.stringify(data),
     });
     return handleResponse(response);
+  },
+
+  // Invitations
+  createTeamInvitation: async (
+    teamId: string,
+    data: { email: string; role?: string }
+  ) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/${teamId}/invitations`,
+      {
+        method: "POST",
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
+    return handleResponse<{
+      id: string;
+      email: string;
+      token: string;
+      expires_at: string;
+    }>(response);
+  },
+
+  getTeamInvitation: async (
+    token: string
+  ): Promise<{
+    email: string;
+    organization_name: string;
+    team_name: string;
+  }> => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/invitations/${token}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
+  acceptTeamInvitation: async (
+    token: string,
+    data: { first_name: string; second_name?: string; password: string }
+  ) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/invitations/${token}/accept`,
+      {
+        method: "POST",
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
+    return handleResponse<{
+      user_id: string;
+      organization_id: string;
+      team_id: string;
+    }>(response);
   },
 
   // Get user's team (first team they belong to)

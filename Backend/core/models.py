@@ -80,6 +80,21 @@ class TeamMemberAdd(BaseModel):
     performance: Optional[float] = None
     capacity: Optional[float] = None
 
+# ====== Team Invitations ======
+class TeamInvitationCreate(BaseModel):
+    email: EmailStr
+    role: Optional[str] = "member"
+
+class TeamInvitationMeta(BaseModel):
+    email: EmailStr
+    organization_name: str
+    team_name: str
+
+class AcceptInvitationRequest(BaseModel):
+    first_name: str
+    second_name: Optional[str] = None
+    password: str
+
 # ====== Objectives ======
 class ObjectiveCreate(BaseModel):
     organization_id: int

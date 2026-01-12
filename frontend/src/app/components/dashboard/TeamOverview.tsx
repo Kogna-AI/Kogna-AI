@@ -441,6 +441,192 @@ function OneOnOneSchedulingDialog() {
   );
 }
 
+interface InviteMemberDialogProps {
+  organizationId: string;
+  roleLevel: number;
+  defaultTeamId?: string;
+}
+
+function InviteMemberDialog({ organizationId, roleLevel, defaultTeamId }: InviteMemberDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("member");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | undefined>(defaultTeamId);
+
+  const canChooseTeam = roleLevel >= 4; // founders/executives see all teams
+
+  useEffect(() => {
+    if (!canChooseTeam || !organizationId) return;
+
+    const loadTeams = async () => {
+      setTeamsLoading(true);
+      try {
+        const res = await api.listOrganizationTeams(organizationId);
+        const data = (res as any).data || res || [];
+        setTeams(data);
+        // Default to first team if none selected yet
+        if (!selectedTeamId && data.length > 0) {
+          setSelectedTeamId(String(data[0].id));
+        }
+      } catch (e) {
+        console.error("Failed to load organization teams", e);
+        setError(
+          e instanceof Error ? e.message : "Failed to load organization teams"
+        );
+      } finally {
+        setTeamsLoading(false);
+      }
+    };
+
+    loadTeams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canChooseTeam, organizationId]);
+
+  const handleInvite = async () => {
+    setError(null);
+    setInviteLink(null);
+    if (!email.trim()) {
+      setError("Please enter an email address");
+      return;
+    }
+
+    const targetTeamId = canChooseTeam
+      ? selectedTeamId
+      : defaultTeamId;
+
+    if (!targetTeamId) {
+      setError("Please select a team to invite into");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await api.createTeamInvitation(targetTeamId, { email, role });
+      const token = (result as any).token || result.token;
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      setInviteLink(`${baseUrl}/signup/invite/${token}`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to create invitation";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <UserPlus className="w-4 h-4" />
+          Invite Member
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Invite team member</DialogTitle>
+          <DialogDescription>
+            Send an email-based invite link so they can create an account and
+            join a specific team in your organization.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          {canChooseTeam ? (
+            <div className="space-y-2">
+              <Label htmlFor="invite-team">Team</Label>
+              {teamsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading teams...</p>
+              ) : teams.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No teams found in this organization. Create a team first.
+                </p>
+              ) : (
+                <Select
+                  value={selectedTeamId}
+                  onValueChange={(value) => setSelectedTeamId(value)}
+                >
+                  <SelectTrigger id="invite-team">
+                    <SelectValue placeholder="Select a team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          ) : (
+            defaultTeamId && (
+              <p className="text-sm text-muted-foreground">
+                Inviting into your current team.
+              </p>
+            )
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="invite-email">Email</Label>
+            <Input
+              id="invite-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="person@company.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="invite-role">Role</Label>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger id="invite-role">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="member">Team Member</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+          {inviteLink && (
+            <div className="space-y-2">
+              <Label>Invitation link</Label>
+              <Input
+                readOnly
+                value={inviteLink}
+                onFocus={(e) => e.target.select()}
+              />
+              <p className="text-xs text-muted-foreground">
+                Copy this link and send it to the invitee. In production, you
+                can hook this up to an email service.
+              </p>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleInvite} disabled={loading}>
+              {loading ? "Creating invite..." : "Create invite"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function TeamOverview() {
   const { user } = useUser();
   console.log(user);
@@ -543,6 +729,13 @@ export function TeamOverview() {
         </div>
         <div className="flex gap-2">
           <OneOnOneSchedulingDialog />
+          {user?.rbac?.role_level && user.rbac.role_level >= 3 && user.organization_id && (
+            <InviteMemberDialog
+              organizationId={user.organization_id}
+              roleLevel={user.rbac.role_level}
+              defaultTeamId={team?.id}
+            />
+          )}
           <Button className="gap-2">
             <MessageSquare className="w-4 h-4" />
             Team Feedback
