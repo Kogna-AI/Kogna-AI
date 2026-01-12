@@ -30,6 +30,8 @@ import { useUser } from "./UserContext";
 
 interface CreateAccountScreenProps {
   onBackToLogin: () => void;
+  initialRole?: "founder" | "executive" | "manager" | "member";
+  lockRole?: boolean; // when true, hide role selector and keep initialRole fixed
 }
 
 function splitName(fullName: string) {
@@ -43,13 +45,15 @@ function splitName(fullName: string) {
 
 export default function CreateAccountPage({
   onBackToLogin,
+  initialRole = "founder",
+  lockRole = false,
 }: CreateAccountScreenProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    role: "member" as "founder" | "executive" | "manager" | "member",
+    role: initialRole as "founder" | "executive" | "manager" | "member",
     organization: "",
   });
 
@@ -243,23 +247,25 @@ export default function CreateAccountPage({
               </div>
 
               {/* Role */}
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value) => handleChange("role", value)}
-                >
-                  <SelectTrigger id="role">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="founder">Founder / CEO</SelectItem>
-                    <SelectItem value="executive">Executive / VP</SelectItem>
-                    <SelectItem value="manager">Manager / Team Lead</SelectItem>
-                    <SelectItem value="member">Team Member</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {!lockRole && (
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value) => handleChange("role", value)}
+                  >
+                    <SelectTrigger id="role">
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="founder">Founder / CEO</SelectItem>
+                      <SelectItem value="executive">Executive / VP</SelectItem>
+                      <SelectItem value="manager">Manager / Team Lead</SelectItem>
+                      <SelectItem value="member">Team Member</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Password */}
               <div className="space-y-2">
