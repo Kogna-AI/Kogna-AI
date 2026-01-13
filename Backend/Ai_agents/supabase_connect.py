@@ -278,7 +278,11 @@ class SupabaseManager:
 _supabase_manager = None
 
 def get_supabase_manager() -> SupabaseManager:
+    """
+    Get or create the singleton SupabaseManager instance.
+    """
     global _supabase_manager
     if _supabase_manager is None:
         _supabase_manager = SupabaseManager()
     return _supabase_manager
+

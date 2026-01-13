@@ -18,12 +18,31 @@ class OrganizationCreate(BaseModel):
 
 # ====== Users ======
 class UserCreate(BaseModel):
-    supabase_id: str
-    organization_id: int
     first_name: str
-    second_name: Optional[str] = None
-    role: Optional[str] = None
-    email: EmailStr
+    second_name: str
+    email: str
+    password: str
+    role: str
+    organization: str
+
+
+class UserInfo(BaseModel):
+    id: str
+    email: str
+    first_name: str
+    second_name: str
+    role: str
+    organization_id: str
+    supabase_id: str | None = None
+
+
+
+class CreateUserRequest(BaseModel):
+    organization_id: str  # UUID
+    first_name: str
+    second_name: str
+    email: str
+    role: str
     
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -51,7 +70,7 @@ class UserResponse(BaseModel):
 
 # ====== Teams ======
 class TeamCreate(BaseModel):
-    organization_id: int
+    organization_id: str  # UUID as string
     name: str
 
 class TeamMemberAdd(BaseModel):
@@ -60,6 +79,21 @@ class TeamMemberAdd(BaseModel):
     role: Optional[str] = None
     performance: Optional[float] = None
     capacity: Optional[float] = None
+
+# ====== Team Invitations ======
+class TeamInvitationCreate(BaseModel):
+    email: EmailStr
+    role: Optional[str] = "member"
+
+class TeamInvitationMeta(BaseModel):
+    email: EmailStr
+    organization_name: str
+    team_name: str
+
+class AcceptInvitationRequest(BaseModel):
+    first_name: str
+    second_name: Optional[str] = None
+    password: str
 
 # ====== Objectives ======
 class ObjectiveCreate(BaseModel):
@@ -131,21 +165,28 @@ class SuccessResponse(BaseModel):
     success: bool = True
     message: str
     data: Optional[Any] = None
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    second_name: str
+    role: str
+    organization: str  # <-- name, not id
+
+
 
 # Authentication
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str
-    first_name: str
-    second_name: Optional[str] = None
-    role: Optional[str] = None
-    organization_id: int
+
 
 class AuthResponse(BaseModel):
     success: bool = True
-    token: str
-    user: Dict[str, Any]
+    access_token: str
+    refresh_token: str
+    user: UserInfo
+
+
+

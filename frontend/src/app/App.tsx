@@ -1,33 +1,31 @@
+"use client";
+
 import { useMemo, useState } from "react";
-import { LoginScreen } from "./components/auth/LoginScreen";
-import { UserProvider, useUser } from "./components/auth/UserContext";
-import { KogniiAssistant } from "./components/KogniiAssistant";
-import { MainDashboard } from "./components/maindashboard";
+import { UserProvider } from "./components/auth/UserContext";
+import { KogniiAssistant } from "./components/kognii/KogniiAssistant";
+import { MainDashboard } from "./components/MainDashboard";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { Sidebar } from "./components/sidebar";
 
-// Add this type definition at the top of the file
 type ObjectiveFormData = {
   title?: string;
   description?: string;
   deadline?: string;
   priority?: string;
   team_responsible?: string;
-  [key: string]: unknown; // Allow additional properties
+  [key: string]: unknown;
 };
 
 function AppContent() {
-  const { isAuthenticated } = useUser();
   const [activeView, setActiveView] = useState("dashboard");
   const [isKogniiOpen, setIsKogniiOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [strategySessionMode, setStrategySessionMode] = useState(false);
 
-  // Kognii control states
   const [kogniiControlState, setKogniiControlState] = useState({
     shouldOpenObjectiveCreation: false,
     shouldNavigateToView: null as string | null,
-    objectiveFormData: null as ObjectiveFormData | null, // ✅ Fixed
+    objectiveFormData: null as ObjectiveFormData | null,
     shouldHighlightElement: null as string | null,
     guidedTourActive: false,
     currentGuidanceStep: 0,
@@ -41,11 +39,9 @@ function AppContent() {
   const handleCloseKognii = () => {
     setIsKogniiOpen(false);
     setStrategySessionMode(false);
-    // Clear any pending Kognii actions
     kogniiActions.clearKogniiControl();
   };
 
-  // Memoized Kognii control functions to prevent re-renders
   const kogniiActions = useMemo(
     () => ({
       navigateToView: (view: string) => {
@@ -57,7 +53,6 @@ function AppContent() {
       },
 
       openObjectiveCreation: (prefillData?: ObjectiveFormData) => {
-        // ✅ Fixed
         setActiveView("strategy");
         setKogniiControlState((prev) => ({
           ...prev,
@@ -67,7 +62,6 @@ function AppContent() {
       },
 
       updateObjectiveForm: (formData: ObjectiveFormData) => {
-        // ✅ Fixed
         setKogniiControlState((prev) => ({
           ...prev,
           objectiveFormData: { ...prev.objectiveFormData, ...formData },
@@ -81,7 +75,7 @@ function AppContent() {
         }));
       },
 
-      startGuidedTour: (_tourType: string) => {
+      startGuidedTour: () => {
         setKogniiControlState((prev) => ({
           ...prev,
           guidedTourActive: true,
@@ -100,12 +94,8 @@ function AppContent() {
         });
       },
     }),
-    [],
-  ); // Empty dependency array since these functions only use setters
-
-  if (!isAuthenticated) {
-    return <LoginScreen />;
-  }
+    []
+  );
 
   return (
     <div className="size-full flex bg-background">

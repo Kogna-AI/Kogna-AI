@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 
 # --- Supabase & Auth Dependencies ---
 from supabase_connect import get_supabase_manager 
-from routers.Authentication import get_backend_user_id 
+from auth.dependencies import get_current_user, get_backend_user_id
 
 # --- LangGraph Orchestrator ---
 # Update this import path to match your project structure

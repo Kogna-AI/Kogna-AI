@@ -10,8 +10,8 @@ import logging
 
 from routers import (
     organizations, users, teams, objectives,
-    metrics, insights, recommendations, actions,
-    ai_pipeline, connectors, Authentication, chat
+    metrics, insights, recommendations, actions,ai_pipeline,connectors,chat, auth,
+    kpis
 )
 
 # Load environment variables
@@ -48,9 +48,10 @@ app.include_router(metrics.router)
 app.include_router(insights.router)
 app.include_router(recommendations.router)
 app.include_router(actions.router)
-app.include_router(Authentication.router)
 app.include_router(ai_pipeline.router)
 app.include_router(chat.router)
+app.include_router(auth.router)
+app.include_router(kpis.router)
 
 # ==================== ROOT ENDPOINT ====================
 
@@ -124,10 +125,28 @@ async def startup_event():
     logger.info("Environment: Production-ready with AWS support")
     logger.info("=" * 50)
 
+    # Start KPI Scheduler (Phase 5)
+    try:
+        from services.kpi_scheduler import run_kpi_scheduler
+        import asyncio
+        asyncio.create_task(run_kpi_scheduler())
+        logger.info("KPI Scheduler initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to start KPI Scheduler: {e}")
+        # Don't fail startup if scheduler fails to start
+
 @app.on_event("shutdown")
 async def shutdown_event():
     """Run on application shutdown"""
     logger.info("Shutting down KognaDash API")
+
+    # Stop KPI Scheduler gracefully
+    try:
+        from services.kpi_scheduler import stop_scheduler
+        await stop_scheduler()
+        logger.info("KPI Scheduler stopped successfully")
+    except Exception as e:
+        logger.error(f"Error stopping KPI Scheduler: {e}")
 
 # ==================== GLOBAL EXCEPTION HANDLER ====================
 

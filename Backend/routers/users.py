@@ -5,7 +5,7 @@ Users Router - Handles user management with Supabase authentication and RBAC
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List, Optional
 from core.database import get_db
-from core.models import UserCreate, UserUpdate, UserResponse
+from core.models import UserUpdate, CreateUserRequest
 from core.permissions import (
     get_user_context,
     UserContext,
@@ -14,97 +14,66 @@ from core.permissions import (
 )
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from routers.Authentication import get_current_user
+from auth.dependencies import get_current_user
 router = APIRouter(prefix="/api/users", tags=["Users"])
+
 
 
 # ============================================
 # PUBLIC ENDPOINTS (No Auth Required)
 # ============================================
-
-@router.post("", status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate):
+@router.post("", status_code=201)
+def create_user(data: CreateUserRequest, db=Depends(get_db)):
     """
-    Create a new user in the database (called after Supabase signup).
-
-    This endpoint is typically called by your frontend after a successful
-    Supabase signup to create the corresponding user in your database.
-
-    Flow:
-    1. Frontend calls supabase.auth.signUp()
-    2. Frontend gets back Supabase user with ID
-    3. Frontend calls this endpoint with supabase_id
-    4. User is created in your database with link to Supabase
+    Create an internal team member.
+    - No password
+    - No supabase_id
+    - Belongs to an existing organization
     """
-    with get_db() as conn:
-        cursor = conn.cursor()
-        try:
-            # Check if user already exists
-            cursor.execute(
-                "SELECT id FROM users WHERE supabase_id = %s OR email = %s",
-                (user.supabase_id, user.email)
+
+    with db as conn:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        # 1. Organization must exist
+        cursor.execute("SELECT id FROM organizations WHERE id = %s", (data.organization_id,))
+        if not cursor.fetchone():
+            raise HTTPException(404, "Organization not found")
+
+        # 2. Insert internal team member
+        cursor.execute("""
+            INSERT INTO users (
+                id,
+                organization_id,
+                first_name,
+                second_name,
+                role,
+                email
             )
-            existing_user = cursor.fetchone()
-
-            if existing_user:
-                raise HTTPException(
-                    status_code=400,
-                    detail="User with this Supabase ID or email already exists"
-                )
-
-            # Check if organization exists
-            cursor.execute(
-                "SELECT id FROM organizations WHERE id = %s",
-                (user.organization_id,)
+            VALUES (
+                gen_random_uuid(),
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
             )
-            if not cursor.fetchone():
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Organization with ID {user.organization_id} not found"
-                )
+            RETURNING id, first_name, second_name, role, email
+        """, (
+            data.organization_id,
+            data.first_name,
+            data.second_name,
+            data.role,
+            data.email,
+        ))
 
-            # Create user
-            cursor.execute("""
-                INSERT INTO users (
-                    supabase_id, organization_id, first_name,
-                    second_name, role, email
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id, supabase_id, organization_id, first_name,
-                          second_name, role, email, created_at
-            """, (
-                user.supabase_id,
-                user.organization_id,
-                user.first_name,
-                user.second_name,
-                user.role,
-                user.email
-            ))
+        new_user = cursor.fetchone()
+        conn.commit()
 
-            result = cursor.fetchone()
-            conn.commit()
+        return {
+            "success": True,
+            "data": new_user
+        }
 
-            return {
-                "success": True,
-                "message": "User created successfully",
-                "data": dict(result)
-            }
-
-        except psycopg2.IntegrityError as e:
-            conn.rollback()
-            raise HTTPException(
-                status_code=400,
-                detail=f"Database integrity error: {str(e)}"
-            )
-        except HTTPException:
-            conn.rollback()
-            raise
-        except Exception as e:
-            conn.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to create user: {str(e)}"
-            )
 
 
 @router.get("/by-supabase/{supabase_id}")
@@ -186,6 +155,102 @@ async def get_current_user(user_ctx: UserContext = Depends(get_user_context)):
         return {
             "success": True,
             "data": user_data
+        }
+
+
+@router.get("/visible")
+async def list_visible_users(
+    user_ctx: UserContext = Depends(get_user_context),
+    limit: int = 100,
+    offset: int = 0,
+):
+    """List people the current user can see (for TeamOverview).
+
+    Rules:
+    - Users with `users:read:organization` can see everyone in their organization.
+    - Others see only members of their own teams.
+      If they have no teams, they only see themselves.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        organization_id = user_ctx.organization_id
+        has_org_permission = user_ctx.has_permission("users", "read", "organization")
+
+        # Base query scoped to organization
+        query = """
+            SELECT
+                u.id,
+                u.supabase_id,
+                u.organization_id,
+                u.first_name,
+                u.second_name,
+                u.role,
+                u.email,
+                u.created_at,
+                o.name as organization_name,
+                COUNT(DISTINCT tm.team_id) as team_count
+            FROM users u
+            LEFT JOIN organizations o ON u.organization_id = o.id
+            LEFT JOIN team_members tm ON u.id = tm.user_id
+            WHERE u.organization_id = %s
+        """
+        params = [organization_id]
+
+        # Restrict visibility for users without org-wide permission
+        if not has_org_permission:
+            if user_ctx.team_ids:
+                # See only members who share at least one team
+                team_ids_tuple = tuple(user_ctx.team_ids)
+                placeholders = ", ".join(["%s"] * len(team_ids_tuple))
+                query += f" AND tm.team_id IN ({placeholders})"
+                params.extend(team_ids_tuple)
+            else:
+                # No teams: they only see themselves
+                query += " AND u.id = %s"
+                params.append(user_ctx.id)
+
+        query += """
+            GROUP BY u.id, o.name
+            ORDER BY u.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        params.extend([limit, offset])
+
+        cursor.execute(query, params)
+        users = cursor.fetchall()
+
+        # Total count for pagination metadata, mirroring filters
+        count_query = """
+            SELECT COUNT(DISTINCT u.id) as count
+            FROM users u
+            LEFT JOIN team_members tm ON u.id = tm.user_id
+            WHERE u.organization_id = %s
+        """
+        count_params = [organization_id]
+
+        if not has_org_permission:
+            if user_ctx.team_ids:
+                team_ids_tuple = tuple(user_ctx.team_ids)
+                placeholders = ", ".join(["%s"] * len(team_ids_tuple))
+                count_query += f" AND tm.team_id IN ({placeholders})"
+                count_params.extend(team_ids_tuple)
+            else:
+                count_query += " AND u.id = %s"
+                count_params.append(user_ctx.id)
+
+        cursor.execute(count_query, count_params)
+        total = cursor.fetchone()["count"]
+
+        return {
+            "success": True,
+            "data": [dict(user) for user in users],
+            "pagination": {
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "has_more": (offset + limit) < total,
+            },
         }
 
 

@@ -1,22 +1,20 @@
 "use client";
-import {
-  Award,
-  Bot,
-  Calendar,
-  Clock,
-  MessageSquare,
-  Star,
-  Target,
-  TrendingUp,
-  UserPlus,
-  Users,
-} from "lucide-react";
-import { useState } from "react";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { Progress } from "../../ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
+import { Input } from "../../ui/input";
+import { Label } from "../../ui/label";
+import { Textarea } from "../../ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../ui/select";
 import { Checkbox } from "../../ui/checkbox";
 import {
   Dialog,
@@ -26,18 +24,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../../ui/dialog";
-import { Input } from "../../ui/input";
-import { Label } from "../../ui/label";
-import { Progress } from "../../ui/progress";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../ui/select";
-import { Textarea } from "../../ui/textarea";
-
+  Users,
+  TrendingUp,
+  Clock,
+  Target,
+  Star,
+  MessageSquare,
+  Calendar,
+  Award,
+  Bot,
+  UserPlus,
+  PlusCircle,
+} from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+} from "recharts";
+import api from "@/services/api";
+import { useUser } from "@/app/components/auth/UserContext";
+import type { Team, TeamMember } from "@/types/backend";
 const teamMembers = [
   {
     id: 1,
@@ -138,7 +150,7 @@ function OneOnOneSchedulingDialog() {
   });
 
   const handlePresetSelection = (
-    preset: "kognii-1on1" | "team-member-1on1",
+    preset: "kognii-1on1" | "team-member-1on1"
   ) => {
     if (preset === "kognii-1on1") {
       setMeetingData({
@@ -179,7 +191,7 @@ function OneOnOneSchedulingDialog() {
   };
 
   const availableMembers = teamMembers.filter(
-    (member) => member.status === "available",
+    (member) => member.status === "available"
   );
 
   return (
@@ -257,7 +269,11 @@ function OneOnOneSchedulingDialog() {
                     >
                       <div className="flex items-center gap-2">
                         <div
-                          className={`w-2 h-2 rounded-full ${member.status === "available" ? "bg-green-500" : "bg-yellow-500"}`}
+                          className={`w-2 h-2 rounded-full ${
+                            member.status === "available"
+                              ? "bg-green-500"
+                              : "bg-yellow-500"
+                          }`}
                         />
                         <span>{member.name}</span>
                         <span className="text-xs text-muted-foreground">
@@ -426,7 +442,366 @@ function OneOnOneSchedulingDialog() {
   );
 }
 
+interface TeamManagementDialogProps {
+  organizationId: string;
+  roleLevel: number;
+  members: any[];
+  onMemberRemoved: (userId: string) => void;
+}
+
+function TeamManagementDialog({
+  organizationId,
+  roleLevel,
+  members,
+  onMemberRemoved,
+}: TeamManagementDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"create" | "invite" | "remove">("invite");
+
+  const [teamName, setTeamName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("member");
+  const [selectedMemberId, setSelectedMemberId] = useState<
+    string | undefined
+  >();
+  const [targetTeamId, setTargetTeamId] = useState<string | undefined>();
+
+  const [teams, setTeams] = useState<any[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const canCreateTeam = roleLevel >= 4;
+  const canManageMembers = roleLevel >= 3;
+
+  useEffect(() => {
+    if (!organizationId || !canManageMembers || !open) return;
+
+    const loadTeams = async () => {
+      setTeamsLoading(true);
+      try {
+        const res = await api.listOrganizationTeams(organizationId);
+        const data = (res as any).data || res || [];
+        setTeams(data);
+        if (!targetTeamId && data.length > 0) {
+          setTargetTeamId(String(data[0].id));
+        }
+      } catch (e) {
+        console.error("Failed to load organization teams", e);
+        setError(
+          e instanceof Error ? e.message : "Failed to load organization teams"
+        );
+      } finally {
+        setTeamsLoading(false);
+      }
+    };
+
+    loadTeams();
+  }, [organizationId, canManageMembers, open, targetTeamId]);
+
+  const resetMessages = () => {
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleCreateTeam = async () => {
+    resetMessages();
+    if (!teamName.trim()) {
+      setError("Please enter a team name");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.createTeam({
+        organization_id: organizationId,
+        name: teamName.trim(),
+      });
+      setSuccess("Team created successfully");
+      setTeamName("");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to create team";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInvite = async () => {
+    resetMessages();
+    if (!inviteEmail.trim()) {
+      setError("Please enter an email address");
+      return;
+    }
+    if (!targetTeamId) {
+      setError("Please select a team to invite into");
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await api.createTeamInvitation(targetTeamId, {
+        email: inviteEmail,
+        role: inviteRole,
+      });
+      const token = (result as any).token || result.token;
+      const baseUrl =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const link = `${baseUrl}/signup/invite/${token}`;
+      setSuccess(`Invite link created: ${link}`);
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Failed to create invitation";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async () => {
+    resetMessages();
+    if (!selectedMemberId) {
+      setError("Please select a member to remove");
+      return;
+    }
+    if (!targetTeamId) {
+      setError("Please select a team");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to remove this member from the team? This will not delete their account, only the team membership."
+    );
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      await api.removeTeamMember(targetTeamId, selectedMemberId);
+      setSuccess("Member removed from team");
+      onMemberRemoved(selectedMemberId);
+      setSelectedMemberId(undefined);
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Failed to remove member";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <Users className="w-4 h-4" />
+          Manage Team
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Team management</DialogTitle>
+          <DialogDescription>
+            Create teams, invite members, or remove members from teams.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex gap-2 mb-4">
+          {canCreateTeam && (
+            <Button
+              type="button"
+              variant={mode === "create" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setMode("create");
+                resetMessages();
+              }}
+            >
+              New Team
+            </Button>
+          )}
+          {canManageMembers && (
+            <Button
+              type="button"
+              variant={mode === "invite" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setMode("invite");
+                resetMessages();
+              }}
+            >
+              Invite Member
+            </Button>
+          )}
+          {canManageMembers && (
+            <Button
+              type="button"
+              variant={mode === "remove" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setMode("remove");
+                resetMessages();
+              }}
+            >
+              Remove Member
+            </Button>
+          )}
+        </div>
+
+        {/* Shared team selector for invite/remove */}
+        {canManageMembers && (mode === "invite" || mode === "remove") && (
+          <div className="space-y-2 mb-4">
+            <Label htmlFor="mgmt-team">Team</Label>
+            {teamsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading teams...</p>
+            ) : teams.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No teams found in this organization. Create a team first.
+              </p>
+            ) : (
+              <Select
+                value={targetTeamId}
+                onValueChange={(value) => setTargetTeamId(value)}
+              >
+                <SelectTrigger id="mgmt-team">
+                  <SelectValue placeholder="Select a team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={String(t.id)}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
+
+        {mode === "create" && canCreateTeam && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="team-name">Team name</Label>
+              <Input
+                id="team-name"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="e.g. Product, Sales, Data Science"
+              />
+            </div>
+          </div>
+        )}
+
+        {mode === "invite" && canManageMembers && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Email</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="person@company.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-role">Role</Label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger id="invite-role">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Team Member</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
+        {mode === "remove" && canManageMembers && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="remove-member">Team member</Label>
+              {members.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No visible team members to remove.
+                </p>
+              ) : (
+                <Select
+                  value={selectedMemberId}
+                  onValueChange={(value) => setSelectedMemberId(value)}
+                >
+                  <SelectTrigger id="remove-member">
+                    <SelectValue placeholder="Select a member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members.map((m) => (
+                      <SelectItem
+                        key={m.id || m.user_id}
+                        value={String(m.user_id || m.id)}
+                      >
+                        {m.name || `${m.first_name} ${m.second_name || ""}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Removing a member only detaches them from the team. Their user
+              account in the organization remains active.
+            </p>
+          </div>
+        )}
+
+        {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+        {success && (
+          <p className="text-sm text-green-600 mt-2 whitespace-pre-wrap">
+            {success}
+          </p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
+            Close
+          </Button>
+          {mode === "create" && canCreateTeam && (
+            <Button type="button" onClick={handleCreateTeam} disabled={loading}>
+              {loading ? "Creating..." : "Create team"}
+            </Button>
+          )}
+          {mode === "invite" && canManageMembers && (
+            <Button type="button" onClick={handleInvite} disabled={loading}>
+              {loading ? "Creating invite..." : "Create invite"}
+            </Button>
+          )}
+          {mode === "remove" && canManageMembers && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleRemoveMember}
+              disabled={loading}
+            >
+              {loading ? "Removing..." : "Remove member"}
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function TeamOverview() {
+  const { user } = useUser();
+  console.log(user);
+  const [team, setTeam] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "available":
@@ -438,14 +813,77 @@ export function TeamOverview() {
     }
   };
 
-  const averagePerformance = Math.round(
-    teamMembers.reduce((sum, member) => sum + member.performance, 0) /
-      teamMembers.length,
-  );
+  useEffect(() => {
+    const fetchVisiblePeople = async () => {
+  if (!user?.id) return;
 
-  const averageCapacity = Math.round(
-    teamMembers.reduce((sum, member) => sum + member.capacity, 0) /
-      teamMembers.length,
+  try {
+    setLoading(true);
+    setError(null);
+
+    // 1. Get all people this user is allowed to see
+    const visibleResponse = await api.listVisibleUsers();
+    const visibleMembers = (visibleResponse && typeof visibleResponse === "object" && "data" in visibleResponse 
+      ? (visibleResponse as any).data 
+      : visibleResponse) || [];
+    setMembers(visibleMembers);
+
+    // 2. Optional: still fetch the user's primary team for the header
+    //    For executives/founders, we show an org-wide label instead.
+    let teamLabel: any = null;
+
+    try {
+      const teamResponse = await api.getUserTeam(user.id);
+      const teamData = (teamResponse && typeof teamResponse === "object" && "data" in teamResponse
+        ? (teamResponse as any).data
+        : teamResponse) || null;
+      teamLabel = teamData;
+        } catch {
+          // User might not belong to a specific team (e.g., founder/CEO),
+          // it's fine to just treat them as org-wide.
+        }
+
+        const isExecutive = (user.rbac?.role_level ?? 0) >= 4;
+
+        if (isExecutive) {
+          setTeam({ name: teamLabel?.name || "Entire Organization" });
+        } else if (teamLabel?.id) {
+          setTeam(teamLabel);
+        } else {
+          setTeam(null);
+        }
+      } catch (err) {
+        console.error("Error loading visible people:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load team data"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVisiblePeople();
+  }, [user]);
+
+  const teamMembersCount = members.length;
+
+  const averagePerformance = members.length
+    ? Math.round(
+        members.reduce((sum, member) => sum + (member.performance || 0), 0) /
+          members.length
+      )
+    : 0;
+
+  const averageCapacity = members.length
+    ? Math.round(
+        members.reduce((sum, member) => sum + (member.capacity || 0), 0) /
+          members.length
+      )
+    : 0;
+
+  const totalProjects = members.reduce(
+    (sum, member) => sum + (member.project_count || member.projects || 0),
+    0
   );
 
   return (
@@ -455,11 +893,27 @@ export function TeamOverview() {
         <div>
           <h1>Team Overview</h1>
           <p className="text-muted-foreground">
-            Monitor team performance, capacity, and well-being
+            {team?.name
+              ? `${team.name} - Monitor team performance, capacity, and well-being`
+              : "Monitor team performance, capacity, and well-being"}
           </p>
         </div>
         <div className="flex gap-2">
           <OneOnOneSchedulingDialog />
+          {user?.rbac?.role_level &&
+            user.rbac.role_level >= 3 &&
+            user.organization_id && (
+              <TeamManagementDialog
+                organizationId={user.organization_id}
+                roleLevel={user.rbac.role_level}
+                members={members}
+                onMemberRemoved={(removedId) => {
+                  setMembers((prev) =>
+                    prev.filter((m) => String(m.user_id || m.id) !== removedId)
+                  );
+                }}
+              />
+            )}
           <Button className="gap-2">
             <MessageSquare className="w-4 h-4" />
             Team Feedback
@@ -475,7 +929,7 @@ export function TeamOverview() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teamMembers.length}</div>
+            <div className="text-2xl font-bold">{teamMembersCount}</div>
             <p className="text-xs text-muted-foreground">Active members</p>
           </CardContent>
         </Card>
@@ -512,9 +966,7 @@ export function TeamOverview() {
             <Target className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {teamMembers.reduce((sum, member) => sum + member.projects, 0)}
-            </div>
+            <div className="text-2xl font-bold">{totalProjects}</div>
             <p className="text-xs text-muted-foreground">Across all members</p>
           </CardContent>
         </Card>
@@ -531,61 +983,96 @@ export function TeamOverview() {
             </p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {teamMembers.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Avatar>
-                        <AvatarImage src={member.avatar} alt={member.name} />
-                        <AvatarFallback>
-                          {member.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div
-                        className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(member.status)} rounded-full border-2 border-background`}
-                      />
+            {loading && (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading team members...
+              </div>
+            )}
+            {error && (
+              <div className="text-center py-4 text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                Error loading team data: {error}
+              </div>
+            )}
+            {!loading && members.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No Team Member Found
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {members.map((member, index) => (
+                  <div
+                    key={member.id || index}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Avatar>
+                          <AvatarImage
+                            src={member.avatar}
+                            alt={
+                              member.name ||
+                              `${member.first_name} ${member.second_name || ""}`
+                            }
+                          />
+                          <AvatarFallback>
+                            {member.first_name?.[0] || ""}
+                            {member.second_name?.[0] || member.name?.[1] || ""}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div
+                          className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
+                            member.status || "available"
+                          )} rounded-full border-2 border-background`}
+                        />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">
+                          {member.name ||
+                            `${member.first_name} ${member.second_name || ""}`}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {member.role || member.user_role || "Team Member"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium">{member.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {member.role}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="text-center">
-                      <p className="font-medium">{member.performance}%</p>
-                      <p className="text-xs text-muted-foreground">
-                        Performance
-                      </p>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="text-center">
+                        <p className="font-medium">
+                          {member.performance || 0}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Performance
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium">{member.capacity || 0}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          Capacity
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium">
+                          {member.project_count || member.projects || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Projects
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          (member.status || "available") === "available"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {member.status || "available"}
+                      </Badge>
                     </div>
-                    <div className="text-center">
-                      <p className="font-medium">{member.capacity}%</p>
-                      <p className="text-xs text-muted-foreground">Capacity</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-medium">{member.projects}</p>
-                      <p className="text-xs text-muted-foreground">Projects</p>
-                    </div>
-                    <Badge
-                      variant={
-                        member.status === "available" ? "default" : "secondary"
-                      }
-                    >
-                      {member.status}
-                    </Badge>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

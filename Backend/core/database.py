@@ -10,7 +10,8 @@ load_dotenv()
 def get_db():
     conn = psycopg2.connect(
         os.getenv("DATABASE_URL"),
-        cursor_factory=RealDictCursor
+        cursor_factory=RealDictCursor,
+        options='-c client_encoding=UTF8'
     )
     try:
         yield conn
