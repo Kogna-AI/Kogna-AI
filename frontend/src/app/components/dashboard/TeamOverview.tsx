@@ -815,31 +815,35 @@ export function TeamOverview() {
 
   useEffect(() => {
     const fetchVisiblePeople = async () => {
-      if (!user?.id) return;
+  if (!user?.id) return;
 
-      try {
-        setLoading(true);
-        setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-        // 1. Get all people this user is allowed to see
-        const visibleResponse = await api.listVisibleUsers();
-        const visibleMembers = visibleResponse?.data || visibleResponse || [];
-        setMembers(visibleMembers);
+    // 1. Get all people this user is allowed to see
+    const visibleResponse = await api.listVisibleUsers();
+    const visibleMembers = (visibleResponse && typeof visibleResponse === "object" && "data" in visibleResponse 
+      ? (visibleResponse as any).data 
+      : visibleResponse) || [];
+    setMembers(visibleMembers);
 
-        // 2. Optional: still fetch the user's primary team for the header
-        //    For executives/founders, we show an org-wide label instead.
-        let teamLabel: any = null;
+    // 2. Optional: still fetch the user's primary team for the header
+    //    For executives/founders, we show an org-wide label instead.
+    let teamLabel: any = null;
 
-        try {
-          const teamResponse = await api.getUserTeam(user.id);
-          const teamData = teamResponse?.data || teamResponse || null;
-          teamLabel = teamData;
+    try {
+      const teamResponse = await api.getUserTeam(user.id);
+      const teamData = (teamResponse && typeof teamResponse === "object" && "data" in teamResponse
+        ? (teamResponse as any).data
+        : teamResponse) || null;
+      teamLabel = teamData;
         } catch {
           // User might not belong to a specific team (e.g., founder/CEO),
           // it's fine to just treat them as org-wide.
         }
 
-        const isExecutive = user.rbac?.role_level >= 4;
+        const isExecutive = (user.rbac?.role_level ?? 0) >= 4;
 
         if (isExecutive) {
           setTeam({ name: teamLabel?.name || "Entire Organization" });
