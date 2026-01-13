@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
-from core.database import get_db
+from core.database import get_db, get_db_context
 from core.models import ObjectiveCreate, ObjectiveUpdate, GrowthStageCreate, MilestoneCreate
 from datetime import datetime
 
@@ -7,7 +7,7 @@ router = APIRouter(prefix="/api/objectives", tags=["Objectives"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_objective(obj: ObjectiveCreate):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO objectives (organization_id, title, progress, status, team_responsible)
@@ -20,7 +20,7 @@ def create_objective(obj: ObjectiveCreate):
 
 @router.put("/{obj_id}")
 def update_objective(obj_id: int, obj: ObjectiveUpdate):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         updates = []
         params = []

@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException, status
-from core.database import get_db
+from core.database import get_db, get_db_context
 from core.models import MetricCreate
 
 router = APIRouter(prefix="/api/metrics", tags=["Metrics"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_metric(metric: MetricCreate):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO metrics (organization_id, name, value, unit, change_from_last)
@@ -19,7 +19,7 @@ def create_metric(metric: MetricCreate):
 
 @router.get("/{metric_id}")
 def get_metric(metric_id: int):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM metrics WHERE id = %s", (metric_id,))
         result = cursor.fetchone()
@@ -29,7 +29,7 @@ def get_metric(metric_id: int):
 
 @router.get("/org/{org_id}")
 def list_metrics(org_id: int):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT * FROM metrics 

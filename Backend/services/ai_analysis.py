@@ -21,7 +21,7 @@ def run_ai_analysis(organization_id: int, analysis_type: str, parameters: Dict[s
 
 def fetch_org_data(org_id : int):
     """Collect data from multiple tables for one organization."""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         # Metrics

@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException, status
-from core.database import get_db
+from core.database import get_db, get_db_context
 from core.models import ActionCreate
 
 router = APIRouter(prefix="/api/actions", tags=["Actions"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_action(action: ActionCreate):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO actions (user_id, recommendation_id, action_taken, result)
@@ -24,7 +24,7 @@ def create_action(action: ActionCreate):
 
 @router.get("/user/{user_id}")
 def get_user_actions(user_id: int):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT a.*, r.title as recommendation_title, r.confidence
