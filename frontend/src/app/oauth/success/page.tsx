@@ -2,11 +2,11 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "../../components/auth/UserContext";
 
-export default function OAuthSuccessPage() {
+function OAuthSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const provider = searchParams.get("provider");
@@ -35,5 +35,17 @@ export default function OAuthSuccessPage() {
         Finalizing {provider ?? "connection"}…
       </div>
     </div>
+  );
+}
+
+export default function OAuthSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </div>
+    }>
+      <OAuthSuccessContent />
+    </Suspense>
   );
 }
