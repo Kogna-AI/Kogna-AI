@@ -1,6 +1,30 @@
 import { Card, CardContent, CardHeader } from '../../ui/card';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, LucideIcon } from 'lucide-react';
 import React from 'react';
+
+interface MetricData {
+  title: string;
+  value: string;
+  change: string;
+  trend: 'up' | 'down';
+  icon?: LucideIcon;
+  color?: string;
+}
+
+interface ApiMetric {
+  name: string;
+  value: number;
+  unit?: string;
+  change_from_last?: number;
+}
+
+interface MetricCardProps {
+  metric: MetricData;
+  apiMetric?: ApiMetric;
+  title?: string;
+  icon?: LucideIcon;
+  color?: string;
+}
 
 export default function MetricCard({
   metric,
