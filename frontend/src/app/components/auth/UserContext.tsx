@@ -77,12 +77,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const res = await api.getCurrentUser();
-      const finalUser = "user" in res ? res.user : res;
+  const res = await api.getCurrentUser();
+  const finalUser = res && typeof res === "object" && "user" in res ? (res as any).user : res;
 
-      setUser(finalUser as BackendUser);
-      setIsAuthenticated(true);
-    } catch (err) {
+  setUser(finalUser as BackendUser);
+  setIsAuthenticated(true);
+} catch (err) {
       console.warn("getCurrentUser failed", err);
       setUser(null);
       setIsAuthenticated(false);
