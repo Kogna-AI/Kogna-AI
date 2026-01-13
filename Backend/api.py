@@ -8,7 +8,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor, Json
 import os
 from dotenv import load_dotenv
-from contextlib import contextmanager
+
 import json
 import asyncio
 import jwt
@@ -60,7 +60,7 @@ app.include_router(jira_router)
 
 
 # Database Connection
-@contextmanager
+
 def get_db():
     """Database connection context manager"""
     conn = psycopg2.connect(
