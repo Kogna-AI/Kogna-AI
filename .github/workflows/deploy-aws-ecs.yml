@@ -128,61 +128,9 @@ jobs:
             .registeredBy
           ) | walk(if type == "object" then del(.enableFaultInjection) else . end)' > task-def-clean.json
 
-      - name: Inject environment variables from Secrets Manager
-        run: |
-          # Get AWS account ID
-          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          
-          # Add environment variables with Secrets Manager references
-          cat task-def-clean.json | jq \
-            --arg AWS_ACCOUNT_ID "$AWS_ACCOUNT_ID" \
-            --arg AWS_REGION "${{ env.AWS_REGION }}" \
-            '.containerDefinitions[0].secrets = [
-              {
-                "name": "SECRET_KEY",
-                "valueFrom": "arn:aws:secretsmanager:\($AWS_REGION):\($AWS_ACCOUNT_ID):secret:kogna/backend/SECRET_KEY"
-              },
-              {
-                "name": "DATABASE_URL",
-                "valueFrom": "arn:aws:secretsmanager:\($AWS_REGION):\($AWS_ACCOUNT_ID):secret:kogna/backend/DATABASE_URL"
-              },
-              {
-                "name": "SUPABASE_URL",
-                "valueFrom": "arn:aws:secretsmanager:\($AWS_REGION):\($AWS_ACCOUNT_ID):secret:kogna/backend/SUPABASE_URL"
-              },
-              {
-                "name": "SUPABASE_ANON_KEY",
-                "valueFrom": "arn:aws:secretsmanager:\($AWS_REGION):\($AWS_ACCOUNT_ID):secret:kogna/backend/SUPABASE_ANON_KEY"
-              },
-              {
-                "name": "SUPABASE_SERVICE_KEY",
-                "valueFrom": "arn:aws:secretsmanager:\($AWS_REGION):\($AWS_ACCOUNT_ID):secret:kogna/backend/SUPABASE_SERVICE_KEY"
-              },
-              {
-                "name": "ANTHROPIC_API_KEY",
-                "valueFrom": "arn:aws:secretsmanager:\($AWS_REGION):\($AWS_ACCOUNT_ID):secret:kogna/backend/ANTHROPIC_API_KEY"
-              },
-              {
-                "name": "GOOGLE_API_KEY",
-                "valueFrom": "arn:aws:secretsmanager:\($AWS_REGION):\($AWS_ACCOUNT_ID):secret:kogna/backend/GOOGLE_API_KEY"
-              },
-              {
-                "name": "SERPAPI_API_KEY",
-                "valueFrom": "arn:aws:secretsmanager:\($AWS_REGION):\($AWS_ACCOUNT_ID):secret:kogna/backend/SERPAPI_API_KEY"
-              }
-            ] | 
-            .containerDefinitions[0].environment = [
-              {"name": "ALGORITHM", "value": "HS256"},
-              {"name": "ACCESS_TOKEN_EXPIRE_MINUTES", "value": "30"},
-              {"name": "REFRESH_TOKEN_EXPIRE_DAYS", "value": "7"},
-              {"name": "ENVIRONMENT", "value": "production"},
-              {"name": "DEBUG", "value": "false"},
-              {"name": "ALLOWED_ORIGINS", "value": "${{ secrets.ALLOWED_ORIGINS }}"}
-            ]' > task-def-with-env.json
-
       - name: Update task definition with new image
         run: |
-          cat task-def-with-env.json | jq \
+          cat task-def-clean.json | jq \
             --arg IMAGE "${{ needs.build-and-push-backend.outputs.image }}" \
             '.containerDefinitions[0].image = $IMAGE' \
             > task-definition-updated.json
