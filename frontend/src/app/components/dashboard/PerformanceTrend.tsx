@@ -4,7 +4,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from "recharts";
 import { useMetricTrends } from "@/app/hooks/useDashboard";
 
 interface PerformanceTrendProps {
-  data?: Array<{ date: string; value: number }>;
+  data?: Array<{ month: string; value: number }>;
   orgId?: number;
   metricName?: string;
   useLiveData?: boolean;

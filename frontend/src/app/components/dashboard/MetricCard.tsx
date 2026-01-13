@@ -6,7 +6,7 @@ interface MetricData {
   title: string;
   value: string;
   change: string;
-  trend: 'up' | 'down';
+  trend: string;
   icon?: LucideIcon;
   color?: string;
 }
