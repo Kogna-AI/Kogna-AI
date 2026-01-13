@@ -293,7 +293,7 @@ export function KogniiAssistant({
 
   return (
     <div className="w-96 h-full bg-background border-l border-border shadow-xl flex flex-col">
-      <Header onClose={onClose} />
+      <Header onClose={onClose} activeView={activeView} />
 
       <QuickActions
         quickActions={quickActions}
