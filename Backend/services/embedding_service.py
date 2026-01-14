@@ -11,7 +11,7 @@ import fitz  # PDF extraction
 from typing import Optional, Dict
 from supabase_connect import get_supabase_manager
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
