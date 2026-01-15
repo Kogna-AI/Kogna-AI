@@ -33,7 +33,7 @@ ASANA_CLIENT_ID = os.getenv("ASANA_CLIENT_ID")
 ASANA_CLIENT_SECRET = os.getenv("ASANA_CLIENT_SECRET")
 
 APP_BASE_URL = os.getenv("APP_BASE_URL")
-FRONTEND_BASE_URL = "https://kogna.io/connectors"
+FRONTEND_BASE_URL = "https://kogna.io"
 
 # ------------------------------------------------------------------
 # Models
