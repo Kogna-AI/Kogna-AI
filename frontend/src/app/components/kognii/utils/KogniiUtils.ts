@@ -60,7 +60,7 @@ export const getDemoScenarios = (view: string): DemoScenario[] => {
 // Conversation mode scenarios
 export const conversationScenario: ConversationStep[] = [
   {
-    user: "Kognii, I need to discuss our Q3 strategy. We're seeing some challenges with team capacity and market demands.",
+    user: "Kogna, I need to discuss our Q3 strategy. We're seeing some challenges with team capacity and market demands.",
     kognii:
       "I understand your concern about Q3 strategy. Let me analyze your current situation in real-time...",
   },
@@ -307,12 +307,12 @@ export const getContextualInitialMessage = (view: string): Message => {
   return {
     id: "1",
     type: "assistant",
-    content: `Hello! I'm Kognii, your strategic AI assistant. I can see you're currently in the ${
+    content: `Hello! I'm Kogna, your strategic AI assistant. I can see you're currently in the ${
       context?.name || "Dashboard"
     } section.\n\nContext-Aware Capabilities:\n${
       context?.capabilities?.map((cap) => `• ${cap}`).join("\n") ||
       "• General assistance and insights"
-    }\n\nI'm fully integrated with KognaDash and can help you take actions directly within this context. How can I assist you today?`,
+    }\n\nI'm fully integrated with Kogna and can help you take actions directly within this context. How can I assist you today?`,
     timestamp: new Date(),
     suggestions: [
       `Analyze ${context?.name?.toLowerCase() || "current"} performance`,

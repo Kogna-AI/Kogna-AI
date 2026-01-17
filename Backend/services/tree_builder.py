@@ -16,7 +16,7 @@ Example:
     16 leaf notes across 3 documents:
     
     Level 99 (Root):
-    └── "Kogna AI: Capital-Efficient Pre-Seed Strategy"
+    └── "Kogna: Capital-Efficient Pre-Seed Strategy"
     
     Level 2 (Themes):
     ├── "Financial Strategy & Growth"

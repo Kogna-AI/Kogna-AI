@@ -166,7 +166,7 @@ export default function CreateAccountPage({
                   Account Created!
                 </h2>
                 <p className="text-gray-600 mt-2">
-                  Welcome to KognaDash, {formData.name}. Redirecting you to
+                  Welcome to Kogna, {formData.name}. Redirecting you to
                   login...
                 </p>
               </div>
@@ -191,7 +191,7 @@ export default function CreateAccountPage({
               className="object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Join KognaDash</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Join Kogna</h1>
           <p className="text-gray-600 mt-1">Strategic Intelligence</p>
         </div>
 

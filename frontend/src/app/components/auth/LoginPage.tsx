@@ -82,7 +82,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
             />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Welcome to KognaDash
+            Welcome to Kogna
           </h1>
           <p className="text-gray-600 mt-1">Strategic Intelligence</p>
         </div>
