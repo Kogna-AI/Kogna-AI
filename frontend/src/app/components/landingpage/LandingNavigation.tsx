@@ -10,7 +10,7 @@ return(
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <KogniiThinkingIcon size={32} />
-            <span className="text-xl font-semibold">KognaDash</span>
+            <span className="text-xl font-semibold">Kogna</span>
           </div>
           <Button onClick={onGetStarted}>
             Get Started

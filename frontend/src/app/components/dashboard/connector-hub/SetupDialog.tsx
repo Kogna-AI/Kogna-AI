@@ -157,7 +157,7 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                       </span>
                     </div>
                     <p className="text-sm text-green-700 mb-4">
-                      KognaCore is already integrated into your KognaDash.
+                      KognaCore is already integrated into your Kogna.
                       Simply start creating projects to experience the full
                       power of our AI-driven WBS system.
                     </p>
@@ -276,7 +276,7 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                       Choose Sync Mode
                     </Label>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Select how data should flow between KognaDash and{" "}
+                      Select how data should flow between Kogna and{" "}
                       {connector.name}
                     </p>
                   </div>
@@ -372,11 +372,11 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                               <Crown className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                               <div>
                                 <p className="font-semibold text-amber-800 mb-1">
-                                  KognaDash Two-way Benefits
+                                  Kogna Two-way Benefits
                                 </p>
                                 <ul className="text-sm text-amber-700 space-y-1">
                                   <li>
-                                    • Updates in KognaDash automatically sync to{" "}
+                                    • Updates in Kogna automatically sync to{" "}
                                     {connector.name}
                                   </li>
                                   <li>
@@ -406,7 +406,7 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                                   Data Conflict Resolution
                                 </p>
                                 <p className="text-sm text-blue-700">
-                                  KognaDash uses intelligent conflict resolution
+                                  Kogna uses intelligent conflict resolution
                                   to handle simultaneous updates, with executive
                                   approval required for major changes.
                                 </p>
@@ -429,7 +429,7 @@ export function SetupDialog({ connector, onClose }: SetupDialogProps) {
                                 Premium Feature
                               </p>
                               <p className="text-sm text-orange-700">
-                                Two-way sync requires a KognaDash Premium
+                                Two-way sync requires a Kogna Premium
                                 subscription. Upgrade to unlock bidirectional
                                 data flow and advanced sync features.
                               </p>

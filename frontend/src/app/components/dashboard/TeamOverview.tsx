@@ -155,7 +155,7 @@ function OneOnOneSchedulingDialog() {
     if (preset === "kognii-1on1") {
       setMeetingData({
         ...meetingData,
-        title: "1:1 Strategy Session with Kognii",
+        title: "1:1 Strategy Session with Kogna",
         description:
           "Personal career development and strategic insights discussion",
         type: "ai-strategy",
@@ -206,7 +206,7 @@ function OneOnOneSchedulingDialog() {
         <DialogHeader>
           <DialogTitle>Schedule 1:1 Meeting</DialogTitle>
           <DialogDescription>
-            Create a personal one-on-one meeting with team members or Kognii for
+            Create a personal one-on-one meeting with team members or Kogna for
             strategic discussions
           </DialogDescription>
         </DialogHeader>
@@ -224,7 +224,7 @@ function OneOnOneSchedulingDialog() {
               >
                 <div className="flex items-center gap-2">
                   <Bot className="w-4 h-4 text-blue-600" />
-                  <span>1:1 with Kognii</span>
+                  <span>1:1 with Kogna</span>
                 </div>
                 <p className="text-xs text-muted-foreground text-left">
                   Strategic career development session
@@ -287,7 +287,7 @@ function OneOnOneSchedulingDialog() {
               {availableMembers.length === 0 && (
                 <p className="text-sm text-muted-foreground mt-1">
                   No team members are currently available. You can still
-                  schedule with Kognii.
+                  schedule with Kogna.
                 </p>
               )}
             </div>
@@ -409,7 +409,7 @@ function OneOnOneSchedulingDialog() {
                 className="flex items-center gap-2"
               >
                 <Bot className="w-4 h-4 text-blue-600" />
-                Include Kognii for strategic insights
+                Include Kogna for strategic insights
               </Label>
             </div>
           )}

@@ -126,7 +126,7 @@ export function ConversationMode({
                     <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                       <KogniiThinkingIcon className="w-3 h-3 text-white" />
                     </div>
-                    Kognii AI
+                    Kogna
                   </div>
                   <p className="text-sm text-white/90 leading-relaxed">
                     {conversationScenario[conversationStep]?.kognii}

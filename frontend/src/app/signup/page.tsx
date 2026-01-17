@@ -57,7 +57,7 @@ export default function SignupLandingPage() {
         <Card className="w-full max-w-4xl shadow-xl border-0">
           <CardHeader className="space-y-2 text-center">
             <CardTitle className="text-2xl">
-              Create your KognaDash account
+              Create your Kogna account
             </CardTitle>
             <CardDescription>
               Choose how you want to get started: create a new organization or

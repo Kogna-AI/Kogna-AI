@@ -73,7 +73,7 @@ export function Sidebar({
           </div>
           <div>
             <h1 className="text-lg font-semibold text-sidebar-foreground">
-              KognaDash
+              Kogna
             </h1>
             <p className="text-xs text-sidebar-foreground/60">
               Strategic Intelligence
@@ -94,7 +94,7 @@ export function Sidebar({
             <div className="p-1 rounded bg-gradient-to-br from-purple-500/20 to-blue-500/20">
               <KogniiThinkingIcon className="w-4 h-4 text-purple-600" />
             </div>
-            <span className="font-medium">Kognii Assistant</span>
+            <span className="font-medium">Kogna Assistant</span>
             <Badge className="ml-auto text-xs bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-700 border-purple-200/50 backdrop-blur-sm">
               AI
             </Badge>
