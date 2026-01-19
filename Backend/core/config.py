@@ -30,12 +30,20 @@ def setup_cors(app: FastAPI):
     """Sets up CORS middleware with dynamic origins."""
     allowed_origins = get_allowed_origins()
     
+    # Ensure localhost:3000 is always included for development
+    if "http://localhost:3000" not in allowed_origins:
+        allowed_origins.append("http://localhost:3000")
+    if "http://127.0.0.1:3000" not in allowed_origins:
+        allowed_origins.append("http://127.0.0.1:3000")
+    
+    print(f"[CORS] Final allowed origins: {allowed_origins}")
+    
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,      # Now dynamic!
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allow_headers=["*"],
         expose_headers=["*"],
-        max_age=600,
+        max_age=3600,  # Increased cache time
     )

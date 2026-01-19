@@ -50,6 +50,7 @@ import {
 import api from "@/services/api";
 import { useUser } from "@/app/components/auth/UserContext";
 import type { Team, TeamMember } from "@/types/backend";
+import { TeamHierarchyTree } from "./TeamHierarchyTree";
 const teamMembers = [
   {
     id: 1,
@@ -465,6 +466,7 @@ function TeamManagementDialog({
     string | undefined
   >();
   const [targetTeamId, setTargetTeamId] = useState<string | undefined>();
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
 
   const [teams, setTeams] = useState<any[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
@@ -482,11 +484,24 @@ function TeamManagementDialog({
     const loadTeams = async () => {
       setTeamsLoading(true);
       try {
-        const res = await api.listOrganizationTeams(organizationId);
+        // When inviting a director (CEO only), exclude teams with CEOs
+        const excludeCeoTeams = mode === "invite" && inviteRole === "director" && roleLevel >= 5;
+        const res = await api.listOrganizationTeams(organizationId, excludeCeoTeams);
         const data = (res as any).data || res || [];
         setTeams(data);
-        if (!targetTeamId && data.length > 0) {
+        
+        // Set default target team if not set (only for non-director invites)
+        if (!targetTeamId && data.length > 0 && !(mode === "invite" && inviteRole === "director" && roleLevel >= 5)) {
           setTargetTeamId(String(data[0].id));
+        }
+        
+        // If director role and selected teams are no longer available, clear selection
+        // This only runs when teams are loaded, not on every selection change
+        if (excludeCeoTeams) {
+          const availableTeamIds = data.map((t: any) => String(t.id));
+          setSelectedTeamIds((prev) => 
+            prev.filter((id) => availableTeamIds.includes(id))
+          );
         }
       } catch (e) {
         console.error("Failed to load organization teams", e);
@@ -499,7 +514,7 @@ function TeamManagementDialog({
     };
 
     loadTeams();
-  }, [organizationId, canManageMembers, open, targetTeamId]);
+  }, [organizationId, canManageMembers, open, mode, inviteRole, roleLevel]);
 
   const resetMessages = () => {
     setError(null);
@@ -535,21 +550,55 @@ function TeamManagementDialog({
       setError("Please enter an email address");
       return;
     }
-    if (!targetTeamId) {
-      setError("Please select a team to invite into");
-      return;
+    
+    // For directors, require at least one team selected
+    // For others, use single team selection
+    const isDirector = inviteRole === "director" && roleLevel >= 5;
+    if (isDirector) {
+      if (selectedTeamIds.length === 0) {
+        setError("Please select at least one team for the director to supervise");
+        return;
+      }
+    } else {
+      if (!targetTeamId) {
+        setError("Please select a team to invite into");
+        return;
+      }
     }
+    
     setLoading(true);
     try {
-      const result = await api.createTeamInvitation(targetTeamId, {
+      // For directors with multiple teams, use the first team ID in the path
+      // but send team_ids in the body
+      const teamIdForPath = isDirector && selectedTeamIds.length > 0 
+        ? selectedTeamIds[0] 
+        : targetTeamId!;
+      
+      const invitationData: any = {
         email: inviteEmail,
         role: inviteRole,
-      });
+      };
+      
+      // Add team_ids for directors
+      if (isDirector && selectedTeamIds.length > 0) {
+        invitationData.team_ids = selectedTeamIds;
+      }
+      
+      const result = await api.createTeamInvitation(teamIdForPath, invitationData);
       const token = (result as any).token || result.token;
       const baseUrl =
         typeof window !== "undefined" ? window.location.origin : "";
       const link = `${baseUrl}/signup/invite/${token}`;
-      setSuccess(`Invite link created: ${link}`);
+      const teamCount = isDirector ? selectedTeamIds.length : 1;
+      setSuccess(
+        `Invite link created for ${teamCount} team${teamCount > 1 ? "s" : ""}: ${link}`
+      );
+      
+      // Reset form
+      setInviteEmail("");
+      setInviteRole("member");
+      setSelectedTeamIds([]);
+      setTargetTeamId(teams.length > 0 ? String(teams[0].id) : undefined);
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Failed to create invitation";
@@ -557,6 +606,16 @@ function TeamManagementDialog({
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleTeamToggle = (teamId: string) => {
+    setSelectedTeamIds((prev) => {
+      if (prev.includes(teamId)) {
+        return prev.filter((id) => id !== teamId);
+      } else {
+        return [...prev, teamId];
+      }
+    });
   };
 
   const handleRemoveMember = () => {
@@ -593,7 +652,19 @@ function TeamManagementDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!isOpen) {
+          // Reset form when dialog closes
+          setInviteEmail("");
+          setInviteRole("member");
+          setSelectedTeamIds([]);
+          setTargetTeamId(teams.length > 0 ? String(teams[0].id) : undefined);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
           <Users className="w-4 h-4" />
@@ -650,8 +721,11 @@ function TeamManagementDialog({
           )}
         </div>
 
-        {/* Shared team selector for invite/remove */}
-        {canManageMembers && (mode === "invite" || mode === "remove") && (
+        {/* Shared team selector for invite (non-directors only) and remove */}
+        {canManageMembers && (
+          (mode === "remove") || 
+          (mode === "invite" && (inviteRole !== "director" || roleLevel < 5))
+        ) && (
           <div className="space-y-2 mb-4">
             <Label htmlFor="mgmt-team">Team</Label>
             {teamsLoading ? (
@@ -708,16 +782,78 @@ function TeamManagementDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-role">Role</Label>
-              <Select value={inviteRole} onValueChange={setInviteRole}>
+              <Select 
+                value={inviteRole} 
+                onValueChange={(value) => {
+                  setInviteRole(value);
+                  // Reset team selection when role changes
+                  if (value !== "director" || roleLevel < 5) {
+                    setSelectedTeamIds([]);
+                  }
+                }}
+              >
                 <SelectTrigger id="invite-role">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
+                  {roleLevel >= 5 && (
+                    <SelectItem value="director">Director</SelectItem>
+                  )}
+                  {roleLevel >= 4 && roleLevel < 5 && (
+                    <SelectItem value="director">Director</SelectItem>
+                  )}
+                  {roleLevel >= 3 && (
+                    <SelectItem value="manager">Team Leader / Manager</SelectItem>
+                  )}
                   <SelectItem value="member">Team Member</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Multi-select teams for directors (CEO only) */}
+            {inviteRole === "director" && roleLevel >= 5 && (
+              <div className="space-y-2">
+                <Label>Select Teams to Supervise</Label>
+                {teamsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading teams...</p>
+                ) : teams.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No teams found. Create a team first.
+                  </p>
+                ) : (
+                  <div className="border rounded-lg p-3 max-h-60 overflow-y-auto space-y-2">
+                    {teams.map((team) => (
+                      <div
+                        key={team.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`team-${team.id}`}
+                          checked={selectedTeamIds.includes(String(team.id))}
+                          onCheckedChange={() => handleTeamToggle(String(team.id))}
+                        />
+                        <Label
+                          htmlFor={`team-${team.id}`}
+                          className="text-sm font-normal cursor-pointer flex-1"
+                        >
+                          {team.name}
+                          {team.member_count !== undefined && (
+                            <span className="text-muted-foreground ml-2">
+                              ({team.member_count} members)
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedTeamIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedTeamIds.length} team{selectedTeamIds.length !== 1 ? "s" : ""} selected
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -836,6 +972,9 @@ export function TeamOverview() {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hierarchy, setHierarchy] = useState<any | null>(null);
+  const [hierarchyLoading, setHierarchyLoading] = useState(false);
+  const [hierarchyError, setHierarchyError] = useState<string | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -858,23 +997,42 @@ export function TeamOverview() {
 
         // 1. Get all people this user is allowed to see
         const visibleResponse = await api.listVisibleUsers();
-        const visibleMembers = visibleResponse?.data || visibleResponse || [];
+        const visibleMembers = (visibleResponse as any)?.data || visibleResponse || [];
         setMembers(visibleMembers);
 
-        // 2. Optional: still fetch the user's primary team for the header
+        // 2. Load hierarchical view of teams/users based on RBAC
+        try {
+          setHierarchyLoading(true);
+          setHierarchyError(null);
+          const hierarchyResponse = await api.teamHierarchy();
+          const hierarchyData =
+            (hierarchyResponse as any).data || hierarchyResponse || null;
+          setHierarchy(hierarchyData);
+        } catch (hierarchyErr) {
+          console.error("Error loading team hierarchy:", hierarchyErr);
+          setHierarchyError(
+            hierarchyErr instanceof Error
+              ? hierarchyErr.message
+              : "Failed to load team hierarchy"
+          );
+        } finally {
+          setHierarchyLoading(false);
+        }
+
+        // 3. Optional: still fetch the user's primary team for the header
         //    For executives/founders, we show an org-wide label instead.
         let teamLabel: any = null;
 
         try {
           const teamResponse = await api.getUserTeam(user.id);
-          const teamData = teamResponse?.data || teamResponse || null;
+          const teamData = (teamResponse as any)?.data || teamResponse || null;
           teamLabel = teamData;
         } catch {
           // User might not belong to a specific team (e.g., founder/CEO),
           // it's fine to just treat them as org-wide.
         }
 
-        const isExecutive = user.rbac?.role_level >= 4;
+        const isExecutive = (user.rbac?.role_level ?? 0) >= 4;
 
         if (isExecutive) {
           setTeam({ name: teamLabel?.name || "Entire Organization" });
@@ -917,6 +1075,7 @@ export function TeamOverview() {
     0
   );
 
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -951,6 +1110,37 @@ export function TeamOverview() {
           </Button>
         </div>
       </div>
+
+      {/* Hierarchy overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Hierarchy View</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            View your organization structure based on your access level. Hover over teams to see team leaders.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {hierarchyLoading ? (
+            <div className="text-sm text-muted-foreground">
+              Loading hierarchy...
+            </div>
+          ) : hierarchyError ? (
+            <div className="text-sm text-yellow-700 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md p-3">
+              Unable to load team hierarchy: {hierarchyError}
+            </div>
+          ) : hierarchy ? (
+            <TeamHierarchyTree
+              mode={hierarchy.mode || "member"}
+              directors={hierarchy.directors || []}
+              teams={hierarchy.teams || []}
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              Hierarchy data is not available.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

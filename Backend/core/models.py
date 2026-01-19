@@ -84,6 +84,7 @@ class TeamMemberAdd(BaseModel):
 class TeamInvitationCreate(BaseModel):
     email: EmailStr
     role: Optional[str] = "member"
+    team_ids: Optional[list[str]] = None  # For directors: list of team IDs to supervise
 
 class TeamInvitationMeta(BaseModel):
     email: EmailStr
