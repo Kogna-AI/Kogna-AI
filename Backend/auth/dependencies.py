@@ -26,10 +26,34 @@ async def get_backend_user_id(
     db = Depends(get_db)
 ):
     """
-    Returns user_id and organization_id from JWT payload.
-    No DB lookup needed since we store the user ID directly in JWT.
+    Returns user_id, organization_id, and team context from JWT and database.
+    Fetches user's team memberships to enable team-level RBAC filtering.
     """
+    user_id = str(user["id"])
+    organization_id = str(user["organization_id"])
+
+    # Fetch user's team memberships
+    with db as conn:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        cursor.execute("""
+            SELECT tm.team_id, tm.is_primary
+            FROM team_members tm
+            WHERE tm.user_id = %s
+            ORDER BY tm.is_primary DESC, tm.joined_at ASC
+        """, (user_id,))
+
+        team_memberships = cursor.fetchall()
+
+    team_ids = [str(tm["team_id"]) for tm in team_memberships]
+    primary_team = next(
+        (tm for tm in team_memberships if tm["is_primary"]),
+        team_memberships[0] if team_memberships else None
+    )
+
     return {
-        "user_id": str(user["id"]),
-        "organization_id": str(user["organization_id"]),
+        "user_id": user_id,
+        "organization_id": organization_id,
+        "team_id": str(primary_team["team_id"]) if primary_team else None,
+        "team_ids": team_ids
     }
