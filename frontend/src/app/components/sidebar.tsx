@@ -28,7 +28,9 @@ interface SidebarProps {
 
 const getUserDisplayName = (user: any) => {
   if (!user) return "";
-  const fullName = [user.first_name, user.second_name].filter(Boolean).join(" ");
+  const fullName = [user.first_name, user.second_name]
+    .filter(Boolean)
+    .join(" ");
   return fullName || user.email || "";
 };
 
@@ -57,7 +59,7 @@ export function Sidebar({
   ];
 
   return (
-    <div className="w-64 relative bg-gradient-to-br from-slate-50/95 via-white/95 to-gray-50/95 backdrop-blur-xl border-r border-white/20 shadow-lg flex flex-col">
+    <div className="fixed left-0 top-0 w-64 h-screen bg-gradient-to-br from-slate-50/95 via-white/95 to-gray-50/95 backdrop-blur-xl border-r border-white/20 shadow-lg flex flex-col z-40">
       {/* Header */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-transparent pointer-events-none"></div>
       <div className="p-6 border-b border-white/20">
@@ -117,7 +119,7 @@ export function Sidebar({
         </div>
       </div>
       {/* Navigation */}
-      <div className="flex-1 p-4">
+      <div className="flex-1 p-4 overflow-y-auto">
         <nav className="space-y-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
