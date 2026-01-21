@@ -633,16 +633,6 @@ function TeamManagementDialog({
     });
   };
 
-  const handleTeamToggle = (teamId: string) => {
-    setSelectedTeamIds((prev) => {
-      if (prev.includes(teamId)) {
-        return prev.filter((id) => id !== teamId);
-      } else {
-        return [...prev, teamId];
-      }
-    });
-  };
-
   const handleRemoveMember = () => {
     resetMessages();
     if (!selectedMemberId) {
