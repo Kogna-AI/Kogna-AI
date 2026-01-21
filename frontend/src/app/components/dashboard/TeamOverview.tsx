@@ -36,6 +36,7 @@ import {
   Bot,
   UserPlus,
   PlusCircle,
+  Building2,
 } from "lucide-react";
 import {
   PieChart,
@@ -137,311 +138,311 @@ interface MeetingFormData {
   includeKognii: boolean;
 }
 
-function OneOnOneSchedulingDialog() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [meetingData, setMeetingData] = useState<MeetingFormData>({
-    title: "",
-    description: "",
-    date: "",
-    time: "",
-    duration: "30",
-    type: "1on1",
-    selectedMember: "",
-    includeKognii: false,
-  });
+// function OneOnOneSchedulingDialog() {
+//   const [isOpen, setIsOpen] = useState(false);
+//   const [meetingData, setMeetingData] = useState<MeetingFormData>({
+//     title: "",
+//     description: "",
+//     date: "",
+//     time: "",
+//     duration: "30",
+//     type: "1on1",
+//     selectedMember: "",
+//     includeKognii: false,
+//   });
 
-  const handlePresetSelection = (
-    preset: "kognii-1on1" | "team-member-1on1"
-  ) => {
-    if (preset === "kognii-1on1") {
-      setMeetingData({
-        ...meetingData,
-        title: "1:1 Strategy Session with Kogna",
-        description:
-          "Personal career development and strategic insights discussion",
-        type: "ai-strategy",
-        selectedMember: "",
-        includeKognii: true,
-      });
-    } else {
-      setMeetingData({
-        ...meetingData,
-        title: "1:1 Check-in",
-        description:
-          "Regular one-on-one meeting to discuss progress, challenges, and development",
-        type: "1on1",
-        includeKognii: false,
-      });
-    }
-  };
+//   const handlePresetSelection = (
+//     preset: "kognii-1on1" | "team-member-1on1"
+//   ) => {
+//     if (preset === "kognii-1on1") {
+//       setMeetingData({
+//         ...meetingData,
+//         title: "1:1 Strategy Session with Kognii",
+//         description:
+//           "Personal career development and strategic insights discussion",
+//         type: "ai-strategy",
+//         selectedMember: "",
+//         includeKognii: true,
+//       });
+//     } else {
+//       setMeetingData({
+//         ...meetingData,
+//         title: "1:1 Check-in",
+//         description:
+//           "Regular one-on-one meeting to discuss progress, challenges, and development",
+//         type: "1on1",
+//         includeKognii: false,
+//       });
+//     }
+//   };
 
-  const handleSubmit = () => {
-    console.log("1:1 Meeting scheduled:", meetingData);
-    setIsOpen(false);
-    // Reset form
-    setMeetingData({
-      title: "",
-      description: "",
-      date: "",
-      time: "",
-      duration: "30",
-      type: "1on1",
-      selectedMember: "",
-      includeKognii: false,
-    });
-  };
+//   const handleSubmit = () => {
+//     console.log("1:1 Meeting scheduled:", meetingData);
+//     setIsOpen(false);
+//     // Reset form
+//     setMeetingData({
+//       title: "",
+//       description: "",
+//       date: "",
+//       time: "",
+//       duration: "30",
+//       type: "1on1",
+//       selectedMember: "",
+//       includeKognii: false,
+//     });
+//   };
 
-  const availableMembers = teamMembers.filter(
-    (member) => member.status === "available"
-  );
+//   const availableMembers = teamMembers.filter(
+//     (member) => member.status === "available"
+//   );
 
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Calendar className="w-4 h-4" />
-          Schedule 1:1s
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Schedule 1:1 Meeting</DialogTitle>
-          <DialogDescription>
-            Create a personal one-on-one meeting with team members or Kogna for
-            strategic discussions
-          </DialogDescription>
-        </DialogHeader>
+//   return (
+//     <Dialog open={isOpen} onOpenChange={setIsOpen}>
+//       <DialogTrigger asChild>
+//         <Button variant="outline" className="gap-2">
+//           <Calendar className="w-4 h-4" />
+//           Schedule 1:1s
+//         </Button>
+//       </DialogTrigger>
+//       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+//         <DialogHeader>
+//           <DialogTitle>Schedule 1:1 Meeting</DialogTitle>
+//           <DialogDescription>
+//             Create a personal one-on-one meeting with team members or Kognii for
+//             strategic discussions
+//           </DialogDescription>
+//         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Meeting Presets */}
-          <div className="space-y-3">
-            <Label>Quick Setup</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-auto p-4 flex flex-col items-start gap-2"
-                onClick={() => handlePresetSelection("kognii-1on1")}
-              >
-                <div className="flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-blue-600" />
-                  <span>1:1 with Kogna</span>
-                </div>
-                <p className="text-xs text-muted-foreground text-left">
-                  Strategic career development session
-                </p>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-auto p-4 flex flex-col items-start gap-2"
-                onClick={() => handlePresetSelection("team-member-1on1")}
-              >
-                <div className="flex items-center gap-2">
-                  <UserPlus className="w-4 h-4 text-green-600" />
-                  <span>Team Member 1:1</span>
-                </div>
-                <p className="text-xs text-muted-foreground text-left">
-                  Regular check-in and development
-                </p>
-              </Button>
-            </div>
-          </div>
+//         <div className="space-y-6">
+//           {/* Meeting Presets */}
+//           <div className="space-y-3">
+//             <Label>Quick Setup</Label>
+//             <div className="grid grid-cols-2 gap-3">
+//               <Button
+//                 type="button"
+//                 variant="outline"
+//                 className="h-auto p-4 flex flex-col items-start gap-2"
+//                 onClick={() => handlePresetSelection("kognii-1on1")}
+//               >
+//                 <div className="flex items-center gap-2">
+//                   <Bot className="w-4 h-4 text-blue-600" />
+//                   <span>1:1 with Kognii</span>
+//                 </div>
+//                 <p className="text-xs text-muted-foreground text-left">
+//                   Strategic career development session
+//                 </p>
+//               </Button>
+//               <Button
+//                 type="button"
+//                 variant="outline"
+//                 className="h-auto p-4 flex flex-col items-start gap-2"
+//                 onClick={() => handlePresetSelection("team-member-1on1")}
+//               >
+//                 <div className="flex items-center gap-2">
+//                   <UserPlus className="w-4 h-4 text-green-600" />
+//                   <span>Team Member 1:1</span>
+//                 </div>
+//                 <p className="text-xs text-muted-foreground text-left">
+//                   Regular check-in and development
+//                 </p>
+//               </Button>
+//             </div>
+//           </div>
 
-          {/* Team Member Selection - only show if not Kognii meeting */}
-          {!meetingData.includeKognii && (
-            <div>
-              <Label htmlFor="selectedMember">Select Team Member</Label>
-              <Select
-                value={meetingData.selectedMember}
-                onValueChange={(value) =>
-                  setMeetingData((prev) => ({ ...prev, selectedMember: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a team member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamMembers.map((member) => (
-                    <SelectItem
-                      key={member.id}
-                      value={member.id.toString()}
-                      disabled={member.status !== "available"}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            member.status === "available"
-                              ? "bg-green-500"
-                              : "bg-yellow-500"
-                          }`}
-                        />
-                        <span>{member.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({member.role})
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {availableMembers.length === 0 && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  No team members are currently available. You can still
-                  schedule with Kogna.
-                </p>
-              )}
-            </div>
-          )}
+//           {/* Team Member Selection - only show if not Kognii meeting */}
+//           {!meetingData.includeKognii && (
+//             <div>
+//               <Label htmlFor="selectedMember">Select Team Member</Label>
+//               <Select
+//                 value={meetingData.selectedMember}
+//                 onValueChange={(value) =>
+//                   setMeetingData((prev) => ({ ...prev, selectedMember: value }))
+//                 }
+//               >
+//                 <SelectTrigger>
+//                   <SelectValue placeholder="Choose a team member" />
+//                 </SelectTrigger>
+//                 <SelectContent>
+//                   {teamMembers.map((member) => (
+//                     <SelectItem
+//                       key={member.id}
+//                       value={member.id.toString()}
+//                       disabled={member.status !== "available"}
+//                     >
+//                       <div className="flex items-center gap-2">
+//                         <div
+//                           className={`w-2 h-2 rounded-full ${
+//                             member.status === "available"
+//                               ? "bg-green-500"
+//                               : "bg-yellow-500"
+//                           }`}
+//                         />
+//                         <span>{member.name}</span>
+//                         <span className="text-xs text-muted-foreground">
+//                           ({member.role})
+//                         </span>
+//                       </div>
+//                     </SelectItem>
+//                   ))}
+//                 </SelectContent>
+//               </Select>
+//               {availableMembers.length === 0 && (
+//                 <p className="text-sm text-muted-foreground mt-1">
+//                   No team members are currently available. You can still
+//                   schedule with Kognii.
+//                 </p>
+//               )}
+//             </div>
+//           )}
 
-          {/* Meeting Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Label htmlFor="title">Meeting Title</Label>
-              <Input
-                id="title"
-                value={meetingData.title}
-                onChange={(e) =>
-                  setMeetingData((prev) => ({ ...prev, title: e.target.value }))
-                }
-                placeholder="Enter meeting title"
-              />
-            </div>
+//           {/* Meeting Details */}
+//           <div className="grid grid-cols-2 gap-4">
+//             <div className="col-span-2">
+//               <Label htmlFor="title">Meeting Title</Label>
+//               <Input
+//                 id="title"
+//                 value={meetingData.title}
+//                 onChange={(e) =>
+//                   setMeetingData((prev) => ({ ...prev, title: e.target.value }))
+//                 }
+//                 placeholder="Enter meeting title"
+//               />
+//             </div>
 
-            <div className="col-span-2">
-              <Label htmlFor="description">Meeting Agenda</Label>
-              <Textarea
-                id="description"
-                value={meetingData.description}
-                onChange={(e) =>
-                  setMeetingData((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                placeholder="Discussion topics and objectives"
-                rows={3}
-              />
-            </div>
+//             <div className="col-span-2">
+//               <Label htmlFor="description">Meeting Agenda</Label>
+//               <Textarea
+//                 id="description"
+//                 value={meetingData.description}
+//                 onChange={(e) =>
+//                   setMeetingData((prev) => ({
+//                     ...prev,
+//                     description: e.target.value,
+//                   }))
+//                 }
+//                 placeholder="Discussion topics and objectives"
+//                 rows={3}
+//               />
+//             </div>
 
-            <div>
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={meetingData.date}
-                onChange={(e) =>
-                  setMeetingData((prev) => ({ ...prev, date: e.target.value }))
-                }
-              />
-            </div>
+//             <div>
+//               <Label htmlFor="date">Date</Label>
+//               <Input
+//                 id="date"
+//                 type="date"
+//                 value={meetingData.date}
+//                 onChange={(e) =>
+//                   setMeetingData((prev) => ({ ...prev, date: e.target.value }))
+//                 }
+//               />
+//             </div>
 
-            <div>
-              <Label htmlFor="time">Time</Label>
-              <Input
-                id="time"
-                type="time"
-                value={meetingData.time}
-                onChange={(e) =>
-                  setMeetingData((prev) => ({ ...prev, time: e.target.value }))
-                }
-              />
-            </div>
+//             <div>
+//               <Label htmlFor="time">Time</Label>
+//               <Input
+//                 id="time"
+//                 type="time"
+//                 value={meetingData.time}
+//                 onChange={(e) =>
+//                   setMeetingData((prev) => ({ ...prev, time: e.target.value }))
+//                 }
+//               />
+//             </div>
 
-            <div>
-              <Label htmlFor="duration">Duration</Label>
-              <Select
-                value={meetingData.duration}
-                onValueChange={(value) =>
-                  setMeetingData((prev) => ({ ...prev, duration: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="15">15 minutes</SelectItem>
-                  <SelectItem value="30">30 minutes</SelectItem>
-                  <SelectItem value="45">45 minutes</SelectItem>
-                  <SelectItem value="60">1 hour</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+//             <div>
+//               <Label htmlFor="duration">Duration</Label>
+//               <Select
+//                 value={meetingData.duration}
+//                 onValueChange={(value) =>
+//                   setMeetingData((prev) => ({ ...prev, duration: value }))
+//                 }
+//               >
+//                 <SelectTrigger>
+//                   <SelectValue />
+//                 </SelectTrigger>
+//                 <SelectContent>
+//                   <SelectItem value="15">15 minutes</SelectItem>
+//                   <SelectItem value="30">30 minutes</SelectItem>
+//                   <SelectItem value="45">45 minutes</SelectItem>
+//                   <SelectItem value="60">1 hour</SelectItem>
+//                 </SelectContent>
+//               </Select>
+//             </div>
 
-            <div>
-              <Label htmlFor="type">Meeting Type</Label>
-              <Select
-                value={meetingData.type}
-                onValueChange={(value) =>
-                  setMeetingData((prev) => ({ ...prev, type: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1on1">Regular 1:1</SelectItem>
-                  <SelectItem value="ai-strategy">AI Strategy</SelectItem>
-                  <SelectItem value="performance">
-                    Performance Review
-                  </SelectItem>
-                  <SelectItem value="career">Career Development</SelectItem>
-                  <SelectItem value="feedback">Feedback Session</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+//             <div>
+//               <Label htmlFor="type">Meeting Type</Label>
+//               <Select
+//                 value={meetingData.type}
+//                 onValueChange={(value) =>
+//                   setMeetingData((prev) => ({ ...prev, type: value }))
+//                 }
+//               >
+//                 <SelectTrigger>
+//                   <SelectValue />
+//                 </SelectTrigger>
+//                 <SelectContent>
+//                   <SelectItem value="1on1">Regular 1:1</SelectItem>
+//                   <SelectItem value="ai-strategy">AI Strategy</SelectItem>
+//                   <SelectItem value="performance">
+//                     Performance Review
+//                   </SelectItem>
+//                   <SelectItem value="career">Career Development</SelectItem>
+//                   <SelectItem value="feedback">Feedback Session</SelectItem>
+//                 </SelectContent>
+//               </Select>
+//             </div>
+//           </div>
 
-          {/* Include Kognii for regular meetings */}
-          {!meetingData.includeKognii && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="includeKognii"
-                checked={meetingData.includeKognii}
-                onCheckedChange={(checked) =>
-                  setMeetingData((prev) => ({
-                    ...prev,
-                    includeKognii: !!checked,
-                  }))
-                }
-              />
-              <Label
-                htmlFor="includeKognii"
-                className="flex items-center gap-2"
-              >
-                <Bot className="w-4 h-4 text-blue-600" />
-                Include Kogna for strategic insights
-              </Label>
-            </div>
-          )}
+//           {/* Include Kognii for regular meetings */}
+//           {!meetingData.includeKognii && (
+//             <div className="flex items-center space-x-2">
+//               <Checkbox
+//                 id="includeKognii"
+//                 checked={meetingData.includeKognii}
+//                 onCheckedChange={(checked) =>
+//                   setMeetingData((prev) => ({
+//                     ...prev,
+//                     includeKognii: !!checked,
+//                   }))
+//                 }
+//               />
+//               <Label
+//                 htmlFor="includeKognii"
+//                 className="flex items-center gap-2"
+//               >
+//                 <Bot className="w-4 h-4 text-blue-600" />
+//                 Include Kognii for strategic insights
+//               </Label>
+//             </div>
+//           )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={
-                !meetingData.title ||
-                !meetingData.date ||
-                !meetingData.time ||
-                (!meetingData.selectedMember && !meetingData.includeKognii)
-              }
-            >
-              Schedule 1:1
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+//           {/* Actions */}
+//           <div className="flex justify-end gap-3 pt-4 border-t">
+//             <Button
+//               type="button"
+//               variant="outline"
+//               onClick={() => setIsOpen(false)}
+//             >
+//               Cancel
+//             </Button>
+//             <Button
+//               type="button"
+//               onClick={handleSubmit}
+//               disabled={
+//                 !meetingData.title ||
+//                 !meetingData.date ||
+//                 !meetingData.time ||
+//                 (!meetingData.selectedMember && !meetingData.includeKognii)
+//               }
+//             >
+//               Schedule 1:1
+//             </Button>
+//           </div>
+//         </div>
+//       </DialogContent>
+//     </Dialog>
+//   );
+// }
 
 interface TeamManagementDialogProps {
   organizationId: string;
@@ -485,28 +486,36 @@ function TeamManagementDialog({
       setTeamsLoading(true);
       try {
         // When inviting a director (CEO only), exclude teams with CEOs
-        const excludeCeoTeams = mode === "invite" && inviteRole === "director" && roleLevel >= 5;
-        const res = await api.listOrganizationTeams(organizationId, excludeCeoTeams);
+        const excludeCeoTeams =
+          mode === "invite" && inviteRole === "director" && roleLevel >= 5;
+        const res = await api.listOrganizationTeams(
+          organizationId,
+          excludeCeoTeams,
+        );
         const data = (res as any).data || res || [];
         setTeams(data);
-        
+
         // Set default target team if not set (only for non-director invites)
-        if (!targetTeamId && data.length > 0 && !(mode === "invite" && inviteRole === "director" && roleLevel >= 5)) {
+        if (
+          !targetTeamId &&
+          data.length > 0 &&
+          !(mode === "invite" && inviteRole === "director" && roleLevel >= 5)
+        ) {
           setTargetTeamId(String(data[0].id));
         }
-        
+
         // If director role and selected teams are no longer available, clear selection
         // This only runs when teams are loaded, not on every selection change
         if (excludeCeoTeams) {
           const availableTeamIds = data.map((t: any) => String(t.id));
-          setSelectedTeamIds((prev) => 
-            prev.filter((id) => availableTeamIds.includes(id))
+          setSelectedTeamIds((prev) =>
+            prev.filter((id) => availableTeamIds.includes(id)),
           );
         }
       } catch (e) {
         console.error("Failed to load organization teams", e);
         setError(
-          e instanceof Error ? e.message : "Failed to load organization teams"
+          e instanceof Error ? e.message : "Failed to load organization teams",
         );
       } finally {
         setTeamsLoading(false);
@@ -550,13 +559,15 @@ function TeamManagementDialog({
       setError("Please enter an email address");
       return;
     }
-    
+
     // For directors, require at least one team selected
     // For others, use single team selection
     const isDirector = inviteRole === "director" && roleLevel >= 5;
     if (isDirector) {
       if (selectedTeamIds.length === 0) {
-        setError("Please select at least one team for the director to supervise");
+        setError(
+          "Please select at least one team for the director to supervise",
+        );
         return;
       }
     } else {
@@ -565,35 +576,39 @@ function TeamManagementDialog({
         return;
       }
     }
-    
+
     setLoading(true);
     try {
       // For directors with multiple teams, use the first team ID in the path
       // but send team_ids in the body
-      const teamIdForPath = isDirector && selectedTeamIds.length > 0 
-        ? selectedTeamIds[0] 
-        : targetTeamId!;
-      
+      const teamIdForPath =
+        isDirector && selectedTeamIds.length > 0
+          ? selectedTeamIds[0]
+          : targetTeamId!;
+
       const invitationData: any = {
         email: inviteEmail,
         role: inviteRole,
       };
-      
+
       // Add team_ids for directors
       if (isDirector && selectedTeamIds.length > 0) {
         invitationData.team_ids = selectedTeamIds;
       }
-      
-      const result = await api.createTeamInvitation(teamIdForPath, invitationData);
+
+      const result = await api.createTeamInvitation(
+        teamIdForPath,
+        invitationData,
+      );
       const token = (result as any).token || result.token;
       const baseUrl =
         typeof window !== "undefined" ? window.location.origin : "";
       const link = `${baseUrl}/signup/invite/${token}`;
       const teamCount = isDirector ? selectedTeamIds.length : 1;
       setSuccess(
-        `Invite link created for ${teamCount} team${teamCount > 1 ? "s" : ""}: ${link}`
+        `Invite link created for ${teamCount} team${teamCount > 1 ? "s" : ""}: ${link}`,
       );
-      
+
       // Reset form
       setInviteEmail("");
       setInviteRole("member");
@@ -608,6 +623,16 @@ function TeamManagementDialog({
     }
   };
   
+  const handleTeamToggle = (teamId: string) => {
+    setSelectedTeamIds((prev) => {
+      if (prev.includes(teamId)) {
+        return prev.filter((id) => id !== teamId);
+      } else {
+        return [...prev, teamId];
+      }
+    });
+  };
+
   const handleTeamToggle = (teamId: string) => {
     setSelectedTeamIds((prev) => {
       if (prev.includes(teamId)) {
@@ -652,8 +677,8 @@ function TeamManagementDialog({
   };
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onOpenChange={(isOpen) => {
         setOpen(isOpen);
         if (!isOpen) {
@@ -722,37 +747,39 @@ function TeamManagementDialog({
         </div>
 
         {/* Shared team selector for invite (non-directors only) and remove */}
-        {canManageMembers && (
-          (mode === "remove") || 
-          (mode === "invite" && (inviteRole !== "director" || roleLevel < 5))
-        ) && (
-          <div className="space-y-2 mb-4">
-            <Label htmlFor="mgmt-team">Team</Label>
-            {teamsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading teams...</p>
-            ) : teams.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No teams found in this organization. Create a team first.
-              </p>
-            ) : (
-              <Select
-                value={targetTeamId}
-                onValueChange={(value) => setTargetTeamId(value)}
-              >
-                <SelectTrigger id="mgmt-team">
-                  <SelectValue placeholder="Select a team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        )}
+        {canManageMembers &&
+          (mode === "remove" ||
+            (mode === "invite" &&
+              (inviteRole !== "director" || roleLevel < 5))) && (
+            <div className="space-y-2 mb-4">
+              <Label htmlFor="mgmt-team">Team</Label>
+              {teamsLoading ? (
+                <p className="text-sm text-muted-foreground">
+                  Loading teams...
+                </p>
+              ) : teams.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No teams found in this organization. Create a team first.
+                </p>
+              ) : (
+                <Select
+                  value={targetTeamId}
+                  onValueChange={(value) => setTargetTeamId(value)}
+                >
+                  <SelectTrigger id="mgmt-team">
+                    <SelectValue placeholder="Select a team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
 
         {mode === "create" && canCreateTeam && (
           <div className="space-y-4">
@@ -782,8 +809,8 @@ function TeamManagementDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="invite-role">Role</Label>
-              <Select 
-                value={inviteRole} 
+              <Select
+                value={inviteRole}
                 onValueChange={(value) => {
                   setInviteRole(value);
                   // Reset team selection when role changes
@@ -803,19 +830,23 @@ function TeamManagementDialog({
                     <SelectItem value="director">Director</SelectItem>
                   )}
                   {roleLevel >= 3 && (
-                    <SelectItem value="manager">Team Leader / Manager</SelectItem>
+                    <SelectItem value="manager">
+                      Team Leader / Manager
+                    </SelectItem>
                   )}
                   <SelectItem value="member">Team Member</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            
+
             {/* Multi-select teams for directors (CEO only) */}
             {inviteRole === "director" && roleLevel >= 5 && (
               <div className="space-y-2">
                 <Label>Select Teams to Supervise</Label>
                 {teamsLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading teams...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Loading teams...
+                  </p>
                 ) : teams.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     No teams found. Create a team first.
@@ -830,7 +861,9 @@ function TeamManagementDialog({
                         <Checkbox
                           id={`team-${team.id}`}
                           checked={selectedTeamIds.includes(String(team.id))}
-                          onCheckedChange={() => handleTeamToggle(String(team.id))}
+                          onCheckedChange={() =>
+                            handleTeamToggle(String(team.id))
+                          }
                         />
                         <Label
                           htmlFor={`team-${team.id}`}
@@ -849,7 +882,8 @@ function TeamManagementDialog({
                 )}
                 {selectedTeamIds.length > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    {selectedTeamIds.length} team{selectedTeamIds.length !== 1 ? "s" : ""} selected
+                    {selectedTeamIds.length} team
+                    {selectedTeamIds.length !== 1 ? "s" : ""} selected
                   </p>
                 )}
               </div>
@@ -883,21 +917,23 @@ function TeamManagementDialog({
                 </Select>
               )}
             </div>
-            <div className={`rounded-md border px-3 py-2 text-xs ${
-              confirmingRemove
-                ? "border-red-500 bg-red-50 text-red-700"
-                : "border-muted bg-muted text-muted-foreground"
-            }`}>
+            <div
+              className={`rounded-md border px-3 py-2 text-xs ${
+                confirmingRemove
+                  ? "border-red-500 bg-red-50 text-red-700"
+                  : "border-muted bg-muted text-muted-foreground"
+              }`}
+            >
               {confirmingRemove ? (
                 <p>
-                  Confirm removal: this will detach the member from the selected team but
-                  will <span className="font-semibold">not</span> delete their user account
-                  in the organization.
+                  Confirm removal: this will detach the member from the selected
+                  team but will <span className="font-semibold">not</span>{" "}
+                  delete their user account in the organization.
                 </p>
               ) : (
                 <p>
-                  Removing a member only detaches them from the team. Their user account
-                  in the organization remains active.
+                  Removing a member only detaches them from the team. Their user
+                  account in the organization remains active.
                 </p>
               )}
             </div>
@@ -991,13 +1027,14 @@ export function TeamOverview() {
     const fetchVisiblePeople = async () => {
   if (!user?.id) return;
 
-  try {
-    setLoading(true);
-    setError(null);
+      try {
+        setLoading(true);
+        setError(null);
 
         // 1. Get all people this user is allowed to see
         const visibleResponse = await api.listVisibleUsers();
-        const visibleMembers = (visibleResponse as any)?.data || visibleResponse || [];
+        const visibleMembers =
+          (visibleResponse as any)?.data || visibleResponse || [];
         setMembers(visibleMembers);
 
         // 2. Load hierarchical view of teams/users based on RBAC
@@ -1013,7 +1050,7 @@ export function TeamOverview() {
           setHierarchyError(
             hierarchyErr instanceof Error
               ? hierarchyErr.message
-              : "Failed to load team hierarchy"
+              : "Failed to load team hierarchy",
           );
         } finally {
           setHierarchyLoading(false);
@@ -1044,7 +1081,7 @@ export function TeamOverview() {
       } catch (err) {
         console.error("Error loading visible people:", err);
         setError(
-          err instanceof Error ? err.message : "Failed to load team data"
+          err instanceof Error ? err.message : "Failed to load team data",
         );
       } finally {
         setLoading(false);
@@ -1059,20 +1096,20 @@ export function TeamOverview() {
   const averagePerformance = members.length
     ? Math.round(
         members.reduce((sum, member) => sum + (member.performance || 0), 0) /
-          members.length
+          members.length,
       )
     : 0;
 
   const averageCapacity = members.length
     ? Math.round(
         members.reduce((sum, member) => sum + (member.capacity || 0), 0) /
-          members.length
+          members.length,
       )
     : 0;
 
   const totalProjects = members.reduce(
     (sum, member) => sum + (member.project_count || member.projects || 0),
-    0
+    0,
   );
 
 
@@ -1084,12 +1121,12 @@ export function TeamOverview() {
           <h1>Team Overview</h1>
           <p className="text-muted-foreground">
             {team?.name
-              ? `${team.name} - Monitor team performance, capacity, and well-being`
-              : "Monitor team performance, capacity, and well-being"}
+              ? `${team.name} - View team structure and organizational hierarchy`
+              : "View your team structure and organizational hierarchy"}
           </p>
         </div>
         <div className="flex gap-2">
-          <OneOnOneSchedulingDialog />
+          {/* <OneOnOneSchedulingDialog /> */}
           {user?.rbac?.role_level &&
             user.rbac.role_level >= 3 &&
             user.organization_id && (
@@ -1099,34 +1136,54 @@ export function TeamOverview() {
                 members={members}
                 onMemberRemoved={(removedId) => {
                   setMembers((prev) =>
-                    prev.filter((m) => String(m.user_id || m.id) !== removedId)
+                    prev.filter((m) => String(m.user_id || m.id) !== removedId),
                   );
                 }}
               />
             )}
-          <Button className="gap-2">
+          {/* <Button className="gap-2">
             <MessageSquare className="w-4 h-4" />
             Team Feedback
-          </Button>
+          </Button> */}
         </div>
       </div>
 
-      {/* Hierarchy overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Hierarchy View</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            View your organization structure based on your access level. Hover over teams to see team leaders.
-          </p>
+      {/* Organizational Hierarchy */}
+      <Card className="border-2">
+        <CardHeader className="bg-gradient-to-r from-blue-50/50 to-transparent dark:from-blue-950/20">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">Organizational Structure</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Visual representation of your organization's hierarchy and team composition
+              </p>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {hierarchyLoading ? (
-            <div className="text-sm text-muted-foreground">
-              Loading hierarchy...
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 animate-pulse">
+                <Building2 className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Loading organizational structure...
+              </p>
             </div>
           ) : hierarchyError ? (
-            <div className="text-sm text-yellow-700 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md p-3">
-              Unable to load team hierarchy: {hierarchyError}
+            <div className="flex flex-col items-center justify-center py-12 px-4">
+              <div className="w-16 h-16 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center mb-4">
+                <Building2 className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
+                Unable to Load Hierarchy
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 text-center max-w-md">
+                {hierarchyError}
+              </p>
             </div>
           ) : hierarchy ? (
             <TeamHierarchyTree
@@ -1135,267 +1192,20 @@ export function TeamOverview() {
               teams={hierarchy.teams || []}
             />
           ) : (
-            <div className="text-sm text-muted-foreground">
-              Hierarchy data is not available.
+            <div className="flex flex-col items-center justify-center py-12 px-4">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Building2 className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                No Hierarchy Data
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 text-center max-w-sm">
+                Organizational hierarchy information is not currently available
+              </p>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Team Size</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teamMembersCount}</div>
-            <p className="text-xs text-muted-foreground">Active members</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Avg Performance
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averagePerformance}%</div>
-            <p className="text-xs text-muted-foreground">+5% from last month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Team Capacity</CardTitle>
-            <Clock className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageCapacity}%</div>
-            <p className="text-xs text-muted-foreground">Utilization rate</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Active Projects
-            </CardTitle>
-            <Target className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalProjects}</div>
-            <p className="text-xs text-muted-foreground">Across all members</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Team Members & Skills */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Team Members */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Team Members</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Individual performance and capacity overview
-            </p>
-          </CardHeader>
-          <CardContent>
-            {loading && (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading team members...
-              </div>
-            )}
-            {error && (
-              <div className="text-center py-4 text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
-                Error loading team data: {error}
-              </div>
-            )}
-            {!loading && members.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No Team Member Found
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {members.map((member, index) => (
-                  <div
-                    key={member.id || index}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <Avatar>
-                          <AvatarImage
-                            src={member.avatar}
-                            alt={
-                              member.name ||
-                              `${member.first_name} ${member.second_name || ""}`
-                            }
-                          />
-                          <AvatarFallback>
-                            {member.first_name?.[0] || ""}
-                            {member.second_name?.[0] || member.name?.[1] || ""}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div
-                          className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
-                            member.status || "available"
-                          )} rounded-full border-2 border-background`}
-                        />
-                      </div>
-                      <div>
-                        <h4 className="font-medium">
-                          {member.name ||
-                            `${member.first_name} ${member.second_name || ""}`}
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          {member.role || member.user_role || "Team Member"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="text-center">
-                        <p className="font-medium">
-                          {member.performance || 0}%
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Performance
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="font-medium">{member.capacity || 0}%</p>
-                        <p className="text-xs text-muted-foreground">
-                          Capacity
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="font-medium">
-                          {member.project_count || member.projects || 0}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Projects
-                        </p>
-                      </div>
-                      <Badge
-                        variant={
-                          (member.status || "available") === "available"
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {member.status || "available"}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Team Skills */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Team Skills</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Capability distribution
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {skillsData.map((skill) => (
-                <div key={skill.name} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>{skill.name}</span>
-                    <span>{skill.value}%</span>
-                  </div>
-                  <Progress value={skill.value} className="h-2" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Performance Chart & Recognition */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Performance Trends */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Performance Trends</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Productivity and satisfaction over time
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={performanceData}>
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Bar
-                  dataKey="productivity"
-                  fill="#3b82f6"
-                  name="Productivity"
-                />
-                <Bar
-                  dataKey="satisfaction"
-                  fill="#10b981"
-                  name="Satisfaction"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Recognition & Achievements */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Achievements</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Team recognition and milestones
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-              <Award className="w-5 h-5 text-yellow-600" />
-              <div>
-                <h4 className="font-medium">Top Performer</h4>
-                <p className="text-sm text-muted-foreground">
-                  Sarah Chen - 95% performance rating
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-              <Star className="w-5 h-5 text-green-600" />
-              <div>
-                <h4 className="font-medium">Innovation Award</h4>
-                <p className="text-sm text-muted-foreground">
-                  Elena Rodriguez - UX innovation initiative
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <Users className="w-5 h-5 text-blue-600" />
-              <div>
-                <h4 className="font-medium">Team Collaboration</h4>
-                <p className="text-sm text-muted-foreground">
-                  96% satisfaction in cross-team projects
-                </p>
-              </div>
-            </div>
-
-            <Button variant="outline" className="w-full">
-              View All Achievements
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

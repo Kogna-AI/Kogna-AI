@@ -402,6 +402,18 @@ export const api = {
     return handleResponse(response);
   },
 
+  // Hierarchical team view for TeamOverview
+  teamHierarchy: async () => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/hierarchy`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
   createTeam: async (data: { organization_id: string; name: string }) => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/teams`, {
       method: "POST",
@@ -429,7 +441,7 @@ export const api = {
   // Invitations
   createTeamInvitation: async (
     teamId: string,
-    data: { email: string; role?: string; team_ids?: string[] },
+    data: { email: string; role?: string; team_ids?: string[] }
   ) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/teams/${teamId}/invitations`,

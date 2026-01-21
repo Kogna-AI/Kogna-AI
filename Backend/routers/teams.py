@@ -134,10 +134,10 @@ def get_team_hierarchy(
 ):
     """Return a hierarchical view of teams and users based on RBAC.
 
-    Hierarchy structure:
-    - CEO (level 5): sees all Directors (level 4)
-    - Directors (level 4): see their supervised teams with team leaders (level 3) on hover
-    - Team Leaders/Managers (level 3): see all members in their team
+    Hierarchy structure (based on actual roles table):
+    - CEO/Executive (level 4-5): sees all Directors (level 3)
+    - Directors (level 3): see their supervised teams with team leaders (level 2) on hover
+    - Team Leaders (level 2): see all members in their team
     """
     organization_id = user_ctx.organization_id
     if not organization_id:
@@ -150,12 +150,12 @@ def get_team_hierarchy(
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
         # Determine hierarchy mode from role level
-        # Level 5 = CEO, Level 4 = Director, Level 3 = Team Leader/Manager
-        if user_ctx.role_level >= 5:
+        # Level 5 = Admin, Level 4 = Executive, Level 3 = Director, Level 2 = Team Leader
+        if user_ctx.role_level >= 4:
             mode = "ceo"
-        elif user_ctx.role_level >= 4:
-            mode = "director"
         elif user_ctx.role_level >= 3:
+            mode = "director"
+        elif user_ctx.role_level >= 2:
             mode = "manager"
         else:
             mode = "member"
@@ -185,9 +185,9 @@ def get_team_hierarchy(
             "rbac_role_level": user_ctx.role_level,
         }
 
-        # CEO Mode: Return all Directors (level 4) with their teams
+        # CEO Mode: Return all Directors (level 3) with their teams
         if mode == "ceo":
-            # Get all directors (level 4)
+            # Get all directors (level 3)
             cursor.execute(
                 """
                 SELECT
@@ -201,7 +201,7 @@ def get_team_hierarchy(
                 FROM users u
                 JOIN user_roles ur ON ur.user_id = u.id
                 JOIN roles r ON r.id = ur.role_id
-                WHERE u.organization_id = %s AND r.level = 4
+                WHERE u.organization_id = %s AND r.level = 3
                 """,
                 (organization_id,),
             )
@@ -231,7 +231,7 @@ def get_team_hierarchy(
                 for team_row in supervised_teams:
                     team_id = str(team_row["team_id"])
                     
-                    # Get team leaders (level 3) in this team
+                    # Get team leaders (level 2) in this team
                     cursor.execute(
                         """
                         SELECT
@@ -245,14 +245,14 @@ def get_team_hierarchy(
                         JOIN users u ON u.id = tm.user_id
                         JOIN user_roles ur ON ur.user_id = u.id
                         JOIN roles r ON r.id = ur.role_id
-                        WHERE tm.team_id = %s AND r.level = 3
+                        WHERE tm.team_id = %s AND r.level = 2
                         """,
                         (team_id,),
                     )
                     leaders = cursor.fetchall()
 
                     # Get all members in this team (for metrics calculation)
-                    # Exclude directors (level 4) from the count
+                    # Exclude directors (level 3) and above from the count
                     cursor.execute(
                         """
                         SELECT
@@ -262,17 +262,17 @@ def get_team_hierarchy(
                             tm.project_count
                         FROM team_members tm
                         JOIN users u ON u.id = tm.user_id
-                LEFT JOIN user_roles ur ON ur.user_id = u.id
-                LEFT JOIN roles r ON r.id = ur.role_id
+                        LEFT JOIN user_roles ur ON ur.user_id = u.id
+                        LEFT JOIN roles r ON r.id = ur.role_id
                         WHERE tm.team_id = %s
-                        AND (r.level IS NULL OR r.level < 4)
+                        AND (r.level IS NULL OR r.level < 3)
                         """,
                         (team_id,),
                     )
                     all_members = cursor.fetchall()
 
-                    # For director-supervised teams, members list should only show team leaders (level 3)
-                    # Exclude directors (level 4) and other roles
+                    # For director-supervised teams, members list should only show team leaders (level 2)
+                    # Exclude directors (level 3) and other roles
                     team_leaders_only = [
                         {
                             "id": str(l["id"]),
@@ -303,7 +303,7 @@ def get_team_hierarchy(
                             }
                             for l in leaders
                         ],
-                        "members": team_leaders_only,  # Only team leaders (level 3), excluding directors
+                        "members": team_leaders_only,  # Only team leaders (level 2), excluding directors
                         "metrics": {
                             "member_count": len(all_members),
                             "avg_performance": round(
@@ -358,7 +358,7 @@ def get_team_hierarchy(
             for team_row in supervised_teams:
                 team_id = str(team_row["team_id"])
                 
-                # Get team leaders (level 3) in this team
+                # Get team leaders (level 2) in this team
                 cursor.execute(
                     """
                     SELECT
@@ -372,14 +372,14 @@ def get_team_hierarchy(
                     JOIN users u ON u.id = tm.user_id
                     JOIN user_roles ur ON ur.user_id = u.id
                     JOIN roles r ON r.id = ur.role_id
-                    WHERE tm.team_id = %s AND r.level = 3
+                    WHERE tm.team_id = %s AND r.level = 2
                     """,
                     (team_id,),
                 )
                 leaders = cursor.fetchall()
 
                 # Get all members for metrics calculation
-                # Exclude directors (level 4) from the count
+                # Exclude directors (level 3) and above from the count
                 cursor.execute(
                     """
                     SELECT
@@ -392,14 +392,14 @@ def get_team_hierarchy(
                     LEFT JOIN user_roles ur ON ur.user_id = u.id
                     LEFT JOIN roles r ON r.id = ur.role_id
                     WHERE tm.team_id = %s
-                    AND (r.level IS NULL OR r.level < 4)
+                    AND (r.level IS NULL OR r.level < 3)
                     """,
                     (team_id,),
                 )
                 all_members = cursor.fetchall()
 
-                # For director-supervised teams, members list should only show team leaders (level 3)
-                # Exclude directors (level 4) and other roles
+                # For director-supervised teams, members list should only show team leaders (level 2)
+                # Exclude directors (level 3) and other roles
                 team_leaders_only = [
                     {
                         "id": str(l["id"]),
@@ -924,17 +924,17 @@ def accept_team_invitation(
         hashed_password = ph.hash(payload.password)
 
         # Map invitation role to RBAC role name
-        # "director" -> "executive" (level 4)
-        # "manager" -> "manager" (level 3)
-        # "member" -> "viewer" (level 1)
+        # "director" -> "Director" (level 3)
+        # "manager" -> "Team Leader" (level 2)
+        # "member" -> "Team Member" (level 1)
         invited_role_name = (inv["role"] or "member").lower()
         rbac_role_name_map = {
-            "director": "executive",
-            "executive": "executive",
-            "manager": "manager",
-            "member": "viewer",
+            "director": "Director",
+            "executive": "Executive",
+            "manager": "Team Leader",
+            "member": "Team Member",
         }
-        rbac_role_name = rbac_role_name_map.get(invited_role_name, "viewer")
+        rbac_role_name = rbac_role_name_map.get(invited_role_name, "Team Member")
 
         cursor.execute(
             """
