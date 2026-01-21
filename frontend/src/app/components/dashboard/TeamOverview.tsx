@@ -995,7 +995,6 @@ export function TeamOverview() {
     setLoading(true);
     setError(null);
 
-<<<<<<< HEAD
         // 1. Get all people this user is allowed to see
         const visibleResponse = await api.listVisibleUsers();
         const visibleMembers = (visibleResponse as any)?.data || visibleResponse || [];
@@ -1028,25 +1027,6 @@ export function TeamOverview() {
           const teamResponse = await api.getUserTeam(user.id);
           const teamData = (teamResponse as any)?.data || teamResponse || null;
           teamLabel = teamData;
-=======
-    // 1. Get all people this user is allowed to see
-    const visibleResponse = await api.listVisibleUsers();
-    const visibleMembers = (visibleResponse && typeof visibleResponse === "object" && "data" in visibleResponse 
-      ? (visibleResponse as any).data 
-      : visibleResponse) || [];
-    setMembers(visibleMembers);
-
-    // 2. Optional: still fetch the user's primary team for the header
-    //    For executives/founders, we show an org-wide label instead.
-    let teamLabel: any = null;
-
-    try {
-      const teamResponse = await api.getUserTeam(user.id);
-      const teamData = (teamResponse && typeof teamResponse === "object" && "data" in teamResponse
-        ? (teamResponse as any).data
-        : teamResponse) || null;
-      teamLabel = teamData;
->>>>>>> staging
         } catch {
           // User might not belong to a specific team (e.g., founder/CEO),
           // it's fine to just treat them as org-wide.

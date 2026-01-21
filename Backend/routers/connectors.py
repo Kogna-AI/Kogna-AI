@@ -429,14 +429,20 @@ async def auth_callback(
                         f"{FRONTEND_BASE_URL}/connectors?error=jira&message=missing_token"
                     )
 
-            # Upsert to prevent duplicate key errors on re-connection
-            supabase.table("user_connectors").upsert({
-                "user_id": user_id,
-                "service": "jira",
-                "access_token": token["access_token"],
-                "refresh_token": token.get("refresh_token"),
-                "expires_at": int(time.time()) + token.get("expires_in", 3600),
-            }, on_conflict="user_id, service").execute()
+                # Upsert to prevent duplicate key errors on re-connection
+                supabase.table("user_connectors").upsert({
+                    "user_id": user_id,
+                    "service": "jira",
+                    "access_token": token["access_token"],
+                    "refresh_token": token.get("refresh_token"),
+                    "expires_at": int(time.time()) + token.get("expires_in", 3600),
+                }, on_conflict="user_id, service").execute()
+
+                background_tasks.add_task(run_master_etl, user_id, "jira")
+
+            except Exception as e:
+                logging.error(f"Jira connection failed: {e}")
+                return RedirectResponse(f"{FRONTEND_BASE_URL}/connectors?error=jira&message=exception")
 
         elif oauth_provider == "google":
             if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
@@ -480,13 +486,19 @@ async def auth_callback(
                         f"{FRONTEND_BASE_URL}/connectors?error=google&message=missing_token"
                     )
 
-            supabase.table("user_connectors").upsert({
-                "user_id": user_id,
-                "service": "google",
-                "access_token": token["access_token"],
-                "refresh_token": token.get("refresh_token"),
-                "expires_at": int(time.time()) + token.get("expires_in", 3600),
-            }, on_conflict="user_id, service").execute()
+                supabase.table("user_connectors").upsert({
+                    "user_id": user_id,
+                    "service": "google",
+                    "access_token": token["access_token"],
+                    "refresh_token": token.get("refresh_token"),
+                    "expires_at": int(time.time()) + token.get("expires_in", 3600),
+                }, on_conflict="user_id, service").execute()
+
+                background_tasks.add_task(run_master_etl, user_id, "google")
+
+            except Exception as e:
+                logging.error(f"Google connection failed: {e}")
+                return RedirectResponse(f"{FRONTEND_BASE_URL}/connectors?error=google&message=exception")
 
         elif oauth_provider == "microsoft":
             if not MICROSOFT_CLIENT_ID or not MICROSOFT_CLIENT_SECRET:
@@ -530,13 +542,19 @@ async def auth_callback(
                         f"{FRONTEND_BASE_URL}/connectors?error=microsoft&message=missing_token"
                     )
 
-            supabase.table("user_connectors").upsert({
-                "user_id": user_id,
-                "service": "microsoft",
-                "access_token": token["access_token"],
-                "refresh_token": token.get("refresh_token"),
-                "expires_at": int(time.time()) + token.get("expires_in", 3600),
-            }, on_conflict="user_id, service").execute()
+                supabase.table("user_connectors").upsert({
+                    "user_id": user_id,
+                    "service": "microsoft",
+                    "access_token": token["access_token"],
+                    "refresh_token": token.get("refresh_token"),
+                    "expires_at": int(time.time()) + token.get("expires_in", 3600),
+                }, on_conflict="user_id, service").execute()
+
+                background_tasks.add_task(run_master_etl, user_id, "microsoft")
+
+            except Exception as e:
+                logging.error(f"Microsoft connection failed: {e}")
+                return RedirectResponse(f"{FRONTEND_BASE_URL}/connectors?error=microsoft&message=exception")
 
         elif oauth_provider == "asana":
             if not ASANA_CLIENT_ID or not ASANA_CLIENT_SECRET:
@@ -580,15 +598,19 @@ async def auth_callback(
                         f"{FRONTEND_BASE_URL}/connectors?error=asana&message=missing_token"
                     )
 
-            supabase.table("user_connectors").upsert({
-                "user_id": user_id,
-                "service": "asana",
-                "access_token": token["access_token"],
-                "refresh_token": token.get("refresh_token"),
-                "expires_at": int(time.time()) + token.get("expires_in", 3600),
-            }, on_conflict="user_id, service").execute()
+                supabase.table("user_connectors").upsert({
+                    "user_id": user_id,
+                    "service": "asana",
+                    "access_token": token["access_token"],
+                    "refresh_token": token.get("refresh_token"),
+                    "expires_at": int(time.time()) + token.get("expires_in", 3600),
+                }, on_conflict="user_id, service").execute()
 
-            background_tasks.add_task(run_master_etl, user_id, "asana")
+                background_tasks.add_task(run_master_etl, user_id, "asana")
+
+            except Exception as e:
+                logging.error(f"Asana connection failed: {e}")
+                return RedirectResponse(f"{FRONTEND_BASE_URL}/connectors?error=asana&message=exception")
 
     # Redirect to connectors page with success message
     return RedirectResponse(
