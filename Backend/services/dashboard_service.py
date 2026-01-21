@@ -1,7 +1,7 @@
 from core.database import get_db
 
 def get_dashboard_data(org_id: int):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM organization_dashboard WHERE id = %s", (org_id,))
         overview = cursor.fetchone()

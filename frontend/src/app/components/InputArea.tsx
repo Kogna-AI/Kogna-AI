@@ -31,7 +31,7 @@ export function InputArea({
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Ask Kognii anything..."
+          placeholder="Ask Kogna anything..."
           className="flex-1"
           disabled={isTyping}
         />

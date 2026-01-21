@@ -117,7 +117,7 @@ jobs:
             --task-definition kogna-backend-task \
             --query taskDefinition > task-definition-backend.json
           
-          # Remove fields that shouldn't be in the registration
+          # Remove unwanted fields
           cat task-definition-backend.json | jq 'del(
             .taskDefinitionArn,
             .revision,
@@ -125,9 +125,8 @@ jobs:
             .requiresAttributes,
             .compatibilities,
             .registeredAt,
-            .registeredBy,
-            .containerDefinitions[].enableFaultInjection
-          )' > task-def-clean.json
+            .registeredBy
+          ) | walk(if type == "object" then del(.enableFaultInjection) else . end)' > task-def-clean.json
 
       - name: Update task definition with new image
         run: |
@@ -178,7 +177,7 @@ jobs:
             --task-definition kogna-frontend-task \
             --query taskDefinition > task-definition-frontend.json
           
-          # Remove fields that shouldn't be in the registration
+          # Remove unwanted fields
           cat task-definition-frontend.json | jq 'del(
             .taskDefinitionArn,
             .revision,
@@ -186,9 +185,8 @@ jobs:
             .requiresAttributes,
             .compatibilities,
             .registeredAt,
-            .registeredBy,
-            .containerDefinitions[].enableFaultInjection
-          )' > task-def-clean.json
+            .registeredBy
+          ) | walk(if type == "object" then del(.enableFaultInjection) else . end)' > task-def-clean.json
 
       - name: Update task definition with new image
         run: |

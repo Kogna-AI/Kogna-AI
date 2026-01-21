@@ -23,7 +23,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <KogniiThinkingIcon size={32} />
-            <span className="text-xl font-semibold">KognaDash</span>
+            <span className="text-xl font-semibold">Kogna</span>
           </div>
           <Button onClick={onGetStarted}>
             Get Started
@@ -48,8 +48,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           </h1>
           
           <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto">
-            KognaDash combines AI-powered optimization with real-time organizational intelligence. 
-            Meet Kognii, your AI teammate that helps you make smarter decisions, faster.
+            Kogna combines AI-powered optimization with real-time organizational intelligence. 
+            Meet Kogna, your AI teammate that helps you make smarter decisions, faster.
           </p>
           
           <div className="flex gap-4 justify-center">
@@ -118,12 +118,12 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </div>
               
               <h2 className="text-4xl font-semibold mb-6">
-                Kognii: More Than an Assistant
+                Kogna: More Than an Assistant
               </h2>
               
               <p className="text-lg text-blue-100 mb-8">
-                Kognii isn't just a tool—it's a team member. Get intelligent suggestions for team 
-                composition, strategic planning, and resource optimization. Kognii learns your 
+                Kogna isn't just a tool—it's a team member. Get intelligent suggestions for team 
+                composition, strategic planning, and resource optimization. Kogna learns your 
                 organization's patterns and helps you make data-driven decisions with confidence.
               </p>
 
@@ -144,7 +144,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <div className="flex items-center gap-3 mb-6">
                   <KogniiThinkingIcon size={40} />
                   <div>
-                    <div className="font-medium">Kognii</div>
+                    <div className="font-medium">Kogna</div>
                     <div className="text-sm text-blue-200">AI Strategy Assistant</div>
                   </div>
                 </div>
@@ -209,7 +209,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             Ready to Transform Your Team Management?
           </h2>
           <p className="text-xl text-slate-300 mb-10">
-            Join leading organizations using KognaDash to make smarter, faster decisions.
+            Join leading organizations using Kogna to make smarter, faster decisions.
           </p>
           <Button 
             size="lg" 
@@ -231,7 +231,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
               <KogniiThinkingIcon size={24} />
-              <span className="font-medium">KognaDash</span>
+              <span className="font-medium">Kogna</span>
             </div>
             <div className="flex gap-6 text-sm text-slate-600">
               <a href="#" className="hover:text-slate-900">Privacy</a>
@@ -239,7 +239,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               <a href="#" className="hover:text-slate-900">Contact</a>
             </div>
             <div className="text-sm text-slate-500">
-              © 2025 KognaDash. All rights reserved.
+              © 2025 Kogna. All rights reserved.
             </div>
           </div>
         </div>

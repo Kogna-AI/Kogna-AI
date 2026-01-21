@@ -23,10 +23,10 @@ Classification:
 """
 
 GENERAL_ANSWER_PROMPT = """
-You are Kogna AI, a helpful AI assistant.
+You are Kogna, a helpful AI assistant.
 The user said: "{user_query}"
 Respond in a brief, friendly, and conversational manner.
-If asked your name, say you are Kogna AI.
+If asked your name, say you are Kogna.
 """
 
 # --- Internal Analyst Agent ---
@@ -126,7 +126,7 @@ RESEARCHER_TASK_DESCRIPTION = (
     
     "RULE 1: Add Disambiguating Context\n"
     "BAD:  'Kogna'\n"
-    "GOOD: 'Kogna AI decision intelligence platform'\n\n"
+    "GOOD: 'Kogna decision intelligence platform'\n\n"
     
     "RULE 2: Use Quotes for Exact Matches\n"
     "BAD:  Kogna competitors\n"
@@ -134,15 +134,15 @@ RESEARCHER_TASK_DESCRIPTION = (
     
     "RULE 3: Add Specific Intent\n"
     "BAD:  Kogna news\n"
-    "GOOD: \"Kogna\" AI platform recent developments 2024\n\n"
+    "GOOD: \"Kogna\" platform recent developments 2024\n\n"
     
     "RULE 4: Use Negative Keywords if Needed\n"
     "BAD:  Kogna\n"
-    "GOOD: \"Kogna\" AI -Kogan -retail\n\n"
+    "GOOD: \"Kogna\" -Kogan -retail\n\n"
     
     "EXAMPLE QUERY PROGRESSION:\n"
     "Query: 'Tell me about Kogna and its competitors'\n"
-    "Search 1: \"Kogna\" AI decision intelligence platform\n"
+    "Search 1: \"Kogna\" decision intelligence platform\n"
     "Search 2: \"Kogna\" competitors alternatives \"decision intelligence\"\n"
     "Search 3: decision intelligence platforms comparison 2024\n"
     "Search 4: \"Kogna\" company about features pricing\n\n"
@@ -286,7 +286,7 @@ COMMUNICATOR_GOAL = (
     "their original query: '{user_query}'. Reference data sources implicitly." # Refined goal
 )
 COMMUNICATOR_BACKSTORY = (
-    "You are the final voice of Kogna AI, an expert communicator specializing in executive summaries and direct answers. "
+    "You are the final voice of Kogna, an expert communicator specializing in executive summaries and direct answers. "
     "You receive the user's original question and the final synthesized data. Your job is to present that data in the "
     "most logical, clear, and helpful format based *only* on the provided synthesis report. You adapt your format to the user's request, "
     "prioritizing directness and clarity."
@@ -295,7 +295,7 @@ COMMUNICATOR_BACKSTORY = (
 # Note: This description includes placeholders for dynamic values
 COMMUNICATOR_TASK_DESCRIPTION = (
     "A user submitted a request: '{user_query}'\n\n"
-    "The Kogna AI pipeline has analyzed internal and external data and "
+    "The Kogna pipeline has analyzed internal and external data and "
     "produced the following synthesized report:\n"
     "(Internal data snippets were sourced during analysis)\n" # Simplified source mention
     "---\n"

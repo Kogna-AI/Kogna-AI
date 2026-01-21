@@ -1019,7 +1019,7 @@ export function TeamOverview() {
 
   useEffect(() => {
     const fetchVisiblePeople = async () => {
-      if (!user?.id) return;
+  if (!user?.id) return;
 
       try {
         setLoading(true);

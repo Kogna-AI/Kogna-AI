@@ -26,7 +26,7 @@ import { Textarea } from "../../ui/textarea";
 const upcomingMeetings = [
   {
     id: 0,
-    title: "Meeting with Kognii",
+    title: "Meeting with Kogna",
     subtitle: "Competitor analysis, emerging tech companies",
     time: "9:00 AM",
     attendees: 1,
@@ -105,7 +105,7 @@ function MeetingSchedulingDialog() {
     if (preset === "kognii-1on1") {
       setMeetingData({
         ...meetingData,
-        title: "1:1 Strategy Session with Kognii",
+        title: "1:1 Strategy Session with Kogna",
         description: "Personal strategy discussion and AI insights",
         type: "ai-strategy",
         attendees: [],
@@ -115,7 +115,7 @@ function MeetingSchedulingDialog() {
       setMeetingData({
         ...meetingData,
         title: "Team Strategy Meeting",
-        description: "Team meeting with AI strategic insights from Kognii",
+        description: "Team meeting with AI strategic insights from Kogna",
         type: "strategic",
         includeKognii: true,
       });
@@ -160,7 +160,7 @@ function MeetingSchedulingDialog() {
         <DialogHeader>
           <DialogTitle>Schedule New Meeting</DialogTitle>
           <DialogDescription>
-            Create a new meeting and collaborate with your team and Kognii AI
+            Create a new meeting and collaborate with your team and Kogna
           </DialogDescription>
         </DialogHeader>
 
@@ -177,7 +177,7 @@ function MeetingSchedulingDialog() {
               >
                 <div className="flex items-center gap-2">
                   <Bot className="w-4 h-4 text-blue-600" />
-                  <span>1:1 with Kognii</span>
+                  <span>1:1 with Kogna</span>
                 </div>
                 <p className="text-xs text-muted-foreground text-left">
                   Personal strategy session with AI insights
@@ -191,7 +191,7 @@ function MeetingSchedulingDialog() {
               >
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-green-600" />
-                  <span>Team + Kognii</span>
+                  <span>Team + Kogna</span>
                 </div>
                 <p className="text-xs text-muted-foreground text-left">
                   Team meeting with AI strategic partner
@@ -313,7 +313,7 @@ function MeetingSchedulingDialog() {
             />
             <Label htmlFor="includeKognii" className="flex items-center gap-2">
               <Bot className="w-4 h-4 text-blue-600" />
-              Include Kognii as strategic partner
+              Include Kogna as strategic partner
             </Label>
           </div>
 

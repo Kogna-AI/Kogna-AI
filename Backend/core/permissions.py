@@ -8,9 +8,10 @@ from typing import List, Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 from auth.dependencies import get_current_user
-from core.database import get_db
+from core.database import get_db, get_db_context
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from core.database import get_db_context
 
 load_dotenv()
 
@@ -112,7 +113,7 @@ def get_user_from_supabase_id(supabase_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         User dictionary or None if not found
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, supabase_id, organization_id, first_name, second_name, email
@@ -130,7 +131,7 @@ def get_user_role_and_permissions(user_id: str) -> Dict[str, Any]:
     Returns:
         Dict with role_name, role_level, and permissions list
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         # Get role information
@@ -183,7 +184,7 @@ def get_user_teams(user_id: str) -> List[str]:
     Returns:
         List of team IDs
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT team_id
@@ -208,7 +209,7 @@ def build_user_context(jwt_user: dict) -> UserContext:
     user_id = jwt_user["id"]
     
     # Get user from database
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, organization_id, first_name, second_name, email
@@ -354,7 +355,7 @@ def log_audit(
         ip_address: User's IP address
     """
     try:
-        with get_db() as conn:
+        with get_db_context() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO audit_logs (
