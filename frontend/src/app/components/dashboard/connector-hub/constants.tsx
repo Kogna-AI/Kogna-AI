@@ -70,7 +70,7 @@ export const connectors: Connector[] = [
       "Custom Workflows",
     ],
     setupTime: "10 minutes",
-    dataSync: "Every 15 minutes",
+    dataSync: "Every 30 minutes",
   },
   {
     id: "asana",

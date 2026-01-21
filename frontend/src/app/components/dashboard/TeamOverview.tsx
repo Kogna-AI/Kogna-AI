@@ -622,7 +622,7 @@ function TeamManagementDialog({
       setLoading(false);
     }
   };
-
+  
   const handleTeamToggle = (teamId: string) => {
     setSelectedTeamIds((prev) => {
       if (prev.includes(teamId)) {
@@ -659,8 +659,7 @@ function TeamManagementDialog({
       setSelectedMemberId(undefined);
       setConfirmingRemove(false);
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Failed to remove member";
+      const message = e instanceof Error ? e.message : "Failed to remove member";
       setError(message);
     } finally {
       setLoading(false);
@@ -900,10 +899,7 @@ function TeamManagementDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {members.map((m) => (
-                      <SelectItem
-                        key={m.id || m.user_id}
-                        value={String(m.user_id || m.id)}
-                      >
+                      <SelectItem key={m.id || m.user_id} value={String(m.user_id || m.id)}>
                         {m.name || `${m.first_name} ${m.second_name || ""}`}
                       </SelectItem>
                     ))}
@@ -1105,6 +1101,7 @@ export function TeamOverview() {
     (sum, member) => sum + (member.project_count || member.projects || 0),
     0,
   );
+
 
   return (
     <div className="p-6 space-y-6">
