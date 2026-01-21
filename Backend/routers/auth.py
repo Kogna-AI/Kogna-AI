@@ -151,7 +151,7 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
                     VALUES (gen_random_uuid(), %s, %s)
                     RETURNING id
                     """,
-                    (organization_id, f"{data.organization} Team")
+                    (organization_id, "Operations")
                 )
                 team = cursor.fetchone()
                 team_id = team["id"]
@@ -173,6 +173,25 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
                     """,
                     (team_id, user_id, data.role)
                 )
+
+                # Assign highest RBAC role (founder/executive) to the first user
+                cursor.execute(
+                    """
+                    SELECT id
+                    FROM roles
+                    ORDER BY level DESC
+                    LIMIT 1
+                    """,
+                )
+                highest_role = cursor.fetchone()
+                if highest_role:
+                    cursor.execute(
+                        """
+                        INSERT INTO user_roles (user_id, role_id)
+                        VALUES (%s, %s)
+                        """,
+                        (user_id, highest_role["id"]),
+                    )
 
             conn.commit()
 

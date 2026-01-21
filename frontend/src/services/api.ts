@@ -390,6 +390,18 @@ export const api = {
     return handleResponse(response);
   },
 
+  // Hierarchical team view for TeamOverview
+  teamHierarchy: async () => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/teams/hierarchy`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
+    return handleResponse(response);
+  },
+
   createTeam: async (data: { organization_id: string; name: string }) => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/teams`, {
       method: "POST",
@@ -417,13 +429,13 @@ export const api = {
   // Invitations
   createTeamInvitation: async (
     teamId: string,
-    data: { email: string; role?: string }
+    data: { email: string; role?: string; team_ids?: string[] }
   ) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/teams/${teamId}/invitations`,
       {
         method: "POST",
-        headers: await getAuthHeaders(),
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       }
     );
@@ -482,13 +494,14 @@ export const api = {
   },
 
   // List all teams in an organization
-  listOrganizationTeams: async (orgId: string) => {
-    const response = await fetchWithTimeout(
-      `${API_BASE_URL}/api/teams/organization/${orgId}`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+  listOrganizationTeams: async (orgId: string, excludeCeoTeams?: boolean) => {
+    const url = new URL(`${API_BASE_URL}/api/teams/organization/${orgId}`);
+    if (excludeCeoTeams) {
+      url.searchParams.append("exclude_ceo_teams", "true");
+    }
+    const response = await fetchWithTimeout(url.toString(), {
+      headers: getAuthHeaders(),
+    });
     return handleResponse(response);
   },
 
