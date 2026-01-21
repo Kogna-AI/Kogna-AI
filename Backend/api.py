@@ -1,3 +1,4 @@
+from core.database import get_db_context
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -60,7 +61,7 @@ app.include_router(jira_router)
 
 
 # Database Connection
-@contextmanager
+
 def get_db():
     """Database connection context manager"""
     conn = psycopg2.connect(
@@ -301,7 +302,7 @@ def root():
 @app.get("/api/health")
 def health_check():
     try:
-        with get_db() as conn:
+        with get_db_context() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT 1")
             cursor.execute("SELECT COUNT(*) FROM organizations")
@@ -321,7 +322,7 @@ def health_check():
 # @app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
 # def register(data: RegisterRequest):
 #     """Register a new user"""
-#     with get_db() as conn:
+#     with get_db_context() as conn:
 #         cursor = conn.cursor()
 
 #         # Check if user already exists
@@ -363,7 +364,7 @@ def health_check():
 # @app.post("/api/auth/login")
 # def login(data: LoginRequest):
 #     """Login user and return JWT token"""
-#     with get_db() as conn:
+#     with get_db_context() as conn:
 #         cursor = conn.cursor()
 
 #         # Check if password column exists
@@ -436,7 +437,7 @@ def health_check():
 # @app.get("/api/auth/me")
 # async def get_current_user_info(user_id: int = Depends(get_current_user)):
 #     """Get current authenticated user information"""
-#     with get_db() as conn:
+#     with get_db_context() as conn:
 #         cursor = conn.cursor()
 #         cursor.execute("""
 #             SELECT id, organization_id, first_name, second_name, role, email, created_at
@@ -456,7 +457,7 @@ def health_check():
 @app.post("/api/organizations", status_code=status.HTTP_201_CREATED)
 def create_organization(org: OrganizationCreate):
     """Create a new organization"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO organizations (name, industry, team_due, team, project_number)
@@ -470,7 +471,7 @@ def create_organization(org: OrganizationCreate):
 @app.get("/api/organizations/{org_id}")
 def get_organization(org_id: int):
     """Get organization by ID"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM organizations WHERE id = %s", (org_id,))
         result = cursor.fetchone()
@@ -481,7 +482,7 @@ def get_organization(org_id: int):
 @app.get("/api/organizations")
 def list_organizations():
     """List all organizations"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM organizations ORDER BY created_at DESC")
         return {"success": True, "data": cursor.fetchall()}
@@ -489,7 +490,7 @@ def list_organizations():
 @app.put("/api/organizations/{org_id}")
 def update_organization(org_id: int, org: OrganizationCreate):
     """Update organization"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE organizations 
@@ -506,7 +507,7 @@ def update_organization(org_id: int, org: OrganizationCreate):
 @app.delete("/api/organizations/{org_id}")
 def delete_organization(org_id: int):
     """Delete organization"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM organizations WHERE id = %s RETURNING id", (org_id,))
         result = cursor.fetchone()
@@ -518,7 +519,7 @@ def delete_organization(org_id: int):
 @app.get("/api/organizations/{org_id}/dashboard")
 def get_organization_dashboard(org_id: int):
     """Get comprehensive dashboard data"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         # Use the view we created
@@ -575,7 +576,7 @@ def get_organization_dashboard(org_id: int):
 @app.post("/api/users", status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate):
     """Create a new user"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute("""
@@ -592,7 +593,7 @@ def create_user(user: UserCreate):
 @app.get("/api/users/{user_id}")
 def get_user(user_id: int):
     """Get user by ID"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
         result = cursor.fetchone()
@@ -603,7 +604,7 @@ def get_user(user_id: int):
 @app.get("/api/organizations/{org_id}/users")
 def list_organization_users(org_id: int):
     """List all users in organization"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT u.*, 
@@ -620,7 +621,7 @@ def list_organization_users(org_id: int):
 @app.put("/api/users/{user_id}")
 def update_user(user_id: int, user: UserCreate):
     """Update user"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE users 
@@ -637,7 +638,7 @@ def update_user(user_id: int, user: UserCreate):
 @app.delete("/api/users/{user_id}")
 def delete_user(user_id: int):
     """Delete user"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM users WHERE id = %s RETURNING id", (user_id,))
         result = cursor.fetchone()
@@ -653,7 +654,7 @@ def delete_user(user_id: int):
 @app.post("/api/teams", status_code=status.HTTP_201_CREATED)
 def create_team(team: TeamCreate):
     """Create a new team"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO teams (organization_id, name)
@@ -667,7 +668,7 @@ def create_team(team: TeamCreate):
 @app.get("/api/teams/{team_id}")
 def get_team(team_id: int):
     """Get team with members"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         cursor.execute("SELECT * FROM teams WHERE id = %s", (team_id,))
@@ -711,7 +712,7 @@ def get_team(team_id: int):
 @app.post("/api/teams/members")
 def add_team_member(member: TeamMemberAdd):
     """Add member to team"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute("""
@@ -728,7 +729,7 @@ def add_team_member(member: TeamMemberAdd):
 @app.get("/api/organizations/{org_id}/teams")
 def list_organization_teams(org_id: int):
     """List teams with performance summary"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT * FROM team_performance_summary
@@ -744,7 +745,7 @@ def list_organization_teams(org_id: int):
 @app.post("/api/objectives", status_code=status.HTTP_201_CREATED)
 def create_objective(obj: ObjectiveCreate):
     """Create objective"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO objectives (organization_id, title, progress, status, team_responsible)
@@ -758,7 +759,7 @@ def create_objective(obj: ObjectiveCreate):
 @app.get("/api/objectives/{obj_id}")
 def get_objective(obj_id: int):
     """Get objective with growth stages and milestones"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         cursor.execute("SELECT * FROM objectives WHERE id = %s", (obj_id,))
@@ -795,7 +796,7 @@ def get_objective(obj_id: int):
 @app.put("/api/objectives/{obj_id}")
 def update_objective(obj_id: int, obj: ObjectiveUpdate):
     """Update objective"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         # Build dynamic update query
@@ -839,7 +840,7 @@ def update_objective(obj_id: int, obj: ObjectiveUpdate):
 @app.get("/api/organizations/{org_id}/objectives")
 def list_objectives(org_id: int, status: Optional[str] = None):
     """List objectives"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         if status:
@@ -874,7 +875,7 @@ def list_objectives(org_id: int, status: Optional[str] = None):
 @app.post("/api/growth-stages", status_code=status.HTTP_201_CREATED)
 def create_growth_stage(stage: GrowthStageCreate):
     """Create growth stage"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO growth_stages (objective_id, name, description, start_date, end_date)
@@ -888,7 +889,7 @@ def create_growth_stage(stage: GrowthStageCreate):
 @app.post("/api/milestones", status_code=status.HTTP_201_CREATED)
 def create_milestone(milestone: MilestoneCreate):
     """Create milestone"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO milestones (growth_stage_id, title, boolean, achieved_at)
@@ -903,7 +904,7 @@ def create_milestone(milestone: MilestoneCreate):
 @app.put("/api/milestones/{milestone_id}/achieve")
 def achieve_milestone(milestone_id: int):
     """Mark milestone as achieved"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE milestones 
@@ -924,7 +925,7 @@ def achieve_milestone(milestone_id: int):
 @app.post("/api/metrics", status_code=status.HTTP_201_CREATED)
 def create_metric(metric: MetricCreate):
     """Create/log metric"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO metrics (organization_id, name, value, unit, change_from_last)
@@ -938,7 +939,7 @@ def create_metric(metric: MetricCreate):
 @app.get("/api/metrics/{metric_id}")
 def get_metric(metric_id: int):
     """Get metric by ID"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM metrics WHERE id = %s", (metric_id,))
         result = cursor.fetchone()
@@ -949,7 +950,7 @@ def get_metric(metric_id: int):
 @app.get("/api/organizations/{org_id}/metrics")
 def list_metrics(org_id: int, name: Optional[str] = None, limit: int = 100):
     """List metrics"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         if name:
@@ -972,7 +973,7 @@ def list_metrics(org_id: int, name: Optional[str] = None, limit: int = 100):
 @app.get("/api/organizations/{org_id}/metrics/trends")
 def get_metric_trends(org_id: int):
     """Get metric trends over time"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT 
@@ -999,7 +1000,7 @@ def get_metric_trends(org_id: int):
 @app.post("/api/insights", status_code=status.HTTP_201_CREATED)
 def create_insight(insight: AIInsightCreate):
     """Create AI insight"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO ai_insights (organization_id, category, title, description, confidence, level)
@@ -1014,7 +1015,7 @@ def create_insight(insight: AIInsightCreate):
 @app.get("/api/insights/{insight_id}")
 def get_insight(insight_id: int):
     """Get insight by ID"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM ai_insights WHERE id = %s", (insight_id,))
         result = cursor.fetchone()
@@ -1030,7 +1031,7 @@ def list_insights(
     status: str = "active"
 ):
     """List AI insights"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         query = "SELECT * FROM ai_insights WHERE organization_id = %s"
@@ -1056,7 +1057,7 @@ def list_insights(
 @app.put("/api/insights/{insight_id}/archive")
 def archive_insight(insight_id: int):
     """Archive insight"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE ai_insights SET status = 'archived'
@@ -1076,7 +1077,7 @@ def archive_insight(insight_id: int):
 @app.post("/api/recommendations", status_code=status.HTTP_201_CREATED)
 def create_recommendation(rec: RecommendationCreate):
     """Create a new recommendation"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO recommendations (organization_id, title, recommendation, confidence, action, created_for)
@@ -1091,7 +1092,7 @@ def create_recommendation(rec: RecommendationCreate):
 @app.get("/api/recommendations/{rec_id}")
 def get_recommendation(rec_id: int):
     """Get recommendation by ID with reasons"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         # Get recommendation
@@ -1145,7 +1146,7 @@ def list_recommendations(
     min_confidence: Optional[float] = None
 ):
     """List recommendations for organization with filters"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         query = """
@@ -1185,7 +1186,7 @@ def list_recommendations(
 @app.get("/api/organizations/{org_id}/recommendations/pending")
 def list_pending_recommendations(org_id: int):
     """Get all pending recommendations that need action"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT r.*, 
@@ -1204,7 +1205,7 @@ def list_pending_recommendations(org_id: int):
 @app.get("/api/organizations/{org_id}/recommendations/high-priority")
 def get_high_priority_recommendations(org_id: int):
     """Get high confidence, pending recommendations that need immediate attention"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT r.*, 
@@ -1231,7 +1232,7 @@ def update_recommendation_status(rec_id: int, new_status: str):
             detail="Status must be one of: pending, acted, dismissed"
         )
     
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE recommendations 
@@ -1249,7 +1250,7 @@ def update_recommendation_status(rec_id: int, new_status: str):
 @app.put("/api/recommendations/{rec_id}")
 def update_recommendation(rec_id: int, rec: RecommendationCreate):
     """Update recommendation details"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE recommendations 
@@ -1272,7 +1273,7 @@ def update_recommendation(rec_id: int, rec: RecommendationCreate):
 @app.delete("/api/recommendations/{rec_id}")
 def delete_recommendation(rec_id: int):
     """Delete recommendation"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             DELETE FROM recommendations 
@@ -1289,7 +1290,7 @@ def delete_recommendation(rec_id: int):
 @app.post("/api/recommendations/{rec_id}/reasons", status_code=status.HTTP_201_CREATED)
 def add_recommendation_reason(rec_id: int, reason: RecommendationReasonCreate):
     """Add supporting reason/evidence to recommendation"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO recommendation_reasons (recommendation_id, reason, evidence_datasets_id)
@@ -1303,7 +1304,7 @@ def add_recommendation_reason(rec_id: int, reason: RecommendationReasonCreate):
 @app.get("/api/recommendations/{rec_id}/reasons")
 def get_recommendation_reasons(rec_id: int):
     """Get all reasons/evidence for a recommendation"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT rr.*, 
@@ -1320,7 +1321,7 @@ def get_recommendation_reasons(rec_id: int):
 @app.get("/api/organizations/{org_id}/recommendations/stats")
 def get_recommendation_stats(org_id: int):
     """Get recommendation statistics and effectiveness"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         # Overall stats
@@ -1381,7 +1382,7 @@ def get_recommendation_stats(org_id: int):
 @app.post("/api/recommendations/{rec_id}/assign")
 def assign_recommendation(rec_id: int, user_id: int):
     """Assign recommendation to a user"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         
         # Check if user exists
@@ -1410,7 +1411,7 @@ def assign_recommendation(rec_id: int, user_id: int):
 @app.post("/api/actions", status_code=status.HTTP_201_CREATED)
 def create_action(action: ActionCreate):
     """Log an action taken on a recommendation"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO actions (user_id, recommendation_id, action_taken, result)
@@ -1433,7 +1434,7 @@ def create_action(action: ActionCreate):
 @app.get("/api/recommendations/{rec_id}/actions")
 def get_recommendation_actions(rec_id: int):
     """Get all actions taken on a recommendation"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT a.*, 
@@ -1449,7 +1450,7 @@ def get_recommendation_actions(rec_id: int):
 @app.get("/api/users/{user_id}/actions")
 def get_user_actions(user_id: int, limit: int = 50):
     """Get all actions taken by a user"""
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT a.*, 

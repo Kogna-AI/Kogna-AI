@@ -74,7 +74,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-white shadow-lg flex items-center justify-center">
             <Image
-              src="/logoImage.svg"
+              src="/localImage.png"
               alt="KognaDash Logo"
               width={40}
               height={40}
@@ -82,11 +82,9 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
             />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Welcome to KognaDash
+            Welcome to Kogna
           </h1>
-          <p className="text-gray-600 mt-1">
-            Strategic Team Management Intelligence
-          </p>
+          <p className="text-gray-600 mt-1">Strategic Intelligence</p>
         </div>
 
         {/* Login form */}

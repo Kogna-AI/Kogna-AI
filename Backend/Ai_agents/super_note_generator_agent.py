@@ -547,7 +547,7 @@ if __name__ == "__main__":
     result2 = generator.generate_super_note(
         child_notes=theme_notes,
         level=2,
-        parent_context="Kogna AI Company Overview"
+        parent_context="Kogna Company Overview"
     )
     
     print(f"\nTitle: {result2['title']}")

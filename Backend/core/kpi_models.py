@@ -64,6 +64,7 @@ class AgentPerformanceMetricCreate(BaseModel):
     """Model for creating agent performance metrics"""
     user_id: str  # UUID
     organization_id: str  # UUID
+    team_id: Optional[str] = None  # UUID
     session_id: Optional[str] = None  # UUID
     message_id: Optional[str] = None  # UUID
     agent_name: AgentName
@@ -85,6 +86,7 @@ class AgentPerformanceMetricResponse(BaseModel):
     id: int
     user_id: str
     organization_id: str  # UUID
+    team_id: Optional[str]  # UUID
     session_id: Optional[str]
     message_id: Optional[str]
     agent_name: str
@@ -108,6 +110,7 @@ class AgentPerformanceSummary(BaseModel):
     date: date
     hour: Optional[datetime]
     organization_id: str  # UUID
+    team_id: Optional[str]  # UUID
     agent_name: str
     model_used: Optional[str]
     execution_count: int
@@ -143,6 +146,7 @@ class ConnectorKPICreate(BaseModel):
     """Model for creating connector KPIs"""
     user_id: str  # UUID
     organization_id: str  # UUID
+    team_id: Optional[str] = None  # UUID
     sync_job_id: Optional[str] = None  # UUID
     connector_type: ConnectorType
     source_id: str
@@ -160,6 +164,7 @@ class ConnectorKPIResponse(BaseModel):
     id: int
     user_id: str
     organization_id: str  # UUID
+    team_id: Optional[str]  # UUID
     sync_job_id: Optional[str]
     connector_type: str
     source_id: str
@@ -179,6 +184,7 @@ class ConnectorKPITrend(BaseModel):
     """Model for connector KPI trends with analytics"""
     date: date
     organization_id: str  # UUID
+    team_id: Optional[str]  # UUID
     connector_type: str
     kpi_category: str
     kpi_name: str
@@ -205,6 +211,7 @@ class UserEngagementMetricCreate(BaseModel):
     """Model for creating user engagement metrics"""
     user_id: str  # UUID
     organization_id: str  # UUID
+    team_id: Optional[str] = None  # UUID
     date: date
     session_count: int = Field(default=0, ge=0)
     total_session_duration_seconds: int = Field(default=0, ge=0)
@@ -235,6 +242,7 @@ class UserEngagementMetricResponse(BaseModel):
     id: int
     user_id: str
     organization_id: str  # UUID
+    team_id: Optional[str]  # UUID
     date: date
     session_count: int
     total_session_duration_seconds: int
@@ -256,6 +264,8 @@ class UserEngagementMetricResponse(BaseModel):
 class RAGQualityMetricCreate(BaseModel):
     """Model for creating RAG quality metrics"""
     user_id: str  # UUID
+    organization_id: Optional[str] = None  # UUID
+    team_id: Optional[str] = None  # UUID
     message_id: Optional[str] = None  # UUID
     retrieval_count: int = Field(default=0, ge=0)
     avg_similarity_score: Optional[Decimal] = Field(None, ge=0, le=1)
@@ -269,6 +279,8 @@ class RAGQualityMetricResponse(BaseModel):
     """Model for RAG quality metric response"""
     id: int
     user_id: str
+    organization_id: Optional[str]  # UUID
+    team_id: Optional[str]  # UUID
     message_id: Optional[str]
     retrieval_count: int
     avg_similarity_score: Optional[Decimal]
@@ -288,6 +300,7 @@ class AgentTraceExtended(BaseModel):
     id: int
     user_id: str
     organization_id: str  # UUID
+    team_id: Optional[str]  # UUID
     session_id: Optional[str]
     message_id: Optional[str]
     agent_name: str
@@ -305,6 +318,7 @@ class SyncJobExtended(BaseModel):
     id: str  # UUID
     user_id: str  # UUID
     organization_id: str  # UUID
+    team_id: Optional[str]  # UUID
     connector_type: str
     status: str
     started_at: Optional[datetime]

@@ -10,7 +10,7 @@ import {
 } from '../utils/KogniiUtils';
 
 
-export default function  useKogniiLogic({ onClose, strategySessionMode, activeView }: KogniiAssistantProps){
+export default function useKogniiLogic({ onClose, strategySessionMode, activeView }: KogniiAssistantProps){
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -22,24 +22,45 @@ export default function  useKogniiLogic({ onClose, strategySessionMode, activeVi
     const demoScenarios = getDemoScenarios(activeView);
     const quickActions = getPageQuickActions(activeView);
 
-    return{ 
+    // Define the handler functions
+    const handleSendMessage = () => {
+        if (!inputValue.trim()) return;
+        // Add your logic here
+        setInputValue('');
+    };
+
+    const handleQuickAction = (action: string) => {
+        // Add your logic here
+    };
+
+    const handleSuggestionClick = (suggestion: string) => {
+        // Add your logic here
+    };
+
+    return { 
         //State
-        messages,inputValue,isTyping, currentDemoStep,conversationMode, 
-        
+        messages,
+        inputValue,
+        isTyping, 
+        currentDemoStep,
+        conversationMode, 
+        conversationStep, 
+        isAutoPlaying,
 
         // Handlers
-        handleSendMessage, handleQuickAction, handleSuggestionClick,
+        handleSendMessage, 
+        handleQuickAction, 
+        handleSuggestionClick,
         
         // Setters
-     
-        setInputValue,setConversationMode, setConversationStep, setIsAutoPlaying    , 
+        setInputValue,
+        setConversationMode, 
+        setConversationStep, 
+        setIsAutoPlaying,
     
-        // idk
+        // Data
         demoScenariosLength: demoScenarios.length,
-   
-        conversationStep, isAutoPlaying,
+        quickActions,
         onClose,
-    
     }
-
 }

@@ -51,7 +51,7 @@ export function ChatArea({ messages, isTyping, onSuggestionClick }: ChatAreaProp
                 <div className="rounded-2xl p-3 bg-muted text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <KogniiThinkingIcon className="w-4 h-4 animate-pulse" />
-                    <span className="text-sm">Kognii is thinking...</span>
+                    <span className="text-sm">Kogna is thinking...</span>
                   </div>
                 </div>
               </div>

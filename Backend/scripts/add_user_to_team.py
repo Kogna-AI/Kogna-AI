@@ -25,7 +25,7 @@ from psycopg2.extras import RealDictCursor
 def add_user_to_team(user_email: str):
     """Add a user to their organization's team (or create one if needed)."""
     
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # 1. Find user by email

@@ -15,7 +15,7 @@ export const syncModes = [
   {
     id: "one-way",
     name: "One-way Sync",
-    description: "Data flows from external source to KognaDash only",
+    description: "Data flows from external source to Kogna only",
     icon: "→",
     features: ["Import data", "View updates", "Basic reporting"],
   },

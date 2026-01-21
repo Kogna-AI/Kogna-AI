@@ -193,7 +193,7 @@ if __name__ == "__main__":
     Q3 2024 Financial Performance Report
     Executive Summary
     
-    Kogna AI achieved strong revenue growth in Q3 2024, with total revenue 
+    Kogna achieved strong revenue growth in Q3 2024, with total revenue 
     reaching $2.5 million, representing a 15% increase from Q2 2024 ($2.17M).
     
     Key Financial Metrics:

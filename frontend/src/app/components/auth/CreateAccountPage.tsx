@@ -166,7 +166,7 @@ export default function CreateAccountPage({
                   Account Created!
                 </h2>
                 <p className="text-gray-600 mt-2">
-                  Welcome to KognaDash, {formData.name}. Redirecting you to
+                  Welcome to Kogna, {formData.name}. Redirecting you to
                   login...
                 </p>
               </div>
@@ -184,17 +184,15 @@ export default function CreateAccountPage({
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-white shadow-lg flex items-center justify-center">
             <Image
-              src="/logoImage.svg"
+              src="/localImage.png"
               alt="KognaDash Logo"
               width={40}
               height={40}
               className="object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Join KognaDash</h1>
-          <p className="text-gray-600 mt-1">
-            Strategic Team Management Intelligence
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">Join Kogna</h1>
+          <p className="text-gray-600 mt-1">Strategic Intelligence</p>
         </div>
 
         {/* Account creation form */}
@@ -260,7 +258,9 @@ export default function CreateAccountPage({
                     <SelectContent>
                       <SelectItem value="founder">Founder / CEO</SelectItem>
                       <SelectItem value="executive">Executive / VP</SelectItem>
-                      <SelectItem value="manager">Manager / Team Lead</SelectItem>
+                      <SelectItem value="manager">
+                        Manager / Team Lead
+                      </SelectItem>
                       <SelectItem value="member">Team Member</SelectItem>
                     </SelectContent>
                   </Select>

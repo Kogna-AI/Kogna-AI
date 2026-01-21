@@ -11,7 +11,7 @@ export default function InsightsList({ insights, onView }: { insights: any[]; on
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>
       <CardHeader>
         <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/10 to-blue-500/10 backdrop-blur-sm">
-          <div>Kognii AI Insights</div>
+          <div>Kogna Insights</div>
           <Badge
             variant="secondary"
             className="gap-1 bg-white/50 backdrop-blur-sm border-white/20"

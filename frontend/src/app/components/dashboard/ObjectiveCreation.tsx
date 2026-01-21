@@ -492,7 +492,7 @@ export function ObjectiveCreation({
                   </Button>
                 </div>
                 <p className="text-sm text-blue-700">
-                  Kognii has analyzed team skills and workload to suggest an
+                  Kogna has analyzed team skills and workload to suggest an
                   optimal team composition.
                 </p>
               </div>

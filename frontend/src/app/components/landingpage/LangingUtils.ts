@@ -17,7 +17,7 @@ import {
     {
       icon: Brain,
       title: "AI-Powered Optimization",
-      description: "Kognii analyzes your team dynamics and suggests optimal strategies for maximum efficiency."
+      description: "Kogna analyzes your team dynamics and suggests optimal strategies for maximum efficiency."
     },
     {
       icon: Users,

@@ -4,7 +4,7 @@ Users Router - Handles user management with Supabase authentication and RBAC
 
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List, Optional
-from core.database import get_db
+from core.database import get_db, get_db_context
 from core.models import UserUpdate, CreateUserRequest
 from core.permissions import (
     get_user_context,
@@ -84,7 +84,7 @@ def get_user_by_supabase_id(supabase_id: str):
     This is used during login to fetch the internal user record
     after Supabase authentication succeeds.
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -119,7 +119,7 @@ async def get_current_user(user_ctx: UserContext = Depends(get_user_context)):
 
     This returns the full user profile with role and organization details.
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -171,7 +171,7 @@ async def list_visible_users(
     - Others see only members of their own teams.
       If they have no teams, they only see themselves.
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         organization_id = user_ctx.organization_id
@@ -267,7 +267,7 @@ async def get_user(
     - Managers can view users in their organization
     - Executives can view any user in their organization
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         # Fetch user
@@ -335,7 +335,7 @@ async def list_users(
     - limit: Max results (default 100)
     - offset: Pagination offset (default 0)
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         # Default to user's organization
@@ -426,7 +426,7 @@ async def update_user(
     - Users can update their own profile (limited fields)
     - Managers can update users in their organization
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         # Check if user exists and get current data
@@ -537,7 +537,7 @@ async def delete_user(
 
     Requires: Manager role or higher
     """
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         # Check if user exists
@@ -606,7 +606,7 @@ async def get_organization_user_stats(
             detail="You can only view statistics for your own organization"
         )
 
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
 
         # Get user counts by role

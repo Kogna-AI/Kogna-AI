@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException, status
-from core.database import get_db
+from core.database import get_db, get_db_context
 from core.models import AIInsightCreate
 
 router = APIRouter(prefix="/api/insights", tags=["AI Insights"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_insight(insight: AIInsightCreate):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO ai_insights (organization_id, category, title, description, confidence, level)
@@ -20,7 +20,7 @@ def create_insight(insight: AIInsightCreate):
 
 @router.get("/org/{org_id}")
 def list_insights(org_id: int):
-    with get_db() as conn:
+    with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT * FROM ai_insights
