@@ -43,6 +43,40 @@ router = APIRouter(prefix="/api/kpis", tags=["KPIs"])
 # Helper Functions
 # ============================================================================
 
+def verify_user_team_access(user_id: str, team_id: str, team_ids: list, db) -> bool:
+    """
+    Verify user has access to requested team.
+
+    Args:
+        user_id: User requesting access
+        team_id: Team to access
+        team_ids: List of team IDs the user belongs to (from auth context)
+        db: Database connection
+
+    Returns:
+        True if user has access
+
+    Raises:
+        HTTPException 403 if user doesn't have access to the team
+    """
+    # Check if user is a member of the requested team
+    if team_id not in team_ids:
+        # Double-check against database in case auth context is stale
+        with db as conn:
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            cursor.execute("""
+                SELECT 1 FROM team_members
+                WHERE user_id = %s AND team_id = %s
+            """, (user_id, team_id))
+
+            if not cursor.fetchone():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: You do not have access to this team"
+                )
+    return True
+
+
 def calculate_date_range(days: int) -> tuple[datetime, datetime]:
     """Calculate start and end datetime from number of days"""
     end_time = datetime.utcnow()
@@ -65,6 +99,7 @@ def serialize_decimal(obj):
 def get_kpi_dashboard(
     days: int = Query(default=7, ge=1, le=365, description="Number of days to look back"),
     organization_id: Optional[str] = Query(None, description="Filter by organization ID"),
+    team_id: Optional[str] = Query(None, description="Filter by team ID"),
     user=Depends(get_backend_user_id),
     db=Depends(get_db)
 ):
@@ -73,6 +108,7 @@ def get_kpi_dashboard(
 
     - **days**: Number of days to include in metrics (default: 7)
     - **organization_id**: Optional filter (defaults to user's organization)
+    - **team_id**: Optional filter by team (requires team membership)
 
     Uses materialized views for fast response times.
     """
@@ -86,13 +122,24 @@ def get_kpi_dashboard(
             detail="Access denied: You can only view KPIs for your own organization"
         )
 
+    # Security check: verify team access if team_id is specified
+    if team_id:
+        verify_user_team_access(user["user_id"], team_id, user.get("team_ids", []), db)
+
     start_time, end_time = calculate_date_range(days)
 
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
+        # Build team filter clause
+        team_filter = ""
+        base_params = [target_org_id, start_time, end_time]
+        if team_id:
+            team_filter = " AND team_id = %s"
+            base_params.append(team_id)
+
         # ===== Agent Performance KPIs =====
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 COALESCE(AVG(avg_response_time_ms), 0) as avg_response_time_ms,
                 COALESCE(SUM(execution_count), 0) as total_queries,
@@ -102,12 +149,13 @@ def get_kpi_dashboard(
             WHERE organization_id = %s
                 AND period_start >= %s
                 AND period_end <= %s
-        """, (target_org_id, start_time, end_time))
+                {team_filter}
+        """, base_params)
 
         agent_agg = cursor.fetchone()
 
         # Get per-agent breakdown
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT
                 agent_name,
                 SUM(execution_count) as queries,
@@ -118,9 +166,10 @@ def get_kpi_dashboard(
             WHERE organization_id = %s
                 AND period_start >= %s
                 AND period_end <= %s
+                {team_filter}
             GROUP BY agent_name
             ORDER BY queries DESC
-        """, (target_org_id, start_time, end_time))
+        """, base_params)
 
         by_agent = cursor.fetchall()
 
@@ -133,7 +182,13 @@ def get_kpi_dashboard(
         )
 
         # ===== Connector KPIs =====
-        cursor.execute("""
+        connector_params = [target_org_id, start_time]
+        connector_team_filter = ""
+        if team_id:
+            connector_team_filter = " AND team_id = %s"
+            connector_params.append(team_id)
+
+        cursor.execute(f"""
             SELECT
                 connector_type,
                 COUNT(DISTINCT source_id) as total_syncs,
@@ -142,8 +197,9 @@ def get_kpi_dashboard(
             FROM mv_connector_kpi_trends
             WHERE organization_id = %s
                 AND date >= %s::date
+                {connector_team_filter}
             GROUP BY connector_type
-        """, (target_org_id, start_time))
+        """, connector_params)
 
         connector_rows = cursor.fetchall()
         connector_kpis = {}
@@ -152,14 +208,19 @@ def get_kpi_dashboard(
             connector_type = row["connector_type"]
 
             # Get KPIs by category for this connector
-            cursor.execute("""
+            category_params = [target_org_id, connector_type, start_time]
+            if team_id:
+                category_params.append(team_id)
+
+            cursor.execute(f"""
                 SELECT kpi_category, COUNT(*) as count
                 FROM mv_connector_kpi_trends
                 WHERE organization_id = %s
                     AND connector_type = %s
                     AND date >= %s::date
+                    {connector_team_filter}
                 GROUP BY kpi_category
-            """, (target_org_id, connector_type, start_time))
+            """, category_params)
 
             kpis_by_category = {cat["kpi_category"]: cat["count"] for cat in cursor.fetchall()}
 
@@ -172,7 +233,13 @@ def get_kpi_dashboard(
             )
 
         # ===== User Engagement KPIs =====
-        cursor.execute("""
+        engagement_params = [target_org_id, start_time, end_time]
+        engagement_team_filter = ""
+        if team_id:
+            engagement_team_filter = " AND team_id = %s"
+            engagement_params.append(team_id)
+
+        cursor.execute(f"""
             SELECT
                 COUNT(DISTINCT user_id) as active_users,
                 AVG(avg_satisfaction_score) as avg_satisfaction,
@@ -183,7 +250,8 @@ def get_kpi_dashboard(
             WHERE organization_id = %s
                 AND date >= %s::date
                 AND date <= %s::date
-        """, (target_org_id, start_time, end_time))
+                {engagement_team_filter}
+        """, engagement_params)
 
         engagement = cursor.fetchone()
 
@@ -213,6 +281,7 @@ def get_agent_performance(
     agent_name: Optional[str] = Query(None, description="Filter by specific agent"),
     days: int = Query(default=7, ge=1, le=365, description="Number of days to look back"),
     group_by: str = Query(default="day", regex="^(hour|day|week)$", description="Grouping granularity"),
+    team_id: Optional[str] = Query(None, description="Filter by team ID"),
     user=Depends(get_backend_user_id),
     db=Depends(get_db)
 ):
@@ -222,11 +291,16 @@ def get_agent_performance(
     - **agent_name**: Optional filter for specific agent
     - **days**: Number of days to look back
     - **group_by**: Aggregation granularity (hour, day, week)
+    - **team_id**: Optional filter by team (requires team membership)
 
     Filters automatically by user's organization.
     """
     start_time, end_time = calculate_date_range(days)
     organization_id = user["organization_id"]
+
+    # Security check: verify team access if team_id is specified
+    if team_id:
+        verify_user_team_access(user["user_id"], team_id, user.get("team_ids", []), db)
 
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -241,6 +315,11 @@ def get_agent_performance(
         else:  # day
             time_column = "date"
             order_by = "date DESC"
+
+        # Build team filter
+        team_filter = ""
+        if team_id:
+            team_filter = " AND team_id = %s"
 
         query = f"""
             SELECT
@@ -264,9 +343,12 @@ def get_agent_performance(
             WHERE organization_id = %s
                 AND period_start >= %s
                 AND period_end <= %s
+                {team_filter}
         """
 
         params = [organization_id, start_time, end_time]
+        if team_id:
+            params.append(team_id)
 
         if agent_name:
             query += " AND agent_name = %s"
@@ -278,7 +360,7 @@ def get_agent_performance(
         results = cursor.fetchall()
 
         # Also get aggregates
-        agg_query = """
+        agg_query = f"""
             SELECT
                 COUNT(*) as total_records,
                 AVG(avg_response_time_ms) as overall_avg_response_time,
@@ -288,9 +370,12 @@ def get_agent_performance(
             WHERE organization_id = %s
                 AND period_start >= %s
                 AND period_end <= %s
+                {team_filter}
         """
 
         agg_params = [organization_id, start_time, end_time]
+        if team_id:
+            agg_params.append(team_id)
         if agent_name:
             agg_query += " AND agent_name = %s"
             agg_params.append(agent_name)
@@ -305,6 +390,7 @@ def get_agent_performance(
                 "aggregates": dict(aggregates),
                 "filters": {
                     "agent_name": agent_name,
+                    "team_id": team_id,
                     "days": days,
                     "group_by": group_by,
                     "period_start": start_time.isoformat(),
@@ -324,6 +410,7 @@ def get_connector_kpis(
     kpi_category: Optional[KPICategory] = Query(None, description="Filter by KPI category"),
     source_id: Optional[str] = Query(None, description="Filter by specific source ID"),
     days: int = Query(default=30, ge=1, le=365, description="Number of days to look back"),
+    team_id: Optional[str] = Query(None, description="Filter by team ID"),
     user=Depends(get_backend_user_id),
     db=Depends(get_db)
 ):
@@ -334,16 +421,22 @@ def get_connector_kpis(
     - **kpi_category**: Optional filter by category (velocity, burndown, etc.)
     - **source_id**: Optional filter by specific source (e.g., project ID)
     - **days**: Number of days to look back
+    - **team_id**: Optional filter by team (requires team membership)
 
     Returns latest values and trends.
     """
     start_time, end_time = calculate_date_range(days)
     organization_id = user["organization_id"]
 
+    # Security check: verify team access if team_id is specified
+    if team_id:
+        verify_user_team_access(user["user_id"], team_id, user.get("team_ids", []), db)
+
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Build dynamic query
+        # Build dynamic query with team filter
+        team_filter = ""
         query = """
             SELECT
                 date,
@@ -366,6 +459,10 @@ def get_connector_kpis(
         """
 
         params = [organization_id, connector_type.value, start_time]
+
+        if team_id:
+            query += " AND team_id = %s"
+            params.append(team_id)
 
         if kpi_category:
             query += " AND kpi_category = %s"
@@ -398,6 +495,10 @@ def get_connector_kpis(
 
         latest_params = [organization_id, connector_type.value, start_time]
 
+        if team_id:
+            latest_query += " AND team_id = %s"
+            latest_params.append(team_id)
+
         if kpi_category:
             latest_query += " AND kpi_category = %s"
             latest_params.append(kpi_category.value)
@@ -420,6 +521,7 @@ def get_connector_kpis(
                 "filters": {
                     "kpi_category": kpi_category.value if kpi_category else None,
                     "source_id": source_id,
+                    "team_id": team_id,
                     "days": days,
                     "period_start": start_time.isoformat(),
                     "period_end": end_time.isoformat()
@@ -440,6 +542,7 @@ def get_kpi_trends(
     source_id: Optional[str] = Query(None, description="Filter by source ID"),
     days: int = Query(default=30, ge=1, le=365, description="Number of days to look back"),
     granularity: str = Query(default="day", regex="^(day|week|month)$", description="Time granularity"),
+    team_id: Optional[str] = Query(None, description="Filter by team ID"),
     user=Depends(get_backend_user_id),
     db=Depends(get_db)
 ):
@@ -452,11 +555,16 @@ def get_kpi_trends(
     - **source_id**: Optional source filter
     - **days**: Number of days to look back
     - **granularity**: Time grouping (day, week, month)
+    - **team_id**: Optional filter by team (requires team membership)
 
     Returns array of {timestamp, value, metadata} for visualization.
     """
     start_time, end_time = calculate_date_range(days)
     organization_id = user["organization_id"]
+
+    # Security check: verify team access if team_id is specified
+    if team_id:
+        verify_user_team_access(user["user_id"], team_id, user.get("team_ids", []), db)
 
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -489,6 +597,10 @@ def get_kpi_trends(
         """
 
         params = [organization_id, kpi_category.value, kpi_name, start_time]
+
+        if team_id:
+            query += " AND team_id = %s"
+            params.append(team_id)
 
         if connector_type:
             query += " AND connector_type = %s"
@@ -531,6 +643,7 @@ def get_kpi_trends(
                 "filters": {
                     "connector_type": connector_type.value if connector_type else None,
                     "source_id": source_id,
+                    "team_id": team_id,
                     "days": days,
                     "period_start": start_time.isoformat(),
                     "period_end": end_time.isoformat()
@@ -557,32 +670,37 @@ def submit_feedback(
     - **feedback_text**: Optional text feedback
 
     Updates user_engagement_metrics and rag_quality_metrics tables.
+    Automatically associates feedback with user's primary team.
     """
     user_id = user["user_id"]
     organization_id = user["organization_id"]
+    team_id = user.get("team_id")  # User's primary team
 
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Update RAG quality metrics
+        # Update RAG quality metrics with team context
         cursor.execute("""
-            INSERT INTO rag_quality_metrics (user_id, message_id, user_satisfaction, created_at)
-            VALUES (%s, %s, %s, NOW())
+            INSERT INTO rag_quality_metrics (user_id, organization_id, team_id, message_id, user_satisfaction, created_at)
+            VALUES (%s, %s, %s, %s, %s, NOW())
             ON CONFLICT (message_id)
-            DO UPDATE SET user_satisfaction = EXCLUDED.user_satisfaction
+            DO UPDATE SET
+                user_satisfaction = EXCLUDED.user_satisfaction,
+                organization_id = EXCLUDED.organization_id,
+                team_id = EXCLUDED.team_id
             RETURNING id
-        """, (user_id, feedback.message_id, feedback.satisfaction_score))
+        """, (user_id, organization_id, team_id, feedback.message_id, feedback.satisfaction_score))
 
         rag_metric_id = cursor.fetchone()["id"]
 
-        # Update user engagement metrics for today
+        # Update user engagement metrics for today with team context
         today = date.today()
 
         cursor.execute("""
             INSERT INTO user_engagement_metrics
-            (user_id, organization_id, date, feedback_count, avg_satisfaction_score, created_at, updated_at)
-            VALUES (%s, %s, %s, 1, %s, NOW(), NOW())
-            ON CONFLICT (user_id, date)
+            (user_id, organization_id, team_id, date, feedback_count, avg_satisfaction_score, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, 1, %s, NOW(), NOW())
+            ON CONFLICT (user_id, organization_id, team_id, date)
             DO UPDATE SET
                 feedback_count = user_engagement_metrics.feedback_count + 1,
                 avg_satisfaction_score = (
@@ -591,7 +709,7 @@ def submit_feedback(
                 ),
                 updated_at = NOW()
             RETURNING id
-        """, (user_id, organization_id, today, feedback.satisfaction_score, feedback.satisfaction_score))
+        """, (user_id, organization_id, team_id, today, feedback.satisfaction_score, feedback.satisfaction_score))
 
         engagement_metric_id = cursor.fetchone()["id"]
 
@@ -602,7 +720,8 @@ def submit_feedback(
                 "rag_metric_id": rag_metric_id,
                 "engagement_metric_id": engagement_metric_id,
                 "message_id": feedback.message_id,
-                "satisfaction_score": feedback.satisfaction_score
+                "satisfaction_score": feedback.satisfaction_score,
+                "team_id": team_id
             }
         }
 
@@ -617,6 +736,7 @@ def export_kpis(
     kpi_types: Optional[str] = Query(None, description="Comma-separated list: agent,connector,engagement"),
     date_range_start: Optional[datetime] = Query(None, description="Start date for export"),
     date_range_end: Optional[datetime] = Query(None, description="End date for export"),
+    team_id: Optional[str] = Query(None, description="Filter by team ID"),
     user=Depends(get_backend_user_id),
     db=Depends(get_db)
 ):
@@ -627,10 +747,15 @@ def export_kpis(
     - **kpi_types**: Which KPIs to include (agent, connector, engagement)
     - **date_range_start**: Start date (defaults to 30 days ago)
     - **date_range_end**: End date (defaults to now)
+    - **team_id**: Optional filter by team (requires team membership)
 
     Rate limited to prevent abuse.
     """
     organization_id = user["organization_id"]
+
+    # Security check: verify team access if team_id is specified
+    if team_id:
+        verify_user_team_access(user["user_id"], team_id, user.get("team_ids", []), db)
 
     # Default date range: last 30 days
     if not date_range_end:
@@ -646,45 +771,65 @@ def export_kpis(
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
+        # Build team filter
+        team_filter = ""
+        if team_id:
+            team_filter = " AND team_id = %s"
+
         # Export Agent Performance
         if "agent" in requested_types:
-            cursor.execute("""
+            agent_params = [organization_id, date_range_start, date_range_end]
+            if team_id:
+                agent_params.append(team_id)
+
+            cursor.execute(f"""
                 SELECT *
                 FROM mv_agent_performance_summary
                 WHERE organization_id = %s
                     AND period_start >= %s
                     AND period_end <= %s
+                    {team_filter}
                 ORDER BY date DESC, hour DESC
                 LIMIT 10000
-            """, (organization_id, date_range_start, date_range_end))
+            """, agent_params)
 
             export_data["agent_performance"] = [dict(row) for row in cursor.fetchall()]
 
         # Export Connector KPIs
         if "connector" in requested_types:
-            cursor.execute("""
+            connector_params = [organization_id, date_range_start, date_range_end]
+            if team_id:
+                connector_params.append(team_id)
+
+            cursor.execute(f"""
                 SELECT *
                 FROM mv_connector_kpi_trends
                 WHERE organization_id = %s
                     AND date >= %s::date
                     AND date <= %s::date
+                    {team_filter}
                 ORDER BY date DESC
                 LIMIT 10000
-            """, (organization_id, date_range_start, date_range_end))
+            """, connector_params)
 
             export_data["connector_kpis"] = [dict(row) for row in cursor.fetchall()]
 
         # Export User Engagement
         if "engagement" in requested_types:
-            cursor.execute("""
+            engagement_params = [organization_id, date_range_start, date_range_end]
+            if team_id:
+                engagement_params.append(team_id)
+
+            cursor.execute(f"""
                 SELECT *
                 FROM user_engagement_metrics
                 WHERE organization_id = %s
                     AND date >= %s::date
                     AND date <= %s::date
+                    {team_filter}
                 ORDER BY date DESC
                 LIMIT 10000
-            """, (organization_id, date_range_start, date_range_end))
+            """, engagement_params)
 
             export_data["user_engagement"] = [dict(row) for row in cursor.fetchall()]
 
@@ -724,6 +869,7 @@ def export_kpis(
             "success": True,
             "export_metadata": {
                 "organization_id": organization_id,
+                "team_id": team_id,
                 "date_range_start": date_range_start.isoformat(),
                 "date_range_end": date_range_end.isoformat(),
                 "kpi_types": list(requested_types),
