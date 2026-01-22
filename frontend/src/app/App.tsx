@@ -106,7 +106,7 @@ function AppContent() {
         onNotificationsToggle={() => setNotificationsOpen(!notificationsOpen)}
       />
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex ml-64">
         <MainDashboard
           activeView={activeView}
           setActiveView={setActiveView}

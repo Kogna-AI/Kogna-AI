@@ -124,7 +124,7 @@ export function DataConnectorHub() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Data Connector Hub</h1>
+          <h1>Data Connectors</h1>
           <p className="text-muted-foreground">
             Connect your existing tools and data sources for comprehensive
             project insights
