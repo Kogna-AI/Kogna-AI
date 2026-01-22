@@ -675,6 +675,13 @@ def submit_feedback(
     organization_id = user["organization_id"]
     team_id = user.get("team_id")  # User's primary team
 
+    if team_id is None:
+        # Ensure feedback is only submitted when user has a primary team,
+        # as required by the endpoint documentation and database constraints.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User has no primary team configured; feedback cannot be submitted."
+        )
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
