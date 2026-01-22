@@ -29,9 +29,10 @@ from collections import Counter, defaultdict
 
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -39,10 +40,12 @@ except ImportError:
     # Fallback for testing
     RATE_LIMIT_DELAY = 0.1
     MAX_FILE_SIZE = 50_000_000
-    async def smart_upload_and_embed(*args, **kwargs): 
+    async def smart_upload_and_embed(*args, **kwargs):
         return {'status': 'error', 'message': 'Not available'}
     async def update_sync_progress(*args, **kwargs): pass
     async def complete_sync_job(*args, **kwargs): pass
+    def build_storage_path(user_id, connector_type, filename, organization_id=None, team_id=None):
+        return f"{user_id}/{connector_type}/{filename}"
 
 logging.basicConfig(level=logging.INFO)
 
@@ -466,15 +469,18 @@ def clean_asana_data(tasks: List[Dict]) -> Dict:
 
 async def run_asana_etl(
     user_id: str,
-    access_token: str
-) -> Tuple[bool, int, int]:  # CHANGED: Now returns (success, processed, skipped)
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
+) -> Tuple[bool, int, int]:
     """
-    ULTIMATE Asana ETL with INTELLIGENT CHANGE DETECTION.
-    
+    ULTIMATE Asana ETL with INTELLIGENT CHANGE DETECTION + RBAC.
+
     Features:
     - Task and project extraction
     - Workspace organization
     - Analytics (completion, overdue, workload)
+    - RBAC-scoped storage paths: {org_id}/{team_id}/asana/{user_id}/...
     - Smart categorization
     - Search-optimized text generation
     - Data quality scoring
