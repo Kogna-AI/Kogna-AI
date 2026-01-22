@@ -37,9 +37,10 @@ from urllib.parse import quote
 
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY
     )
 except ImportError:
@@ -47,6 +48,7 @@ except ImportError:
         smart_upload_and_embed,
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,
         RATE_LIMIT_DELAY
     )
 
@@ -289,25 +291,33 @@ def create_jira_searchable_text(cleaned_issue: dict) -> str:
 # UPDATED: JIRA ETL FUNCTION WITH CHANGE DETECTION
 # =================================================================
 
-async def run_jira_etl(user_id: str, access_token: str) -> Tuple[bool, int, int]:
+async def run_jira_etl(
+    user_id: str,
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
+) -> Tuple[bool, int, int]:
     """
-    Main Jira ETL function with integrated data cleaning and CHANGE DETECTION.
-    
+    Main Jira ETL function with integrated data cleaning, CHANGE DETECTION, and RBAC.
+
     Process:
         1. Fetch data from Jira API
         2. Clean data (remove API noise)
-        3. Store cleaned data with change detection
+        3. Store cleaned data with RBAC-scoped paths
         4. Smart embedding (only processes new/modified issues)
-    
-    NEW: Intelligent change detection
-    - 95% faster re-syncs
+
+    Features:
+    - Intelligent change detection (95% faster re-syncs)
     - Only processes new/modified issues
     - Tracks processed vs skipped files
-    
+    - RBAC-scoped storage paths: {org_id}/{team_id}/jira/{user_id}/...
+
     Args:
         user_id: User ID
         access_token: Valid Jira access token
-        
+        organization_id: Organization ID for RBAC storage paths
+        team_id: Team ID for RBAC storage paths (None = "no-team")
+
     Returns:
         (success: bool, files_processed: int, files_skipped: int)
     """
@@ -451,10 +461,16 @@ async def run_jira_etl(user_id: str, access_token: str) -> Tuple[bool, int, int]
                         }
                     }
                     
-                    # NEW: Smart upload with change detection
+                    # Smart upload with change detection + RBAC paths
                     issues_json = json.dumps(storage_data, indent=2)
-                    file_path = f"{user_id}/jira/{project_key}_issues.json"
-                    
+                    file_path = build_storage_path(
+                        user_id=user_id,
+                        connector_type="jira",
+                        filename=f"{project_key}_issues.json",
+                        organization_id=organization_id,
+                        team_id=team_id
+                    )
+
                     result = await smart_upload_and_embed(
                         user_id=user_id,
                         bucket_name=bucket_name,
@@ -467,7 +483,9 @@ async def run_jira_etl(user_id: str, access_token: str) -> Tuple[bool, int, int]
                             'project_name': project_name,
                             'total_issues': len(cleaned_issues)
                         },
-                        process_content_directly=True  # Process JSON in memory
+                        process_content_directly=True,
+                        organization_id=organization_id,
+                        team_id=team_id
                     )
                     
                     # NEW: Track results
@@ -500,13 +518,21 @@ async def run_jira_etl(user_id: str, access_token: str) -> Tuple[bool, int, int]
                         'total_issues': len(all_issues),
                         'total_projects': len(projects),
                         'extracted_at': int(time.time()),
-                        'cleaned': True
+                        'cleaned': True,
+                        'organization_id': organization_id,
+                        'team_id': team_id
                     }
                 }
-                
+
                 combined_json = json.dumps(combined_data, indent=2)
-                file_path = f"{user_id}/jira/all_issues.json"
-                
+                file_path = build_storage_path(
+                    user_id=user_id,
+                    connector_type="jira",
+                    filename="all_issues.json",
+                    organization_id=organization_id,
+                    team_id=team_id
+                )
+
                 result = await smart_upload_and_embed(
                     user_id=user_id,
                     bucket_name=bucket_name,
@@ -519,7 +545,9 @@ async def run_jira_etl(user_id: str, access_token: str) -> Tuple[bool, int, int]
                         'total_issues': len(all_issues),
                         'total_projects': len(projects)
                     },
-                    process_content_directly=True
+                    process_content_directly=True,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
                 
                 if result['status'] == 'queued':
@@ -529,13 +557,15 @@ async def run_jira_etl(user_id: str, access_token: str) -> Tuple[bool, int, int]
                     files_skipped += 1
                     logging.error(f"    FAILED: all_issues.json - {result.get('message', 'Unknown error')}")
             
-            # NEW: Complete sync job with counts
+            # Complete sync job with counts and RBAC context
             await complete_sync_job(
                 user_id=user_id,
                 service="jira",
                 success=True,
                 files_count=files_processed,
-                skipped_count=files_skipped
+                skipped_count=files_skipped,
+                organization_id=organization_id,
+                team_id=team_id
             )
             
             logging.info(f"{'='*60}")
@@ -552,25 +582,29 @@ async def run_jira_etl(user_id: str, access_token: str) -> Tuple[bool, int, int]
     except httpx.HTTPStatusError as e:
         logging.error(f"API Error {e.response.status_code}: {e.response.text}")
         logging.error(f"   URL: {e.request.url}")
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="jira",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
     except Exception as e:
         logging.error(f"ETL Error: {e}")
         import traceback
         traceback.print_exc()
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="jira",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
