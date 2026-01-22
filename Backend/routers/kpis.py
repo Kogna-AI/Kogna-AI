@@ -435,8 +435,7 @@ def get_connector_kpis(
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Build dynamic query with team filter
-        team_filter = ""
+        # Build base query for connector KPI trends
         query = """
             SELECT
                 date,
