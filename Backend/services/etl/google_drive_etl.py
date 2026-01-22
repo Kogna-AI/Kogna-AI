@@ -79,19 +79,22 @@ except ImportError:
 # For testing standalone
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # ← NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
 except ImportError:
     RATE_LIMIT_DELAY = 0.1
     MAX_FILE_SIZE = 50_000_000
-    async def smart_upload_and_embed(*args, **kwargs): 
+    async def smart_upload_and_embed(*args, **kwargs):
         return {'status': 'error', 'message': 'Not available'}
     async def update_sync_progress(*args, **kwargs): pass
     async def complete_sync_job(*args, **kwargs): pass
+    def build_storage_path(user_id, connector_type, filename, organization_id=None, team_id=None):
+        return f"{user_id}/{connector_type}/{filename}"
 
 logging.basicConfig(level=logging.INFO)
 
@@ -1264,16 +1267,19 @@ def create_google_drive_searchable_text_ultimate(cleaned_file: dict) -> str:
 # ============================================================================
 
 async def run_google_drive_etl(
-    user_id: str, 
-    access_token: str
-) -> Tuple[bool, int, int]:  # ← CHANGED: Now returns (success, processed, skipped)
+    user_id: str,
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
+) -> Tuple[bool, int, int]:
     """
-     ULTIMATE Google Drive ETL with INTELLIGENT CHANGE DETECTION.
-    
+    ULTIMATE Google Drive ETL with INTELLIGENT CHANGE DETECTION + RBAC.
+
     Features:
-     PDF OCR for scanned documents
-     Spreadsheet analytics (sums, averages, key-values)
-     Smart content chunking for large documents
+    - PDF OCR for scanned documents
+    - Spreadsheet analytics (sums, averages, key-values)
+    - Smart content chunking for large documents
+    - RBAC-scoped storage paths: {org_id}/{team_id}/google/{user_id}/...
      Metadata enrichment (tags, reading time, quality scores)
      Multiple file type support (JSON, HTML, XML)
      Image metadata + EXIF extraction
