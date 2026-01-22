@@ -62,18 +62,17 @@ def verify_user_team_access(user_id: str, team_id: str, team_ids: list, db) -> b
     # Check if user is a member of the requested team
     if team_id not in team_ids:
         # Double-check against database in case auth context is stale
-        with db as conn:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute("""
-                SELECT 1 FROM team_members
-                WHERE user_id = %s AND team_id = %s
-            """, (user_id, team_id))
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("""
+            SELECT 1 FROM team_members
+            WHERE user_id = %s AND team_id = %s
+        """, (user_id, team_id))
 
-            if not cursor.fetchone():
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Access denied: You do not have access to this team"
-                )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have access to this team"
+            )
     return True
 
 
