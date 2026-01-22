@@ -700,7 +700,7 @@ def submit_feedback(
             INSERT INTO user_engagement_metrics
             (user_id, organization_id, team_id, date, feedback_count, avg_satisfaction_score, created_at, updated_at)
             VALUES (%s, %s, %s, %s, 1, %s, NOW(), NOW())
-            ON CONFLICT (user_id, organization_id, team_id, date)
+            ON CONFLICT (user_id, date)
             DO UPDATE SET
                 feedback_count = user_engagement_metrics.feedback_count + 1,
                 avg_satisfaction_score = (
