@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from psycopg2.extras import RealDictCursor
-
+import logging
+from auth.email_verification import EmailVerification
+import uuid
+import bcrypt
 from core.security import (
     create_access_token,
     create_refresh_token,
@@ -16,6 +19,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
+logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(
     schemes=["argon2"],
@@ -195,11 +199,23 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
 
             conn.commit()
 
+            success, message = EmailVerification.generate_and_send_verification(
+                user_id=str(user_id),
+                email=data.email,
+                first_name=data.first_name
+            )
+            
+            if not success:
+                logger.warning(f"Failed to send verification email: {message}")
+                # Don't fail registration if email fails, just log it
+
             return {
                 "success": True,
+                "message": "Registration successful! Please check your email to verify your account.",
                 "user_id": user["id"],
                 "supabase_id": user["supabase_id"],
-                "organization_id": organization_id
+                "organization_id": organization_id,
+                "email_sent": success
             }
 
         except Exception as e:
@@ -222,16 +238,14 @@ async def login(
     request: Request,
     db=Depends(get_db),
 ):
-    # Normalize email to prevent timing attacks on user enumeration
     email = data.email.strip().lower()
 
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Case-insensitive email lookup
         cursor.execute(
             """
-            SELECT id, email, password_hash, organization_id, supabase_id
+            SELECT id, email, password_hash, organization_id, supabase_id, email_verified
             FROM users
             WHERE LOWER(email) = %s
             """,
@@ -240,25 +254,30 @@ async def login(
 
         user = cursor.fetchone()
 
-        # Generic error message to avoid user enumeration
         invalid_credentials_exc = HTTPException(
             status_code=401,
             detail="Incorrect email or password",
         )
 
         if not user or not user["password_hash"]:
-            # Perform dummy hash to mitigate timing attacks
             try:
                 ph.verify(ph.hash("dummy-password"), data.password)
             except Exception:
                 pass
             raise invalid_credentials_exc
 
-        # --- Password verification using Argon2 ---
+        # Password verification
         try:
             ph.verify(user["password_hash"], data.password)
         except VerifyMismatchError:
             raise invalid_credentials_exc
+
+        #  ADD THIS: Check email verification
+        if not user.get("email_verified", False):
+            raise HTTPException(
+                status_code=403,
+                detail="Please verify your email before logging in. Check your inbox for the verification link."
+            )
 
         # --- Create tokens ---
         token_data = {
@@ -456,7 +475,60 @@ async def logout(
         "message": "Logged out successfully",
     }
 
-
+@router.get("/verify-email")
+async def verify_email(token: str):
+    """
+    Verify user's email address using the token from the email link.
+    
+    Query parameter:
+        token: Verification token from email
+    """
+    success, user_id, error_message = EmailVerification.verify_token(token)
+    
+    if success:
+        return {
+            "success": True,
+            "message": "Email verified successfully! You can now log in.",
+            "user_id": user_id
+        }
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=error_message or "Verification failed"
+        )
+    
+@router.post("/resend-verification")
+async def resend_verification_email(request: Request):
+    """
+    Resend verification email to a user.
+    
+    Body:
+        email: User's email address
+    """
+    body = await request.json()
+    email = body.get("email", "").strip().lower()
+    
+    if not email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email is required"
+        )
+    
+    success, message = EmailVerification.resend_verification(email)
+    
+    if success:
+        return {
+            "success": True,
+            "message": message
+        }
+    else:
+        # Return 200 even for errors to avoid email enumeration
+        # But you can return 400 if the email is already verified
+        return {
+            "success": False,
+            "message": message
+        }
+       
 # ------------------------------
 # GET /me
 # ------------------------------
@@ -465,19 +537,6 @@ async def me(
     user_ctx: UserContext = Depends(get_user_context),
     db=Depends(get_db),
 ):
-    """Return authenticated user's profile plus RBAC context.
-
-    Response shape:
-    {
-        "success": True,
-        "data": {
-            ...user fields...,
-            "rbac": {
-                "role_name": ..., "role_level": ..., "permissions": [...], "team_ids": [...]
-            }
-        }
-    }
-    """
     user_id = user_ctx.id
 
     with db as conn:
@@ -492,6 +551,8 @@ async def me(
                 u.second_name,
                 u.role,
                 u.email,
+                u.email_verified,
+                u.email_verified_at,
                 u.created_at,
                 o.name as organization_name
             FROM users u
