@@ -1,6 +1,6 @@
-# ⚡ Stripe Integration - Quick Start
+# Stripe Integration - Quick Start
 
-## 🎯 In 5 Minutes
+## In 5 Minutes
 
 ### Step 1: Get Stripe Keys (2 min)
 ```
@@ -32,7 +32,7 @@ cd ../frontend && npm install @stripe/stripe-js @stripe/react-stripe-js
 psql -d your_db -f Backend/migrations/add_stripe_fields.sql
 ```
 
-## 🧪 Test It
+## Test It
 
 ```bash
 # Terminal 1: Backend
@@ -49,43 +49,43 @@ Visit: `http://localhost:3000/pricing`
 
 **Test Card:** 4242 4242 4242 4242 | 12/34 | 123 | 12345
 
-## 📍 What You Can Do Now
+## What You Can Do Now
 
-✅ View pricing plans at `/pricing`  
-✅ Complete a test subscription  
-✅ View subscription in `/settings`  
-✅ Manage subscription via Stripe portal  
-✅ Webhooks handle payment events automatically  
+- View pricing plans at `/pricing`
+- Complete a test subscription
+- View subscription in `/settings`
+- Manage subscription via Stripe portal
+- Webhooks handle payment events automatically
 
-## 🗂️ File Structure
+## File Structure
 
 ```
 Backend/
-├── routers/payments.py          # 🆕 Payment API
-├── migrations/add_stripe_fields.sql  # 🆕 DB migration
-├── requirements.txt             # ✏️ Added stripe
-└── main.py                      # ✏️ Registered router
+├── routers/payments.py          # NEW: Payment API
+├── migrations/add_stripe_fields.sql  # NEW: DB migration
+├── requirements.txt             # MODIFIED: Added stripe
+└── main.py                      # MODIFIED: Registered router
 
 frontend/
 ├── src/app/
-│   ├── pricing/page.tsx                # 🆕 Pricing page
-│   ├── payment/success/page.tsx        # 🆕 Success page
-│   ├── payment/cancel/page.tsx         # 🆕 Cancel page
+│   ├── pricing/page.tsx                # NEW: Pricing page
+│   ├── payment/success/page.tsx        # NEW: Success page
+│   ├── payment/cancel/page.tsx         # NEW: Cancel page
 │   └── components/
-│       ├── SubscriptionManager.tsx     # 🆕 Subscription widget
-│       └── dashboard/SettingsView.tsx  # ✏️ Added subscription
-└── package.json                 # ✏️ Added Stripe libs
+│       ├── SubscriptionManager.tsx     # NEW: Subscription widget
+│       └── dashboard/SettingsView.tsx  # MODIFIED: Added subscription
+└── package.json                 # MODIFIED: Added Stripe libs
 ```
 
-## 💳 Pricing Plans
+## Pricing Plans
 
 | Plan | Price | Perfect For |
 |------|-------|-------------|
-| Starter | $49/mo | Small teams (up to 10) |
-| Professional | $149/mo | Growing teams (up to 50) ⭐ |
-| Enterprise | $499/mo | Large organizations (unlimited) |
+| Starter | $40/mo | Small teams (up to 10) |
+| Professional | TBD | Growing teams (up to 50) |
+| Enterprise | TBD | Large organizations (unlimited) |
 
-## 🔗 API Endpoints
+## API Endpoints
 
 ```
 GET  /api/payments/plans                    # Get pricing
@@ -95,7 +95,7 @@ POST /api/payments/create-portal-session    # Manage subscription
 POST /api/payments/webhook                  # Stripe events
 ```
 
-## 🔐 Environment Variables Checklist
+## Environment Variables Checklist
 
 **Backend:**
 - [ ] `STRIPE_SECRET_KEY` - From Stripe Dashboard
@@ -106,7 +106,7 @@ POST /api/payments/webhook                  # Stripe events
 - [ ] `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - From Stripe Dashboard
 - [ ] `NEXT_PUBLIC_API_URL` - Your backend URL
 
-## 🚦 Production Checklist
+## Production Checklist
 
 Before going live:
 - [ ] Replace test keys with live keys
@@ -118,7 +118,7 @@ Before going live:
 - [ ] Test subscription cancellation
 - [ ] Test plan upgrades/downgrades
 
-## 🐛 Quick Troubleshooting
+## Quick Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
@@ -128,7 +128,7 @@ Before going live:
 | Auth error | Ensure JWT token is in localStorage |
 | DB error | Run migration: `psql -d db -f Backend/migrations/add_stripe_fields.sql` |
 
-## 📞 Need Help?
+## Need Help?
 
 - **Detailed Guide:** See `STRIPE_INTEGRATION_GUIDE.md`
 - **Full Summary:** See `STRIPE_INTEGRATION_SUMMARY.md`
@@ -138,6 +138,6 @@ Before going live:
 
 ---
 
-**Status:** ✅ Ready to test  
+**Status:** Ready to test  
 **Time to integrate:** ~5 minutes  
 **Version:** 1.0.0

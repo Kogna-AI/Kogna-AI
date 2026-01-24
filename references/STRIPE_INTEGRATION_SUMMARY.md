@@ -1,19 +1,20 @@
-# 🎉 Stripe Payment Integration - Complete Summary
+# Stripe Payment Integration - Complete Summary
 
 ## What Was Implemented
 
 A complete Stripe payment integration has been added to Kogna AI, including subscription management, checkout flows, and webhook handling.
 
-## 📁 Files Created/Modified
+## Files Created/Modified
 
 ### Backend Files
 1. **`Backend/routers/payments.py`** (NEW)
    - Complete payment API with 7 endpoints
-   - Pricing plans configuration (Starter $49, Professional $149, Enterprise $499)
+   - Pricing plans configuration (Starter $40, Professional TBD, Enterprise TBD)
    - Checkout session creation
    - Webhook event handling
    - Subscription management
    - Customer portal integration
+   - 30-day free trial for Starter plan
 
 2. **`Backend/main.py`** (MODIFIED)
    - Added payments router import and registration
@@ -33,6 +34,8 @@ A complete Stripe payment integration has been added to Kogna AI, including subs
    - Beautiful pricing page with 3 tiers
    - Responsive design with TailwindCSS
    - Integration with backend API
+   - Free trial badge display
+   - Back to dashboard button
 
 2. **`frontend/src/app/payment/success/page.tsx`** (NEW)
    - Payment success confirmation page
@@ -76,7 +79,7 @@ A complete Stripe payment integration has been added to Kogna AI, including subs
 3. **`STRIPE_INTEGRATION_SUMMARY.md`** (THIS FILE)
    - Quick reference and overview
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Run the Setup Script (Recommended)
 ```bash
@@ -149,20 +152,20 @@ npm run dev
 
 ### 6. Test the Integration
 1. Visit `http://localhost:3000/pricing`
-2. Click "Get Started" on any plan
+2. Click "Start Free Trial" on Starter plan
 3. Use test card: `4242 4242 4242 4242`
 4. Complete checkout
 5. Verify redirect to success page
 
-## 📊 Pricing Plans
+## Pricing Plans
 
 | Plan | Price | Features |
 |------|-------|----------|
-| **Starter** | $49/month | 10 team members, Basic analytics, 2 connectors |
-| **Professional** | $149/month | 50 team members, Advanced analytics, 10 connectors, AI insights |
-| **Enterprise** | $499/month | Unlimited members, Custom analytics, Unlimited connectors, 24/7 support |
+| **Starter** | $40/month (30-day free trial) | 10 team members, Basic analytics, 2 connectors |
+| **Professional** | TBD | 50 team members, Advanced analytics, 10 connectors, AI insights |
+| **Enterprise** | TBD | Unlimited members, Custom analytics, Unlimited connectors, 24/7 support |
 
-## 🔌 API Endpoints
+## API Endpoints
 
 All payment endpoints are prefixed with `/api/payments`:
 
@@ -173,23 +176,23 @@ All payment endpoints are prefixed with `/api/payments`:
 - `POST /create-portal-session` - Create customer portal link (requires auth)
 - `POST /webhook` - Handle Stripe webhooks (public, signature verified)
 
-## 🎨 Frontend Routes
+## Frontend Routes
 
 - `/pricing` - Pricing page with all plans
 - `/payment/success` - Payment success confirmation
 - `/payment/cancel` - Payment cancellation page
 - `/settings` - Settings page with subscription manager
 
-## 🔐 Security Features
+## Security Features
 
-✅ Webhook signature verification  
-✅ JWT authentication for user endpoints  
-✅ Stripe customer ID validation  
-✅ Organization-level subscription tracking  
-✅ Secure environment variable handling  
-✅ No secret keys exposed to frontend  
+- Webhook signature verification
+- JWT authentication for user endpoints
+- Stripe customer ID validation
+- Organization-level subscription tracking
+- Secure environment variable handling
+- No secret keys exposed to frontend
 
-## 🧪 Testing
+## Testing
 
 ### Test Cards
 | Card Number | Result |
@@ -210,13 +213,13 @@ stripe trigger payment_intent.succeeded
 stripe trigger customer.subscription.deleted
 ```
 
-## 📱 User Flow
+## User Flow
 
 1. **New User**
    - Visits `/pricing`
-   - Selects a plan
+   - Selects Starter plan
    - Redirected to Stripe Checkout
-   - Completes payment
+   - Completes payment (or starts free trial)
    - Redirected to `/payment/success`
    - Subscription activated automatically via webhook
 
@@ -227,15 +230,15 @@ stripe trigger customer.subscription.deleted
    - Redirected to Stripe Customer Portal
    - Can update payment method, change plan, or cancel
 
-## 🔄 Webhook Events Handled
+## Webhook Events Handled
 
-- ✅ `checkout.session.completed` - Activate subscription
-- ✅ `customer.subscription.updated` - Update subscription status
-- ✅ `customer.subscription.deleted` - Cancel subscription
-- ✅ `invoice.payment_succeeded` - Log successful payment
-- ✅ `invoice.payment_failed` - Handle failed payment
+- `checkout.session.completed` - Activate subscription
+- `customer.subscription.updated` - Update subscription status
+- `customer.subscription.deleted` - Cancel subscription
+- `invoice.payment_succeeded` - Log successful payment
+- `invoice.payment_failed` - Handle failed payment
 
-## 📈 Next Steps & Enhancements
+## Next Steps & Enhancements
 
 ### Essential for Production
 - [ ] Switch to live Stripe keys
@@ -250,7 +253,6 @@ stripe trigger customer.subscription.deleted
 - [ ] Implement plan upgrade/downgrade flows
 - [ ] Add usage-based billing
 - [ ] Create admin dashboard for subscription analytics
-- [ ] Implement free trial period
 - [ ] Add proration for mid-cycle changes
 - [ ] Create invoice history page
 - [ ] Add payment receipt emails
@@ -258,7 +260,20 @@ stripe trigger customer.subscription.deleted
 - [ ] Add team member limits based on plan
 - [ ] Feature gating based on subscription tier
 
-## 🆘 Troubleshooting
+## Promotion Codes
+
+Stripe's built-in promotion code feature is enabled. Users can:
+1. Click "Start Free Trial" on pricing page
+2. Enter promotion code directly in Stripe Checkout
+3. Discount is applied automatically
+
+### Creating Promotion Codes
+1. Go to Stripe Dashboard → Products → Coupons
+2. Create a new coupon with ID (e.g., "LAUNCH50")
+3. Set discount type and amount
+4. Users enter code at checkout
+
+## Troubleshooting
 
 ### Common Issues
 
@@ -285,7 +300,7 @@ stripe trigger customer.subscription.deleted
 4. Verify environment variables are set
 5. Test with Stripe test cards first
 
-## 📚 Resources
+## Resources
 
 - [Stripe Documentation](https://stripe.com/docs)
 - [Stripe Checkout Guide](https://stripe.com/docs/payments/checkout)
@@ -293,7 +308,7 @@ stripe trigger customer.subscription.deleted
 - [Stripe Testing](https://stripe.com/docs/testing)
 - [Stripe Customer Portal](https://stripe.com/docs/billing/subscriptions/customer-portal)
 
-## 💬 Support
+## Support
 
 For detailed information, see **STRIPE_INTEGRATION_GUIDE.md**
 
@@ -306,4 +321,4 @@ For setup help, run:
 
 **Integration completed on:** 2026-01-24  
 **Version:** 1.0.0  
-**Status:** ✅ Ready for testing
+**Status:** Ready for testing

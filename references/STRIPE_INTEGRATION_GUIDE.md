@@ -2,27 +2,27 @@
 
 This guide will help you complete the Stripe payment integration for Kogna AI.
 
-## 🎯 What's Been Implemented
+## What's Been Implemented
 
 ### Backend (FastAPI)
-- ✅ Stripe payment router (`/Backend/routers/payments.py`)
-- ✅ Pricing plans configuration (Starter, Professional, Enterprise)
-- ✅ Checkout session creation
-- ✅ Webhook handling for payment events
-- ✅ Subscription management endpoints
-- ✅ Customer portal integration
+- Stripe payment router (`/Backend/routers/payments.py`)
+- Pricing plans configuration (Starter, Professional, Enterprise)
+- Checkout session creation
+- Webhook handling for payment events
+- Subscription management endpoints
+- Customer portal integration
 
 ### Frontend (Next.js)
-- ✅ Pricing page (`/pricing`)
-- ✅ Payment success page (`/payment/success`)
-- ✅ Payment cancel page (`/payment/cancel`)
-- ✅ Subscription manager component
-- ✅ Stripe React components added to package.json
+- Pricing page (`/pricing`)
+- Payment success page (`/payment/success`)
+- Payment cancel page (`/payment/cancel`)
+- Subscription manager component
+- Stripe React components added to package.json
 
 ### Database
-- ✅ Migration script for adding Stripe fields
+- Migration script for adding Stripe fields
 
-## 🚀 Setup Instructions
+## Setup Instructions
 
 ### 1. Install Dependencies
 
@@ -148,7 +148,7 @@ Use these test cards in development mode:
 6. Verify redirect to success page
 7. Check webhook events in Stripe Dashboard
 
-## 📋 API Endpoints
+## API Endpoints
 
 ### Get Pricing Plans
 ```
@@ -186,7 +186,7 @@ POST /api/payments/webhook
 Headers: stripe-signature: {signature}
 ```
 
-## 🎨 Frontend Integration
+## Frontend Integration
 
 ### Using the Subscription Manager Component
 
@@ -231,7 +231,7 @@ function UpgradeButton() {
 }
 ```
 
-## 🔐 Security Considerations
+## Security Considerations
 
 1. **Never expose secret keys** - Keep `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` on the backend only
 2. **Verify webhook signatures** - Always validate webhook events using the signature
@@ -239,7 +239,7 @@ function UpgradeButton() {
 4. **Validate user permissions** - Ensure users can only manage their own subscriptions
 5. **Handle edge cases** - Account for failed payments, subscription cancellations, etc.
 
-## 🚨 Production Checklist
+## Production Checklist
 
 Before going live:
 
@@ -254,7 +254,7 @@ Before going live:
 - [ ] Enable Stripe Radar for fraud prevention
 - [ ] Set up proper error logging and monitoring
 
-## 📊 Customizing Pricing Plans
+## Customizing Pricing Plans
 
 Edit the pricing plans in `/Backend/routers/payments.py`:
 
@@ -262,8 +262,9 @@ Edit the pricing plans in `/Backend/routers/payments.py`:
 PRICING_PLANS = {
     "starter": {
         "name": "Starter Plan",
-        "price": 49,  # Price in dollars
+        "price": 40,  # Price in dollars
         "interval": "month",  # or "year"
+        "trial_days": 30,  # Free trial period
         "features": [
             "Feature 1",
             "Feature 2",
@@ -274,7 +275,7 @@ PRICING_PLANS = {
 }
 ```
 
-## 🎯 Next Steps
+## Next Steps
 
 1. **Customize the pricing page** to match your brand
 2. **Add usage limits** based on subscription plans
@@ -284,7 +285,7 @@ PRICING_PLANS = {
 6. **Add proration** for mid-cycle plan changes
 7. **Implement trials** if you want to offer free trials
 
-## 💡 Useful Resources
+## Useful Resources
 
 - [Stripe Documentation](https://stripe.com/docs)
 - [Stripe Checkout](https://stripe.com/docs/payments/checkout)
@@ -292,7 +293,7 @@ PRICING_PLANS = {
 - [Stripe Customer Portal](https://stripe.com/docs/billing/subscriptions/customer-portal)
 - [Stripe Testing](https://stripe.com/docs/testing)
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 ### Webhook not receiving events
 - Verify webhook URL is accessible from internet
@@ -309,7 +310,7 @@ PRICING_PLANS = {
 - Sessions expire after 24 hours by default
 - Create a new session if needed
 
-## 📞 Support
+## Support
 
 If you encounter any issues:
 1. Check Stripe Dashboard → Developers → Logs
@@ -319,4 +320,4 @@ If you encounter any issues:
 
 ---
 
-Happy integrating! 🎉
+Happy integrating!
