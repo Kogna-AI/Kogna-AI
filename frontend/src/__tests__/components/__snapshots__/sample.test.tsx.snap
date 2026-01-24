@@ -1,0 +1,24 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Component Snapshots > Button matches snapshot 1`] = `
+<div>
+  <button
+    type="button"
+  >
+    Snapshot Test
+  </button>
+</div>
+`;
+
+exports[`Component Snapshots > Card matches snapshot 1`] = `
+<div>
+  <div>
+    <h3>
+      Snapshot Title
+    </h3>
+    <p>
+      Snapshot Description
+    </p>
+  </div>
+</div>
+`;
