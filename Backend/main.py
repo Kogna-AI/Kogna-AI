@@ -11,7 +11,7 @@ import logging
 from routers import (
     organizations, users, teams, objectives,
     metrics, insights, recommendations, actions,ai_pipeline,connectors,chat, auth,
-    kpis
+    kpis, payments
 )
 
 # Load environment variables
@@ -52,6 +52,7 @@ app.include_router(ai_pipeline.router)
 app.include_router(chat.router)
 app.include_router(auth.router)
 app.include_router(kpis.router)
+app.include_router(payments.router)
 
 # ==================== ROOT ENDPOINT ====================
 

@@ -3,6 +3,7 @@ import { Button } from "../../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Label } from "../../ui/label";
 import { Switch } from "../../ui/switch";
+import SubscriptionManager from "../SubscriptionManager";
 
 export function SettingsView() {
   return (
@@ -12,6 +13,12 @@ export function SettingsView() {
         <p className="text-muted-foreground">
           Manage your dashboard preferences and notifications
         </p>
+      </div>
+
+      {/* Subscription Section */}
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold mb-4">Subscription & Billing</h2>
+        <SubscriptionManager />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

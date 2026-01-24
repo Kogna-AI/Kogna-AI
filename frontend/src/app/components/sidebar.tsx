@@ -8,6 +8,7 @@ import {
   LogOut,
   Brain,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 // Using Next.js Image component for better optimization
 import Image from "next/image";
@@ -56,6 +57,7 @@ export function Sidebar({
     { id: "team", label: "Team Overview", icon: Users },
     { id: "strategy", label: "Strategy Hub", icon: Target },
     { id: "connectors", label: "Data Connectors", icon: Database },
+    { id: "pricing", label: "Pricing & Plans", icon: CreditCard },
     // { id: "insights", label: "Insights", icon: Brain },
   ];
 
