@@ -42,7 +42,8 @@ from services.etl.base_etl import (
     update_sync_progress,
     complete_sync_job,
     embedding_queue,
-    process_embedding_queue_batch
+    process_embedding_queue_batch,
+    get_user_context  # NEW: RBAC support
 )
 
 from supabase_connect import get_supabase_manager
@@ -60,26 +61,28 @@ supabase = get_supabase_manager().client
 async def run_master_etl(user_id: str, service: str) -> bool:
     """
     Main ETL orchestrator with full error handling and progress tracking.
-    
+
     Routes to the appropriate ETL module based on service type.
     All ETL modules follow the same pattern:
     - Extract data from API
     - Clean and enrich data
     - Generate analytics
     - Create searchable text
-    - Save to Supabase Storage
+    - Save to Supabase Storage (with RBAC path structure)
     - Queue for embeddings
-    
-    NOW WITH INTELLIGENT CHANGE DETECTION:
+
+    NOW WITH INTELLIGENT CHANGE DETECTION + RBAC:
     - Tracks processed vs skipped files
     - 95% faster re-syncs
     - Comprehensive sync job metrics
-    
+    - Organization and team-scoped storage paths
+    - Team-aware KPI extraction
+
     Args:
         user_id: User ID
-        service: Service name (google, jira, microsoft-excel, microsoft-teams, 
+        service: Service name (google, jira, microsoft-excel, microsoft-teams,
                                microsoft-project, asana)
-        
+
     Returns:
         bool: Success status
     """
@@ -88,10 +91,17 @@ async def run_master_etl(user_id: str, service: str) -> bool:
     logging.info(f"{'='*60}")
     logging.info(f"MASTER ETL: Starting sync for {service} (user: {user_id})")
     logging.info(f"{'='*60}")
-    
-    # Create sync job
-    job_id = await create_sync_job(user_id, service)
-    
+
+    # NEW: Fetch user's organization and team context for RBAC
+    user_context = await get_user_context(user_id)
+    organization_id = user_context.get('organization_id')
+    team_id = user_context.get('team_id')
+
+    logging.info(f"RBAC Context: org={organization_id}, team={team_id}")
+
+    # Create sync job with RBAC context
+    job_id = await create_sync_job(user_id, service, organization_id, team_id)
+
     try:
         # Get valid token (handles refresh automatically)
         access_token = await ensure_valid_token(user_id, service)
@@ -100,34 +110,47 @@ async def run_master_etl(user_id: str, service: str) -> bool:
         
         # Route to correct ETL module
         success = False
-        files_processed = 0  # NEW: Track processed files
-        files_skipped = 0    # NEW: Track skipped files
-        
-        # UPDATED: All ETLs now return (success, files_processed, files_skipped)
+        files_processed = 0  # Track processed files
+        files_skipped = 0    # Track skipped files
+
+        # All ETLs now return (success, files_processed, files_skipped)
+        # and accept organization_id and team_id for RBAC-scoped storage paths
         if service == "jira":
-            logging.info("Using Jira ETL with data cleaning")
-            success, files_processed, files_skipped = await run_jira_etl(user_id, access_token)
-            
+            logging.info("Using Jira ETL with data cleaning + RBAC")
+            success, files_processed, files_skipped = await run_jira_etl(
+                user_id, access_token, organization_id, team_id
+            )
+
         elif service == "google":
-            logging.info("Using Google Drive ETL with data cleaning")
-            success, files_processed, files_skipped = await run_google_drive_etl(user_id, access_token)
-            
+            logging.info("Using Google Drive ETL with data cleaning + RBAC")
+            success, files_processed, files_skipped = await run_google_drive_etl(
+                user_id, access_token, organization_id, team_id
+            )
+
         elif service == "microsoft-excel":
-            logging.info("Using Microsoft Excel ETL with data cleaning")
-            success, files_processed, files_skipped = await run_microsoft_excel_etl(user_id, access_token)
-            
+            logging.info("Using Microsoft Excel ETL with data cleaning + RBAC")
+            success, files_processed, files_skipped = await run_microsoft_excel_etl(
+                user_id, access_token, organization_id, team_id
+            )
+
         elif service == "microsoft-teams":
-            logging.info("Using Microsoft Teams ETL with data cleaning")
-            success, files_processed, files_skipped = await run_microsoft_teams_etl(user_id, access_token)
-            
+            logging.info("Using Microsoft Teams ETL with data cleaning + RBAC")
+            success, files_processed, files_skipped = await run_microsoft_teams_etl(
+                user_id, access_token, organization_id, team_id
+            )
+
         elif service == "microsoft-project":
-            logging.info("Using Microsoft Project ETL with data cleaning")
-            success, files_processed, files_skipped = await run_microsoft_project_etl(user_id, access_token)
-            
+            logging.info("Using Microsoft Project ETL with data cleaning + RBAC")
+            success, files_processed, files_skipped = await run_microsoft_project_etl(
+                user_id, access_token, organization_id, team_id
+            )
+
         elif service == "asana":
-            logging.info("Using Asana ETL with data cleaning")
-            success, files_processed, files_skipped = await run_asana_etl(user_id, access_token)
-            
+            logging.info("Using Asana ETL with data cleaning + RBAC")
+            success, files_processed, files_skipped = await run_asana_etl(
+                user_id, access_token, organization_id, team_id
+            )
+
         else:
             raise ValueError(f"Unknown service: {service}")
         
@@ -151,14 +174,18 @@ async def run_master_etl(user_id: str, service: str) -> bool:
         logging.error(f"MASTER ETL FAILED for {service}: {e}")
         import traceback
         traceback.print_exc()
-        
+
         # Only complete sync job here if it wasn't already completed in the ETL
         # (ETLs now handle their own completion, but this is a safety net)
         try:
-            await complete_sync_job(user_id, service, False, 0, 0, str(e))
+            await complete_sync_job(
+                user_id, service, False, 0, 0, str(e),
+                organization_id=organization_id,
+                team_id=team_id
+            )
         except Exception as complete_error:
             logging.error(f"Failed to complete sync job: {complete_error}")
-        
+
         return False
 
 

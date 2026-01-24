@@ -31,9 +31,10 @@ from collections import Counter
 
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -42,6 +43,7 @@ except ImportError:
         smart_upload_and_embed,
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -476,13 +478,16 @@ def clean_excel_file_data(raw_data: Dict) -> Dict:
 
 async def run_microsoft_excel_etl(
     user_id: str,
-    access_token: str
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
 ) -> Tuple[bool, int, int]:
     """
-    ULTIMATE Microsoft Excel ETL with INTELLIGENT CHANGE DETECTION.
-    
+    ULTIMATE Microsoft Excel ETL with INTELLIGENT CHANGE DETECTION + RBAC.
+
     Features:
     - OneDrive/SharePoint Excel file extraction
+    - RBAC-scoped storage paths: {org_id}/{team_id}/microsoft-excel/{user_id}/...
     - Structured data parsing with analytics
     - Smart data type detection
     - Summary statistics extraction

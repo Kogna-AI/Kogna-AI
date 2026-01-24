@@ -29,9 +29,10 @@ from collections import Counter
 
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -40,6 +41,7 @@ except ImportError:
         smart_upload_and_embed,
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -417,13 +419,16 @@ def clean_teams_data(team_data: Dict) -> Dict:
 
 async def run_microsoft_teams_etl(
     user_id: str,
-    access_token: str
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
 ) -> Tuple[bool, int, int]:
     """
-    ULTIMATE Microsoft Teams ETL with INTELLIGENT CHANGE DETECTION.
-    
+    ULTIMATE Microsoft Teams ETL with INTELLIGENT CHANGE DETECTION + RBAC.
+
     Features:
     - Team and channel extraction
+    - RBAC-scoped storage paths: {org_id}/{team_id}/microsoft-teams/{user_id}/...
     - Message content extraction
     - Shared files metadata
     - Analytics and insights

@@ -29,9 +29,10 @@ from collections import Counter, defaultdict
 
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -40,6 +41,7 @@ except ImportError:
         smart_upload_and_embed,
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -493,13 +495,16 @@ def clean_microsoft_data(tasks: List[Dict], source: str = "To Do") -> Dict:
 
 async def run_microsoft_project_etl(
     user_id: str,
-    access_token: str
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
 ) -> Tuple[bool, int, int]:
     """
-    ULTIMATE Microsoft Project/Planner ETL with INTELLIGENT CHANGE DETECTION.
-    
+    ULTIMATE Microsoft Project/Planner ETL with INTELLIGENT CHANGE DETECTION + RBAC.
+
     Automatically detects account type and uses:
     - Microsoft Planner for work/school accounts
+    - RBAC-scoped storage paths: {org_id}/{team_id}/microsoft-project/{user_id}/...
     - Microsoft To Do for personal accounts
     
     Features:
