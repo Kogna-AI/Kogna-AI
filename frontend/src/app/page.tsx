@@ -1,26 +1,38 @@
+// frontend/src/app/page.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "./components/auth/UserContext";
+import { LandingPage } from "./components/LandingPage";
 
 export default function RootPage() {
   const { isAuthenticated, loading } = useUser();
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    if (loading) return;
-
-    if (isAuthenticated) {
+    setIsClient(true);
+    // Only redirect if they are ALREADY logged in
+    if (!loading && isAuthenticated) {
       router.replace("/dashboard");
-    } else {
-      router.replace("/login");
     }
   }, [loading, isAuthenticated, router]);
 
+  // Handlers for the Landing Page buttons
+  const handleGetStarted = () => router.push("/signup");
+  const handleLogin = () => router.push("/login");
+
+  // While checking auth status, you might want to show a spinner or nothing
+  // But for a public landing page, we usually render the page and redirect *only* if auth is confirmed
+  if (loading) return null; 
+
+  // If user is logged in, useEffect handles redirect. 
+  // If not logged in, show Landing Page.
   return (
-    <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
-      Redirecting…
-    </div>
+    <LandingPage 
+      onGetStarted={handleGetStarted} 
+      onLogin={handleLogin} 
+    />
   );
 }

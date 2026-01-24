@@ -62,18 +62,17 @@ def verify_user_team_access(user_id: str, team_id: str, team_ids: list, db) -> b
     # Check if user is a member of the requested team
     if team_id not in team_ids:
         # Double-check against database in case auth context is stale
-        with db as conn:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute("""
-                SELECT 1 FROM team_members
-                WHERE user_id = %s AND team_id = %s
-            """, (user_id, team_id))
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("""
+            SELECT 1 FROM team_members
+            WHERE user_id = %s AND team_id = %s
+        """, (user_id, team_id))
 
-            if not cursor.fetchone():
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Access denied: You do not have access to this team"
-                )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have access to this team"
+            )
     return True
 
 
@@ -435,8 +434,7 @@ def get_connector_kpis(
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Build dynamic query with team filter
-        team_filter = ""
+        # Build base query for connector KPI trends
         query = """
             SELECT
                 date,
@@ -676,6 +674,13 @@ def submit_feedback(
     organization_id = user["organization_id"]
     team_id = user.get("team_id")  # User's primary team
 
+    if team_id is None:
+        # Ensure feedback is only submitted when user has a primary team,
+        # as required by the endpoint documentation and database constraints.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User has no primary team configured; feedback cannot be submitted."
+        )
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -700,7 +705,7 @@ def submit_feedback(
             INSERT INTO user_engagement_metrics
             (user_id, organization_id, team_id, date, feedback_count, avg_satisfaction_score, created_at, updated_at)
             VALUES (%s, %s, %s, %s, 1, %s, NOW(), NOW())
-            ON CONFLICT (user_id, organization_id, team_id, date)
+            ON CONFLICT (user_id, date)
             DO UPDATE SET
                 feedback_count = user_engagement_metrics.feedback_count + 1,
                 avg_satisfaction_score = (
