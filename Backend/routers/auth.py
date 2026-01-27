@@ -2,6 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from psycopg2.extras import RealDictCursor
+import logging
+from auth.email_verification import EmailVerification
+import uuid
+import bcrypt
+import secrets
+from datetime import datetime, timedelta,timezone
+
+import os 
 
 from core.security import (
     create_access_token,
@@ -16,6 +24,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
+logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(
     schemes=["argon2"],
@@ -56,7 +65,6 @@ def _validate_password_strength(password: str) -> None:
 # ------------------------------
 # POST /register
 # ------------------------------
-
 @router.post("/register")
 async def register(data: RegisterRequest, db=Depends(get_db)):
     # Enforce password policy for new accounts only
@@ -66,6 +74,21 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
         try:
+            # ✅ NEW: Check if this is from a verified email token
+            email_verified = False
+            if hasattr(data, 'signup_token') and data.signup_token:
+                cursor.execute("""
+                    SELECT email, verified_at 
+                    FROM pending_signups 
+                    WHERE token = %s AND verified_at IS NOT NULL
+                """, (data.signup_token,))
+                
+                pending = cursor.fetchone()
+                if pending and pending["email"].lower() == data.email.lower():
+                    email_verified = True
+                    # Delete the pending signup
+                    cursor.execute("DELETE FROM pending_signups WHERE token = %s", (data.signup_token,))
+            
             # 1. Email uniqueness check
             cursor.execute(
                 "SELECT id FROM users WHERE email = %s",
@@ -100,7 +123,7 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
             # 3. Hash password using Argon2
             hashed_password = ph.hash(data.password)
 
-            # 4. Create user (auth user)
+            # 4. Create user with email_verified flag
             cursor.execute("""
                 INSERT INTO users (
                     id,
@@ -110,7 +133,9 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
                     role,
                     email,
                     password_hash,
-                    supabase_id
+                    supabase_id,
+                    email_verified,
+                    email_verified_at
                 )
                 VALUES (
                     gen_random_uuid(),
@@ -120,7 +145,9 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
                     %s,
                     %s,
                     %s,
-                    gen_random_uuid()
+                    gen_random_uuid(),
+                    %s,
+                    %s
                 )
                 RETURNING id, supabase_id
             """, (
@@ -129,14 +156,15 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
                 data.second_name,
                 data.role,
                 data.email,
-                hashed_password
+                hashed_password,
+                email_verified,  # ✅ TRUE if from token, FALSE otherwise
+                datetime.utcnow() if email_verified else None
             ))
 
             user = cursor.fetchone()
             user_id = user["id"]
 
             # 5. Auto-create default team for new organization
-            # Check if this is the first user in the organization
             cursor.execute(
                 "SELECT COUNT(*) AS count FROM users WHERE organization_id = %s",
                 (organization_id,)
@@ -174,7 +202,7 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
                     (team_id, user_id, data.role)
                 )
 
-                # Assign highest RBAC role (founder/executive) to the first user
+                # Assign highest RBAC role to the first user
                 cursor.execute(
                     """
                     SELECT id
@@ -195,11 +223,29 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
 
             conn.commit()
 
+            # ✅ MODIFIED: Only send verification email if not already verified
+            if not email_verified:
+                success, message = EmailVerification.generate_and_send_verification(
+                    user_id=str(user_id),
+                    email=data.email,
+                    first_name=data.first_name
+                )
+                
+                if not success:
+                    logger.warning(f"Failed to send verification email: {message}")
+                
+                email_sent = success
+            else:
+                email_sent = True
+
             return {
                 "success": True,
+                "message": "Registration successful!" if email_verified else "Registration successful! Please check your email to verify your account.",
                 "user_id": user["id"],
                 "supabase_id": user["supabase_id"],
-                "organization_id": organization_id
+                "organization_id": organization_id,
+                "email_sent": email_sent,
+                "email_verified": email_verified
             }
 
         except Exception as e:
@@ -208,8 +254,6 @@ async def register(data: RegisterRequest, db=Depends(get_db)):
                 status_code=500,
                 detail=f"Failed to register: {str(e)}"
             )
-
-
 
 # ------------------------------
 # POST /login
@@ -222,16 +266,14 @@ async def login(
     request: Request,
     db=Depends(get_db),
 ):
-    # Normalize email to prevent timing attacks on user enumeration
     email = data.email.strip().lower()
 
     with db as conn:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Case-insensitive email lookup
         cursor.execute(
             """
-            SELECT id, email, password_hash, organization_id, supabase_id
+            SELECT id, email, password_hash, organization_id, supabase_id, email_verified
             FROM users
             WHERE LOWER(email) = %s
             """,
@@ -240,25 +282,30 @@ async def login(
 
         user = cursor.fetchone()
 
-        # Generic error message to avoid user enumeration
         invalid_credentials_exc = HTTPException(
             status_code=401,
             detail="Incorrect email or password",
         )
 
         if not user or not user["password_hash"]:
-            # Perform dummy hash to mitigate timing attacks
             try:
                 ph.verify(ph.hash("dummy-password"), data.password)
             except Exception:
                 pass
             raise invalid_credentials_exc
 
-        # --- Password verification using Argon2 ---
+        # Password verification
         try:
             ph.verify(user["password_hash"], data.password)
         except VerifyMismatchError:
             raise invalid_credentials_exc
+
+        #  ADD THIS: Check email verification
+        if not user.get("email_verified", False):
+            raise HTTPException(
+                status_code=403,
+                detail="Please verify your email before logging in. Check your inbox for the verification link."
+            )
 
         # --- Create tokens ---
         token_data = {
@@ -456,7 +503,190 @@ async def logout(
         "message": "Logged out successfully",
     }
 
+@router.get("/verify-email")
+async def verify_email(token: str):
+    """
+    Verify user's email address using the token from the email link.
+    
+    Query parameter:
+        token: Verification token from email
+    """
+    success, user_id, error_message = EmailVerification.verify_token(token)
+    
+    if success:
+        return {
+            "success": True,
+            "message": "Email verified successfully! You can now log in.",
+            "user_id": user_id
+        }
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=error_message or "Verification failed"
+        )
+    
+@router.post("/resend-verification")
+async def resend_verification_email(request: Request):
+    """
+    Resend verification email to a user.
+    
+    Body:
+        email: User's email address
+    """
+    body = await request.json()
+    email = body.get("email", "").strip().lower()
+    
+    if not email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email is required"
+        )
+    
+    success, message = EmailVerification.resend_verification(email)
+    
+    if success:
+        return {
+            "success": True,
+            "message": message
+        }
+    else:
+        # Return 200 even for errors to avoid email enumeration
+        # But you can return 400 if the email is already verified
+        return {
+            "success": False,
+            "message": message
+        }
 
+# NEW ENDPOINT: Request signup verification
+@router.post("/request-signup")
+async def request_signup(request: Request, db=Depends(get_db)):
+    """
+    Step 1: User enters email, we send verification link.
+    """
+    body = await request.json()
+    email = body.get("email", "").strip().lower()
+    
+    if not email or "@" not in email:
+        raise HTTPException(
+            status_code=400,
+            detail="Valid email is required"
+        )
+    
+    with db as conn:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Check if email is already registered
+        cursor.execute("SELECT id FROM users WHERE LOWER(email) = %s", (email,))
+        if cursor.fetchone():
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered. Please login instead."
+            )
+        
+        # Generate verification token
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+        
+        # Store pending signup
+        cursor.execute("""
+            INSERT INTO pending_signups (email, token, expires_at)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (email) 
+            DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at, created_at = NOW()
+            RETURNING id
+        """, (email, token, expires_at))
+        
+        conn.commit()
+        
+        # ✅ FIXED: Use EmailSender class correctly
+        from utils.email_sender import EmailSender
+        import os
+        
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        verification_link = f"{frontend_url}/signup/verify?token={token}"
+        
+        # Generate beautiful HTML email
+        html_content = EmailSender.get_verification_email_html(
+            verification_url=verification_link,
+            first_name=None  # No name yet - they haven't signed up
+        )
+        
+        # Send email
+        email_sent = EmailSender.send_email(
+            to_email=email,
+            subject="Verify your email to join Kogna 🚀",
+            html_content=html_content
+        )
+        
+        if not email_sent:
+            logger.warning(f"Failed to send verification email to {email}")
+            # Don't fail the request - email might be in queue
+        
+        return {
+            "success": True,
+            "message": "Verification email sent! Please check your inbox.",
+            "email_sent": email_sent
+        }
+# NEW ENDPOINT: Verify signup token
+@router.get("/verify-signup-token")
+async def verify_signup_token(token: str, db=Depends(get_db)):
+    """
+    Step 2: Validate token from email link before showing signup form.
+    """
+    from datetime import timezone  # ✅ Add this import
+    
+    with db as conn:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT email, expires_at, verified_at
+            FROM pending_signups
+            WHERE token = %s
+        """, (token,))
+        
+        pending = cursor.fetchone()
+        
+        if not pending:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid verification link"
+            )
+        
+        if pending["verified_at"]:
+            raise HTTPException(
+                status_code=400,
+                detail="This verification link has already been used"
+            )
+        
+        # ✅ FIXED: Use timezone-aware datetime for comparison
+        now = datetime.now(timezone.utc)
+        expires_at = pending["expires_at"]
+        
+        # Make sure expires_at is timezone-aware
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        
+        if now > expires_at:
+            raise HTTPException(
+                status_code=400,
+                detail="Verification link has expired. Please request a new one."
+            )
+        
+        # Mark as verified
+        cursor.execute("""
+            UPDATE pending_signups
+            SET verified_at = NOW()
+            WHERE token = %s
+        """, (token,))
+        
+        conn.commit()
+        
+        return {
+            "success": True,
+            "email": pending["email"],
+            "message": "Email verified! Complete your signup below."
+        }
+       
 # ------------------------------
 # GET /me
 # ------------------------------
@@ -465,19 +695,6 @@ async def me(
     user_ctx: UserContext = Depends(get_user_context),
     db=Depends(get_db),
 ):
-    """Return authenticated user's profile plus RBAC context.
-
-    Response shape:
-    {
-        "success": True,
-        "data": {
-            ...user fields...,
-            "rbac": {
-                "role_name": ..., "role_level": ..., "permissions": [...], "team_ids": [...]
-            }
-        }
-    }
-    """
     user_id = user_ctx.id
 
     with db as conn:
@@ -492,6 +709,8 @@ async def me(
                 u.second_name,
                 u.role,
                 u.email,
+                u.email_verified,
+                u.email_verified_at,
                 u.created_at,
                 o.name as organization_name
             FROM users u

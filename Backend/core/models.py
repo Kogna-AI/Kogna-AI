@@ -170,9 +170,10 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     first_name: str
-    second_name: str
+    second_name: str = ""
     role: str
-    organization: str  # <-- name, not id
+    organization: str
+    signup_token: Optional[str] = None 
 
 
 
