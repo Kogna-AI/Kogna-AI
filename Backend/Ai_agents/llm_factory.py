@@ -160,6 +160,15 @@ def list_available_models() -> Dict[str, Any]:
 
 
 
+def _is_model_available(model_name: str) -> bool:
+    """Return True if model is in SUPPORTED_MODELS and its API key is configured."""
+    if model_name not in SUPPORTED_MODELS:
+        return False
+    env_key = SUPPORTED_MODELS[model_name]["env_key"]
+    api_key = os.getenv(env_key)
+    return api_key is not None and api_key.strip() != ""
+
+
 def get_model_for_capability(capability: str, cost_preference: str = "low") -> Optional[str]:
     """
     Find the best available model for a specific capability.
@@ -217,4 +226,37 @@ def get_llm_for_agent(agent_name: str, user_id: Optional[str] = None, fallback_m
     Raises:
         ValueError: If no valid model can be configured (no API keys)
     """
-    pass  # Implement this
+    # Resolve model name in priority order
+    user_prefs = get_user_model_preferences(user_id) if user_id else {}
+    candidates: List[Optional[str]] = [
+        user_prefs.get(agent_name),
+        DEFAULT_AGENT_MODELS.get(agent_name),
+        fallback_model,
+        "gpt-4o-mini",
+    ]
+
+    chosen_model: Optional[str] = None
+    for candidate in candidates:
+        if candidate and candidate in SUPPORTED_MODELS and _is_model_available(candidate):
+            chosen_model = candidate
+            break
+
+    if chosen_model is None:
+        raise ValueError(
+            f"No available LLM for agent '{agent_name}'. "
+            "Ensure at least one supported model has its API key set (e.g. OPENAI_API_KEY)."
+        )
+
+    config = SUPPORTED_MODELS[chosen_model]
+    temperature = (
+        temperature_override
+        if temperature_override is not None
+        else config.get("default_temperature", 0.3)
+    )
+    api_key = os.getenv(config["env_key"])
+
+    return ChatLiteLLM(
+        model=config["model_string"],
+        api_key=api_key,
+        temperature=temperature,
+    )
