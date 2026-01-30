@@ -168,7 +168,29 @@ def get_model_for_capability(capability: str, cost_preference: str = "low") -> O
     capability: e.g., "reasoning", "coding", "long_context"
     cost_preference: "low", "medium", or "high"
     """
-    pass # Implement this
+    cost_priority = {
+        "low": ["low", "medium", "high"],
+        "medium": ["medium", "low", "high"],
+        "high": ["high", "medium", "low"]
+    }
+    
+    priority_order = cost_priority.get(cost_preference, ["low", "medium", "high"])
+    
+    # Find models with the capability, grouped by cost tier
+    candidates_by_tier = {tier: [] for tier in ["low", "medium", "high"]}
+    
+    for model_name, config in SUPPORTED_MODELS.items():
+        if capability in config.get("capabilities", []):
+            if _is_model_available(model_name):
+                tier = config.get("cost_tier", "medium")
+                candidates_by_tier[tier].append(model_name)
+    
+    # Return first available model in priority order
+    for tier in priority_order:
+        if candidates_by_tier[tier]:
+            return candidates_by_tier[tier][0]
+    
+    return None
 
 
 
