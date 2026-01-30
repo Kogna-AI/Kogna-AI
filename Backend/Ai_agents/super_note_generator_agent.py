@@ -1,7 +1,7 @@
 # File: Ai_agents/super_note_generator_agent.py
 # SuperNoteGenerator using ChatLiteLLM
 
-from langchain_community.chat_models import ChatLiteLLM
+from Ai_agents.llm_factory import get_llm_for_agent
 import os
 import json
 import logging
@@ -26,11 +26,7 @@ class SuperNoteGenerator:
         
         # Configure ChatLiteLLM
         # Supports: OpenAI, Anthropic, Gemini, etc.
-        self.llm = ChatLiteLLM(
-            model="gemini/gemini-2.0-flash-exp",  # or "gpt-4", "claude-3-sonnet", etc.
-            temperature=0.4,  # Slightly higher for creative synthesis
-            api_key=os.getenv("GOOGLE_API_KEY")  # or OPENAI_API_KEY, ANTHROPIC_API_KEY
-        )
+        self.llm = get_llm_for_agent(agent_name="some agent", user_id=user_id,temperature_override=0.3)
         
         logging.info(f"✓ SuperNoteGenerator initialized with ChatLiteLLM")
     

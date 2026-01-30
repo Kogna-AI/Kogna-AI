@@ -12,9 +12,9 @@ Analyzes user conversations and generates intelligent notes that capture:
 
 import os
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from crewai import Agent, Task, Crew
-from langchain_litellm import ChatLiteLLM
+from Ai_agents.llm_factory import get_llm_for_agent
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -91,11 +91,7 @@ class ConversationNoteGenerator:
     
     def __init__(self):
         """Initialize the conversation note generator"""
-        self.llm = ChatLiteLLM(
-            model="gemini/gemini-2.0-flash",
-            api_key=os.getenv("GOOGLE_API_KEY"),
-            temperature=0.3  # Lower temperature for more consistent notes
-        )
+        self.llm = get_llm_for_agent(agent_name="some agent", user_id=user_id,temperature_override=0.3)
         
         # Create the analyst agent
         self.analyst = Agent(
