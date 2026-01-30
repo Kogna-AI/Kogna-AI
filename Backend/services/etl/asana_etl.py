@@ -539,11 +539,17 @@ async def run_asana_etl(
                 logging.info(f"Processing {len(all_tasks)} tasks...")
                 
                 cleaned_data = clean_asana_data(all_tasks)
-                
-                # NEW: Smart upload with change detection
+
+                # Smart upload with change detection + RBAC paths
                 data_json = json.dumps(cleaned_data, indent=2)
-                file_path = f"{user_id}/asana/all_tasks.json"
-                
+                file_path = build_storage_path(
+                    user_id=user_id,
+                    connector_type="asana",
+                    filename="all_tasks.json",
+                    organization_id=organization_id,
+                    team_id=team_id
+                )
+
                 result = await smart_upload_and_embed(
                     user_id=user_id,
                     bucket_name=bucket_name,
@@ -556,7 +562,9 @@ async def run_asana_etl(
                         'total_tasks': len(all_tasks),
                         'workspaces': len(workspaces)
                     },
-                    process_content_directly=True  # Process JSON in memory
+                    process_content_directly=True,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
                 
                 # NEW: Track results
@@ -567,13 +575,15 @@ async def run_asana_etl(
                     files_skipped += 1  # Count errors as skipped for this single-file ETL
                     logging.error(f"    FAILED: {result.get('message', 'Unknown error')}")
                 
-                # NEW: Complete sync job with counts
+                # Complete sync job with counts + RBAC
                 await complete_sync_job(
                     user_id=user_id,
                     service="asana",
                     success=True,
                     files_count=files_processed,
-                    skipped_count=files_skipped
+                    skipped_count=files_skipped,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
                 
                 logging.info(f"{'='*70}")
@@ -594,40 +604,46 @@ async def run_asana_etl(
                 return True, files_processed, files_skipped
             else:
                 logging.info("No tasks found")
-                
+
                 await complete_sync_job(
                     user_id=user_id,
                     service="asana",
                     success=True,
                     files_count=0,
-                    skipped_count=0
+                    skipped_count=0,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
-                
+
                 return True, 0, 0
-    
+
     except httpx.HTTPStatusError as e:
         logging.error(f"API Error {e.response.status_code}: {e.response.text}")
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="asana",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
     except Exception as e:
         logging.error(f"Asana ETL Error: {e}")
         import traceback
         traceback.print_exc()
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="asana",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
 
 
