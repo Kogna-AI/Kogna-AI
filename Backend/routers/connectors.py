@@ -328,7 +328,15 @@ async def connect_to_service(
         if not MICROSOFT_CLIENT_ID or not MICROSOFT_CLIENT_SECRET:
             raise HTTPException(status_code=500, detail="Microsoft OAuth not configured")
         
-        scope = quote("User.Read Files.Read Files.ReadWrite Sites.Read.All offline_access")
+        scope = quote(
+            "User.Read "                                                   
+            "Files.Read "                                                  
+            "Files.ReadWrite "                                             
+            "Sites.Read.All "                                              
+            "https://analysis.windows.net/powerbi/api/Report.Read.All "    
+            "https://analysis.windows.net/powerbi/api/Dataset.Read.All "   
+            "offline_access"
+        )
         redirect_uri = f"{APP_BASE_URL}/api/connect/callback/microsoft"
 
         return JSONResponse({
