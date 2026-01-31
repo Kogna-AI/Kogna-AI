@@ -24,6 +24,8 @@ export function MainDashboard({
   const renderView = () => {
     switch (activeView) {
       case "dashboard":
+        // Dashboard is now handled by UnifiedDashboard
+        // This case shouldn't be reached, but keeping as fallback
         return (
           <DashboardOverview
             onStrategySession={onStrategySession}
@@ -39,7 +41,6 @@ export function MainDashboard({
             onKogniiActionComplete={onKogniiActionComplete}
           />
         );
-
       case "connectors":
         return <DataConnectorHub />;
       case "settings":
