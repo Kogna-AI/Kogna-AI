@@ -138,10 +138,10 @@ export function useJiraProjects(options?: { enabled?: boolean }) {
   });
 }
 
-// ==================== TEAM OVERVIEW HOOKS ====================
+// ==================== IMPORTS ====================
+import api, { getAccessToken, setAccessToken } from '@/services/api';
 
-// Import API service for authenticated requests
-import api from '@/services/api';
+// ==================== TEAM OVERVIEW HOOKS ====================
 
 /**
  * Hook for fetching all visible users (team members)
@@ -201,6 +201,43 @@ export function useUserTeam(userId: string | undefined, options?: { enabled?: bo
         console.log('User team not found:', error);
         return null;
       }
+    },
+    staleTime: 60000, // 60 seconds
+    enabled: !!userId && (options?.enabled ?? true),
+    ...options,
+  });
+}
+
+// ==================== DATA CONNECTOR HOOKS ====================
+
+/**
+ * Hook for fetching connection status for all connectors
+ * Used in DataConnectorHub to display connection states
+ */
+export function useConnectionStatus(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['connection-status'],
+    queryFn: async () => {
+      const response = await api.getConnectionStatus();
+      return response || {};
+    },
+    staleTime: 60000, // 60 seconds - connection status changes rarely
+    refetchInterval: 300000, // Auto-refetch every 5 minutes (instead of 30 seconds)
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching user's connections
+ * Used to list all active connections for a user
+ */
+export function useUserConnections(userId: string | number | undefined, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['user-connections', userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const response = await api.listConnections(userId);
+      return (response as any)?.data || response || [];
     },
     staleTime: 60000, // 60 seconds
     enabled: !!userId && (options?.enabled ?? true),

@@ -55,36 +55,72 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
+// Cache user object in sessionStorage for instant availability on refresh
+function getCachedUser(): BackendUser | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = sessionStorage.getItem('cached-user');
+    return cached ? JSON.parse(cached) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedUser(user: BackendUser | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (user) {
+      sessionStorage.setItem('cached-user', JSON.stringify(user));
+    } else {
+      sessionStorage.removeItem('cached-user');
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<BackendUser | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Load cached user immediately if available
+  const [user, setUser] = useState<BackendUser | null>(getCachedUser());
+  // Optimistic authentication: if token exists in memory, assume authenticated
+  const [isAuthenticated, setIsAuthenticated] = useState(!!getAccessToken());
+  // Only show loading if we don't have a token (need to check refresh)
+  const [loading, setLoading] = useState(!getAccessToken());
 
   // ---------- CORE: stable fetch ----------
-  const fetchCurrentUser = useCallback(async () => {
+  const fetchCurrentUser = useCallback(async (showLoading = false) => {
+    // Only show loading if explicitly requested (e.g., on login) or no token exists
+    if (showLoading) {
+      setLoading(true);
+    }
+
     // Check if we have an access token in memory
     const token = getAccessToken();
     if (!token) {
       // No token in memory; try to refresh using httpOnly cookie
       try {
+        setLoading(true);
         await api.refreshToken();
         // Token refreshed successfully, now fetch user
       } catch {
         // No valid session; user must log in
         setLoading(false);
+        setIsAuthenticated(false);
         return;
       }
     }
 
     try {
-  const res = await api.getCurrentUser();
-  const finalUser = res && typeof res === "object" && "user" in res ? (res as any).user : res;
+      const res = await api.getCurrentUser();
+      const finalUser = res && typeof res === "object" && "user" in res ? (res as any).user : res;
 
-  setUser(finalUser as BackendUser);
-  setIsAuthenticated(true);
-} catch (err) {
+      setUser(finalUser as BackendUser);
+      setCachedUser(finalUser as BackendUser); // Cache for next refresh
+      setIsAuthenticated(true);
+    } catch (err) {
       console.warn("getCurrentUser failed", err);
       setUser(null);
+      setCachedUser(null);
       setIsAuthenticated(false);
       setAccessToken(null);
     } finally {
@@ -101,8 +137,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   // ---------- PUBLIC API ----------
   const refreshUser = useCallback(async () => {
-    setLoading(true);
-    await fetchCurrentUser();
+    await fetchCurrentUser(true); // Show loading when manually refreshing
   }, [fetchCurrentUser]);
 
   const login = async (email: string, password: string) => {
@@ -114,7 +149,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      await fetchCurrentUser();
+      await fetchCurrentUser(true); // Show loading during login
       return true;
     } catch (err) {
       console.error("Login failed", err);
@@ -128,8 +163,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error("Logout failed", err);
     } finally {
-      // Always clear local state
+      // Always clear local state and cache
       setUser(null);
+      setCachedUser(null);
       setIsAuthenticated(false);
       setAccessToken(null);
     }

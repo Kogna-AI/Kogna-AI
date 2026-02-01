@@ -997,6 +997,7 @@ export function TeamOverview() {
   console.log(user);
 
   // React Query hooks - all queries run in parallel automatically
+  // User object is now cached, so user?.id is available immediately on refresh
   const {
     data: members = [],
     isLoading: membersLoading,
