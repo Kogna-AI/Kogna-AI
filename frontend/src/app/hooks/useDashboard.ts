@@ -137,3 +137,73 @@ export function useJiraProjects(options?: { enabled?: boolean }) {
     ...options,
   });
 }
+
+// ==================== TEAM OVERVIEW HOOKS ====================
+
+// Import API service for authenticated requests
+import api from '@/services/api';
+
+/**
+ * Hook for fetching all visible users (team members)
+ * Used in TeamOverview to display team members list
+ * Uses api.listVisibleUsers() with proper authentication
+ */
+export function useVisibleUsers(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['visible-users'],
+    queryFn: async () => {
+      const response = await api.listVisibleUsers();
+      const data = (response as any)?.data || response || [];
+      return data;
+    },
+    staleTime: 30000, // 30 seconds - team data changes relatively frequently
+    refetchInterval: 120000, // Auto-refetch every 2 minutes
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching team hierarchy
+ * Used in TeamOverview to display organizational structure
+ * Uses api.teamHierarchy() with proper authentication
+ */
+export function useTeamHierarchy(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['team-hierarchy'],
+    queryFn: async () => {
+      const response = await api.teamHierarchy();
+      const data = (response as any).data || response || null;
+      return data;
+    },
+    staleTime: 60000, // 60 seconds - hierarchy changes less frequently
+    refetchInterval: 180000, // Auto-refetch every 3 minutes
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching a user's primary team
+ * Used in TeamOverview to display team header
+ * Uses api.getUserTeam() with proper authentication
+ */
+export function useUserTeam(userId: string | undefined, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['user-team', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      
+      try {
+        const response = await api.getUserTeam(userId);
+        const data = (response as any)?.data || response || null;
+        return data;
+      } catch (error) {
+        // User might not belong to a team (e.g., founder/CEO) - this is acceptable
+        console.log('User team not found:', error);
+        return null;
+      }
+    },
+    staleTime: 60000, // 60 seconds
+    enabled: !!userId && (options?.enabled ?? true),
+    ...options,
+  });
+}

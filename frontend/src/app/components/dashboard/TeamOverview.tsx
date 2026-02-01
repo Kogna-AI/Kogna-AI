@@ -52,6 +52,7 @@ import api from "@/services/api";
 import { useUser } from "@/app/components/auth/UserContext";
 import type { Team, TeamMember } from "@/types/backend";
 import { TeamHierarchyTree } from "./TeamHierarchyTree";
+import { useVisibleUsers, useTeamHierarchy, useUserTeam } from "@/app/hooks/useDashboard";
 const teamMembers = [
   {
     id: 1,
@@ -994,13 +995,43 @@ function TeamManagementDialog({
 export function TeamOverview() {
   const { user } = useUser();
   console.log(user);
-  const [team, setTeam] = useState<any>(null);
-  const [members, setMembers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [hierarchy, setHierarchy] = useState<any | null>(null);
-  const [hierarchyLoading, setHierarchyLoading] = useState(false);
-  const [hierarchyError, setHierarchyError] = useState<string | null>(null);
+
+  // React Query hooks - all queries run in parallel automatically
+  const {
+    data: members = [],
+    isLoading: membersLoading,
+    error: membersError,
+  } = useVisibleUsers({ enabled: !!user?.id });
+
+  const {
+    data: hierarchy = null,
+    isLoading: hierarchyLoading,
+    error: hierarchyError,
+  } = useTeamHierarchy({ enabled: !!user?.id });
+
+  const {
+    data: userTeam = null,
+    isLoading: userTeamLoading,
+  } = useUserTeam(user?.id, { enabled: !!user?.id });
+
+  // Compute derived state
+  const isExecutive = (user?.rbac?.role_level ?? 0) >= 4;
+  const team = isExecutive
+    ? { name: userTeam?.name || "Entire Organization" }
+    : userTeam?.id
+      ? userTeam
+      : null;
+
+  // Combined loading state
+  const loading = membersLoading || hierarchyLoading || userTeamLoading;
+  const error = membersError ? 
+    (membersError instanceof Error ? membersError.message : "Failed to load team data") 
+    : null;
+  
+  // Convert hierarchyError to string for display
+  const hierarchyErrorMessage = hierarchyError
+    ? (hierarchyError instanceof Error ? hierarchyError.message : "Failed to load team hierarchy")
+    : null;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -1012,74 +1043,6 @@ export function TeamOverview() {
         return "bg-gray-500";
     }
   };
-
-  useEffect(() => {
-    const fetchVisiblePeople = async () => {
-  if (!user?.id) return;
-
-      try {
-        setLoading(true);
-        setError(null);
-
-        // 1. Get all people this user is allowed to see
-        const visibleResponse = await api.listVisibleUsers();
-        const visibleMembers =
-          (visibleResponse as any)?.data || visibleResponse || [];
-        setMembers(visibleMembers);
-
-        // 2. Load hierarchical view of teams/users based on RBAC
-        try {
-          setHierarchyLoading(true);
-          setHierarchyError(null);
-          const hierarchyResponse = await api.teamHierarchy();
-          const hierarchyData =
-            (hierarchyResponse as any).data || hierarchyResponse || null;
-          setHierarchy(hierarchyData);
-        } catch (hierarchyErr) {
-          console.error("Error loading team hierarchy:", hierarchyErr);
-          setHierarchyError(
-            hierarchyErr instanceof Error
-              ? hierarchyErr.message
-              : "Failed to load team hierarchy",
-          );
-        } finally {
-          setHierarchyLoading(false);
-        }
-
-        // 3. Optional: still fetch the user's primary team for the header
-        //    For executives/founders, we show an org-wide label instead.
-        let teamLabel: any = null;
-
-        try {
-          const teamResponse = await api.getUserTeam(user.id);
-          const teamData = (teamResponse as any)?.data || teamResponse || null;
-          teamLabel = teamData;
-        } catch {
-          // User might not belong to a specific team (e.g., founder/CEO),
-          // it's fine to just treat them as org-wide.
-        }
-
-        const isExecutive = (user.rbac?.role_level ?? 0) >= 4;
-
-        if (isExecutive) {
-          setTeam({ name: teamLabel?.name || "Entire Organization" });
-        } else if (teamLabel?.id) {
-          setTeam(teamLabel);
-        } else {
-          setTeam(null);
-        }
-      } catch (err) {
-        console.error("Error loading visible people:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load team data",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchVisiblePeople();
-  }, [user]);
 
   const teamMembersCount = members.length;
 
@@ -1163,7 +1126,7 @@ export function TeamOverview() {
                 Loading organizational structure...
               </p>
             </div>
-          ) : hierarchyError ? (
+          ) : hierarchyErrorMessage ? (
             <div className="flex flex-col items-center justify-center py-12 px-4">
               <div className="w-16 h-16 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center mb-4">
                 <Building2 className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
@@ -1172,7 +1135,7 @@ export function TeamOverview() {
                 Unable to Load Hierarchy
               </p>
               <p className="text-xs text-muted-foreground mt-1 text-center max-w-md">
-                {hierarchyError}
+                {hierarchyErrorMessage}
               </p>
             </div>
           ) : hierarchy ? (
