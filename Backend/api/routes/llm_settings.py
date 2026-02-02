@@ -1,6 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+
+from Ai_agents.llm_factory import (
+    list_available_models,
+    DEFAULT_AGENT_MODELS,
+    get_user_model_preferences,
+    save_user_model_preference,
+    SUPPORTED_MODELS,
+)
 
 router = APIRouter(prefix="/api/settings/llm", tags=["LLM Settings"])
 
@@ -24,7 +31,12 @@ async def get_available_models():
       "all_supported": ["gpt-4o", "gpt-4o-mini", "claude-sonnet", ...]
     }
     """
-    pass
+    result = list_available_models()
+    return {
+        "available": result["available"],
+        "all_supported": result["all_supported"],
+        "missing_keys": result.get("missing_keys", []),
+    }
 
 
 @router.get("/agent-defaults")
@@ -39,7 +51,7 @@ async def get_agent_defaults():
       ...
     }
     """
-    pass
+    return DEFAULT_AGENT_MODELS
 
 
 @router.get("/preferences/{user_id}")
@@ -54,7 +66,12 @@ async def get_preferences(user_id: str):
       "defaults": {...}
     }
     """
-    pass
+    preferences = get_user_model_preferences(user_id)
+    return {
+        "user_id": user_id,
+        "preferences": preferences,
+        "defaults": DEFAULT_AGENT_MODELS,
+    }
 
 
 @router.post("/preferences/{user_id}")
@@ -76,4 +93,27 @@ async def set_preference(user_id: str, request: ModelPreferenceRequest):
       "model_name": "claude-sonnet"
     }
     """
-    pass
+    if request.model_name not in SUPPORTED_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "invalid_model",
+                "message": f"Model '{request.model_name}' is not supported.",
+                "supported_models": list(SUPPORTED_MODELS.keys()),
+            },
+        )
+    try:
+        ok = save_user_model_preference(user_id, request.agent_name, request.model_name)
+        if not ok:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to save preference.",
+            )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "status": "saved",
+        "user_id": user_id,
+        "agent_name": request.agent_name,
+        "model_name": request.model_name,
+    }
