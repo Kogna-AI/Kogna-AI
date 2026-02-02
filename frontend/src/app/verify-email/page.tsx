@@ -1,13 +1,12 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/app/ui/card";
 import { Button } from "@/app/ui/button";
 import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import api from "@/services/api";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -16,19 +15,15 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     const verifyEmail = async () => {
       const token = searchParams.get("token");
-
       if (!token) {
         setStatus("error");
         setMessage("Invalid verification link. No token provided.");
         return;
       }
-
       try {
         const data = await api.verifyEmail(token);
         setStatus("success");
         setMessage(data.message || "Email verified successfully!");
-
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           router.push("/login");
         }, 3000);
@@ -37,7 +32,6 @@ export default function VerifyEmailPage() {
         setMessage(error.message || "Verification failed");
       }
     };
-
     verifyEmail();
   }, [searchParams, router]);
 
@@ -56,7 +50,6 @@ export default function VerifyEmailPage() {
               </div>
             </div>
           )}
-
           {status === "success" && (
             <div className="text-center space-y-4">
               <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
@@ -72,7 +65,6 @@ export default function VerifyEmailPage() {
               </div>
             </div>
           )}
-
           {status === "error" && (
             <div className="text-center space-y-4">
               <div className="w-16 h-16 mx-auto rounded-full bg-red-100 flex items-center justify-center">
@@ -93,5 +85,24 @@ export default function VerifyEmailPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md shadow-xl border-0">
+            <CardContent className="pt-8 pb-8 text-center">
+              <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading...</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
