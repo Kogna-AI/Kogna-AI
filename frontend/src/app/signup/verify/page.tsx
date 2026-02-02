@@ -1,13 +1,12 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import CreateAccountPage from "@/app/components/auth/CreateAccountPage";
 import { Card, CardContent } from "@/app/ui/card";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/app/ui/button";
 
-export default function VerifySignupPage() {
+function VerifyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "verified" | "error">("loading");
@@ -18,25 +17,20 @@ export default function VerifySignupPage() {
   useEffect(() => {
     const verifyToken = async () => {
       const urlToken = searchParams.get("token");
-
       if (!urlToken) {
         setStatus("error");
         setError("Invalid verification link");
         return;
       }
-
       setToken(urlToken);
-
       try {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify-signup-token?token=${urlToken}`
         );
-
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.detail || "Verification failed");
         }
-
         const data = await response.json();
         setEmail(data.email);
         setStatus("verified");
@@ -45,7 +39,6 @@ export default function VerifySignupPage() {
         setError(err.message || "Verification failed");
       }
     };
-
     verifyToken();
   }, [searchParams]);
 
@@ -91,5 +84,24 @@ export default function VerifySignupPage() {
       verifiedEmail={email}
       signupToken={token}
     />
+  );
+}
+
+export default function VerifySignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md shadow-xl border-0">
+            <CardContent className="pt-8 pb-8 text-center">
+              <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading...</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <VerifyContent />
+    </Suspense>
   );
 }
