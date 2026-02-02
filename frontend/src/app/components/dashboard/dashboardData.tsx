@@ -81,7 +81,7 @@ export const aiInsights = [
     type: "risk",
     title: "Team Capacity Alert",
     description:
-      "Development team approaching 95% capacity - recommend resource reallocation",
+      "Development team approaching 95% capacity - schedule resource allocation review",
     impact: "Medium",
     confidence: "87%",
     potentialRevenue: "-$1.8M",

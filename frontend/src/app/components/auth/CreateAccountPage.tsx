@@ -32,6 +32,8 @@ interface CreateAccountScreenProps {
   onBackToLogin: () => void;
   initialRole?: "founder" | "executive" | "manager" | "member";
   lockRole?: boolean; // when true, hide role selector and keep initialRole fixed
+  verifiedEmail?: string;  // ✅ Add this
+  signupToken?: string;    // ✅ Add this
 }
 
 function splitName(fullName: string) {
@@ -47,14 +49,17 @@ export default function CreateAccountPage({
   onBackToLogin,
   initialRole = "founder",
   lockRole = false,
+  verifiedEmail = "",      // ✅ Add this
+  signupToken = "",        // ✅ Add this
 }: CreateAccountScreenProps) {
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
+    email: verifiedEmail,  // ✅ Pre-fill email
     password: "",
     confirmPassword: "",
     role: initialRole as "founder" | "executive" | "manager" | "member",
     organization: "",
+    signup_token: signupToken,  // ✅ Pass token
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -141,7 +146,7 @@ export default function CreateAccountPage({
         setSuccess(true);
         setTimeout(() => {
           onBackToLogin();
-        }, 2000);
+        }, 5000);
       } else {
         setError(result.error || "Failed to create account");
       }
@@ -152,30 +157,61 @@ export default function CreateAccountPage({
     }
   };
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-xl border-0">
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-green-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Account Created!
-                </h2>
-                <p className="text-gray-600 mt-2">
-                  Welcome to KognaDash, {formData.name}. Redirecting you to
-                  login...
+  
+
+if (success) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-xl border-0">
+        <CardContent className="pt-8 pb-8">
+          <div className="text-center space-y-4">
+            {/* Success Icon */}
+            <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-green-600" />
+            </div>
+
+            {/* Main Message */}
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Registration Successful! 🎉
+              </h2>
+              <p className="text-gray-600">
+                Welcome to Kogna, {formData.name.split(' ')[0]}!
+              </p>
+            </div>
+
+            {/* Email Verification Notice */}
+            <Alert className="bg-blue-50 border-blue-200 text-left">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-sm text-blue-700">
+                <strong>Check your email to verify your account</strong>
+                <p className="mt-1 text-xs">
+                  We've sent a verification link to <strong>{formData.email}</strong>
                 </p>
+              </AlertDescription>
+            </Alert>
+
+            {/* Important Notice */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="flex items-start gap-2 text-left">
+                <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div className="text-xs text-yellow-700">
+                  <strong>Important:</strong> Check your spam folder if you don't see the email in your inbox.
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+
+            {/* Redirect Notice */}
+            <p className="text-sm text-gray-500 flex items-center justify-center gap-2">
+              <span className="inline-block w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse"></span>
+              Redirecting to login...
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
@@ -191,7 +227,7 @@ export default function CreateAccountPage({
               className="object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Join KognaDash</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Join Kogna</h1>
           <p className="text-gray-600 mt-1">Strategic Intelligence</p>
         </div>
 
@@ -227,6 +263,7 @@ export default function CreateAccountPage({
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={(e) => handleChange("email", e.target.value)}
+                  disabled={!!verifiedEmail}  // ✅ Disable if verified
                   required
                 />
               </div>

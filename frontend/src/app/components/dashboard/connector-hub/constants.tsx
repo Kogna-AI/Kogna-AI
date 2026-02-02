@@ -15,7 +15,7 @@ export const syncModes = [
   {
     id: "one-way",
     name: "One-way Sync",
-    description: "Data flows from external source to KognaDash only",
+    description: "Data flows from external source to Kogna only",
     icon: "→",
     features: ["Import data", "View updates", "Basic reporting"],
   },
@@ -70,7 +70,7 @@ export const connectors: Connector[] = [
       "Custom Workflows",
     ],
     setupTime: "10 minutes",
-    dataSync: "Every 15 minutes",
+    dataSync: "Every 30 minutes",
   },
   {
     id: "asana",

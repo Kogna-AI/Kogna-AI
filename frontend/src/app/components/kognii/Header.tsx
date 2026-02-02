@@ -12,7 +12,7 @@ export default function Header ({onClose, activeView}:KogniiAssistantProps){
             <KogniiThinkingIcon className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold">Kognii Assistant</h3>
+            <h3 className="font-semibold">Kogna Assistant</h3>
             <p className="text-xs text-muted-foreground">Strategic AI companion</p>
           </div>
         </div>

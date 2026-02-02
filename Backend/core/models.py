@@ -84,6 +84,7 @@ class TeamMemberAdd(BaseModel):
 class TeamInvitationCreate(BaseModel):
     email: EmailStr
     role: Optional[str] = "member"
+    team_ids: Optional[list[str]] = None  # For directors: list of team IDs to supervise
 
 class TeamInvitationMeta(BaseModel):
     email: EmailStr
@@ -169,9 +170,10 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     first_name: str
-    second_name: str
+    second_name: str = ""
     role: str
-    organization: str  # <-- name, not id
+    organization: str
+    signup_token: Optional[str] = None 
 
 
 

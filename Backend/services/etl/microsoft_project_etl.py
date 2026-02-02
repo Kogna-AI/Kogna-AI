@@ -29,9 +29,10 @@ from collections import Counter, defaultdict
 
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -40,6 +41,7 @@ except ImportError:
         smart_upload_and_embed,
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -493,13 +495,16 @@ def clean_microsoft_data(tasks: List[Dict], source: str = "To Do") -> Dict:
 
 async def run_microsoft_project_etl(
     user_id: str,
-    access_token: str
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
 ) -> Tuple[bool, int, int]:
     """
-    ULTIMATE Microsoft Project/Planner ETL with INTELLIGENT CHANGE DETECTION.
-    
+    ULTIMATE Microsoft Project/Planner ETL with INTELLIGENT CHANGE DETECTION + RBAC.
+
     Automatically detects account type and uses:
     - Microsoft Planner for work/school accounts
+    - RBAC-scoped storage paths: {org_id}/{team_id}/microsoft-project/{user_id}/...
     - Microsoft To Do for personal accounts
     
     Features:
@@ -560,15 +565,17 @@ async def run_microsoft_project_etl(
                     logging.info(f"Using Microsoft To Do ({len(todo_tasks)} tasks)")
                 else:
                     logging.warning("No tasks found in To Do either")
-                    
+
                     await complete_sync_job(
                         user_id=user_id,
                         service="microsoft-project",
                         success=True,
                         files_count=0,
-                        skipped_count=0
+                        skipped_count=0,
+                        organization_id=organization_id,
+                        team_id=team_id
                     )
-                    
+
                     return True, 0, 0
             
             # Clean and enrich tasks
@@ -576,14 +583,19 @@ async def run_microsoft_project_etl(
                 logging.info(f"Processing {len(all_tasks)} tasks from {source}...")
                 
                 cleaned_data = clean_microsoft_data(all_tasks, source)
-                
-                # Store everything in microsoft_project folder (regardless of source)
-                folder = "microsoft_project"
-                file_path = f"{user_id}/{folder}/all_tasks.json"
-                
-                # NEW: Smart upload with change detection
+
+                # Store everything in microsoft_project folder with RBAC paths
+                file_path = build_storage_path(
+                    user_id=user_id,
+                    connector_type="microsoft_project",
+                    filename="all_tasks.json",
+                    organization_id=organization_id,
+                    team_id=team_id
+                )
+
+                # Smart upload with change detection + RBAC
                 data_json = json.dumps(cleaned_data, indent=2)
-                
+
                 result = await smart_upload_and_embed(
                     user_id=user_id,
                     bucket_name=bucket_name,
@@ -596,10 +608,12 @@ async def run_microsoft_project_etl(
                         'source': source,
                         'total_tasks': len(all_tasks)
                     },
-                    process_content_directly=True  # Process JSON in memory
+                    process_content_directly=True,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
-                
-                # NEW: Track results
+
+                # Track results
                 if result['status'] == 'queued':
                     files_processed += 1
                     logging.info("    QUEUED for processing")
@@ -609,14 +623,16 @@ async def run_microsoft_project_etl(
                 else:
                     files_skipped += 1
                     logging.error(f"    UNKNOWN STATUS: {result['status']}")
-                
-                # NEW: Complete sync job with counts
+
+                # Complete sync job with counts + RBAC
                 await complete_sync_job(
                     user_id=user_id,
                     service="microsoft-project",
                     success=True,
                     files_count=files_processed,
-                    skipped_count=files_skipped
+                    skipped_count=files_skipped,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
                 
                 logging.info(f"{'='*70}")
@@ -637,40 +653,46 @@ async def run_microsoft_project_etl(
                 return True, files_processed, files_skipped
             else:
                 logging.info("No tasks found")
-                
+
                 await complete_sync_job(
                     user_id=user_id,
                     service="microsoft-project",
                     success=True,
                     files_count=0,
-                    skipped_count=0
+                    skipped_count=0,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
-                
+
                 return True, 0, 0
-    
+
     except httpx.HTTPStatusError as e:
         logging.error(f"API Error {e.response.status_code}: {e.response.text}")
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="microsoft-project",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
     except Exception as e:
         logging.error(f"Microsoft Project ETL Error: {e}")
         import traceback
         traceback.print_exc()
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="microsoft-project",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
 
 

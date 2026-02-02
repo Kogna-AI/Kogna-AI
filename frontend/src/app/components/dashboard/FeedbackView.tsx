@@ -211,7 +211,7 @@ export function FeedbackView() {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="font-semibold text-lg">
-                  Kognii AI Feedback Enhancement
+                  Kogna Feedback Enhancement
                 </h3>
                 <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs">
                   <Sparkles className="w-3 h-3 mr-1" />
@@ -219,7 +219,7 @@ export function FeedbackView() {
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                Transform vague feedback into actionable insights. Kognii
+                Transform vague feedback into actionable insights. Kogna
                 analyzes tone, clarity, and strategic alignment to suggest
                 improvements that drive better outcomes and accelerate team
                 performance.
@@ -318,7 +318,7 @@ export function FeedbackView() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <KogniiThinkingIcon className="w-6 h-6" />
-              Kognii Feedback Enhancement Demo
+              Kogna Feedback Enhancement Demo
               <Badge className="bg-gradient-to-r from-purple-400 to-blue-500 text-white">
                 Scenario {currentScenario + 1} of {demoScenarios.length}
               </Badge>
@@ -361,7 +361,7 @@ export function FeedbackView() {
                 <p className="text-sm text-muted-foreground">
                   {demoStep === 1 && "User types original feedback"}
                   {demoStep === 2 && "Feedback ready for AI enhancement"}
-                  {demoStep === 3 && "Kognii analyzing for improvements"}
+                  {demoStep === 3 && "Kogna analyzing for improvements"}
                   {demoStep === 4 && "Enhanced version generated"}
                   {demoStep === 5 && "Improvement metrics displayed"}
                 </p>
@@ -394,12 +394,12 @@ export function FeedbackView() {
                         {isAnalyzing ? (
                           <>
                             <RefreshCw className="w-4 h-4 animate-spin" />
-                            Kognii Analyzing...
+                            Kogna Analyzing...
                           </>
                         ) : (
                           <>
                             <Wand2 className="w-4 h-4" />
-                            Enhance with Kognii
+                            Enhance with Kogna
                           </>
                         )}
                       </Button>
