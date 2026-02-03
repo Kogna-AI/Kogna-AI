@@ -89,9 +89,9 @@ class ConversationNoteGenerator:
     - What they care about
     """
     
-    def __init__(self):
+    def __init__(self, user_id: Optional[str] = None):
         """Initialize the conversation note generator"""
-        self.llm = get_llm_for_agent(agent_name="some agent", user_id=user_id,temperature_override=0.3)
+        self.llm = get_llm_for_agent(agent_name="some agent", user_id=user_id ,temperature_override=0.3)
         
         # Create the analyst agent
         self.analyst = Agent(

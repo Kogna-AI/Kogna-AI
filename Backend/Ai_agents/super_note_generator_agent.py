@@ -21,7 +21,7 @@ class SuperNoteGenerator:
     - Focus: Patterns, themes, implications (not just facts)
     """
     
-    def __init__(self):
+    def __init__(self, user_id: Optional[str] = None):
         """Initialize with ChatLiteLLM"""
         
         # Configure ChatLiteLLM
