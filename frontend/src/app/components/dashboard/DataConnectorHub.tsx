@@ -15,10 +15,10 @@ import {
   type ReactElement,
   type ReactNode,
   type ReactPortal,
-  useEffect,
   useState,
 } from "react";
 import api from "@/services/api";
+import { useConnectionStatus } from "@/app/hooks/useDashboard";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import {
@@ -56,9 +56,13 @@ interface ConnectionInfo {
 
 export function DataConnectorHub() {
   const [connectingIds, setConnectingIds] = useState<Set<string>>(new Set());
-  const [connectionStatuses, setConnectionStatuses] = useState<
-    Record<string, ConnectionInfo>
-  >({});
+  
+  // Use React Query hook for connection status with automatic caching and refetching
+  const {
+    data: connectionStatuses = {},
+    isLoading: isLoadingStatuses,
+    error: statusError,
+  } = useConnectionStatus();
 
   const kognaCoreConnector = connectors.find(
     (c: { id: string }) => c.id === "kognacore",
@@ -69,30 +73,14 @@ export function DataConnectorHub() {
     (info) => info.status === "connected",
   ).length;
 
-  useEffect(() => {
-    const fetchConnectionStatus = async () => {
-      try {
-        const statuses = await api.getConnectionStatus();
-        console.log("Connection statuses received:", statuses);
-        setConnectionStatuses(statuses);
-      } catch (error) {
-        console.error("Failed to fetch connection status:", error);
-      }
-    };
-
-    // Add a small delay to ensure auth is ready
-    const timeoutId = setTimeout(() => {
-      fetchConnectionStatus();
-    }, 500);
-
-    // Refresh status every 30 seconds
-    const interval = setInterval(fetchConnectionStatus, 30000);
-
-    return () => {
-      clearTimeout(timeoutId);
-      clearInterval(interval);
-    };
-  }, []);
+  // Log connection statuses when they change
+  if (connectionStatuses && Object.keys(connectionStatuses).length > 0) {
+    console.log("Connection statuses received:", connectionStatuses);
+  }
+  
+  if (statusError) {
+    console.error("Failed to fetch connection status:", statusError);
+  }
 
   const handleConnect = async (connector: Connector) => {
     setConnectingIds((prev) => new Set(prev).add(connector.id));

@@ -2,22 +2,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useUser } from "./components/auth/UserContext";
 import { LandingPage } from "./components/LandingPage";
 
 export default function RootPage() {
   const { isAuthenticated, loading } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    // Only redirect if they are ALREADY logged in
-    if (!loading && isAuthenticated) {
+    // Only redirect if they are ALREADY logged in AND on the root path
+    // This prevents redirect loops when refreshing dashboard pages
+    if (!loading && isAuthenticated && pathname === "/") {
       router.replace("/dashboard");
     }
-  }, [loading, isAuthenticated, router]);
+  }, [loading, isAuthenticated, router, pathname]);
 
   // Handlers for the Landing Page buttons
   const handleJoinWaitlist = () => router.push("/signup/waitlist");
