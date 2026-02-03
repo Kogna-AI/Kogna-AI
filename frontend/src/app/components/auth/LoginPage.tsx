@@ -219,7 +219,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
           </CardContent>
         </Card>
 
-        {/* Sign up section */}
+        {/* Waitlist section */}
         <div className="text-center space-y-3">
           <p className="text-sm text-gray-600">Don't have an account yet?</p>
           <Button
@@ -229,7 +229,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
             onClick={handleSignupClick}
           >
             <UserPlus className="h-4 w-4 mr-2" />
-            Sign up for free
+            Join the Waitlist
           </Button>
         </div>
       </div>
