@@ -349,6 +349,160 @@ class EmailSender:
         """.strip()
     
     @staticmethod
+    def get_password_reset_email_html(
+        reset_url: str,
+        first_name: Optional[str] = None
+    ) -> str:
+        """
+        Generate HTML template for password reset.
+        
+        Args:
+            reset_url: Full URL with reset token
+            first_name: User's first name for personalization
+            
+        Returns:
+            HTML string
+        """
+        name = first_name if first_name else "there"
+        
+        return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Your Password</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }}
+        .email-container {{
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+            text-align: center;
+        }}
+        .header h1 {{
+            color: #ffffff;
+            margin: 0;
+            font-size: 32px;
+            font-weight: 700;
+        }}
+        .content {{
+            padding: 40px 30px;
+        }}
+        .content h2 {{
+            color: #1a1a1a;
+            font-size: 24px;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }}
+        .content p {{
+            color: #555555;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }}
+        .button-container {{
+            text-align: center;
+            margin: 35px 0;
+        }}
+        .reset-button {{
+            display: inline-block;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }}
+        .alt-link {{
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            word-break: break-all;
+        }}
+        .alt-link a {{
+            color: #667eea;
+            text-decoration: none;
+            font-size: 12px;
+        }}
+        .warning-box {{
+            background-color: #FEE2E2;
+            border-left: 4px solid #EF4444;
+            padding: 15px;
+            margin: 25px 0;
+            border-radius: 4px;
+        }}
+        .footer {{
+            background-color: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }}
+        .footer p {{
+            font-size: 13px;
+            color: #6b7280;
+        }}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>🔐 Kogna.io</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Password Reset Request</h2>
+            
+            <p>Hi {name},</p>
+            
+            <p>We received a request to reset the password for your Kogna.io account. No problem, it happens!</p>
+            
+            <p>Click the button below to set up a new password:</p>
+            
+            <div class="button-container">
+                <a href="{reset_url}" class="reset-button">
+                    Reset My Password
+                </a>
+            </div>
+            
+            <div class="alt-link">
+                <p><strong>Link not working?</strong> Copy and paste this:</p>
+                <a href="{reset_url}">{reset_url}</a>
+            </div>
+            
+            <div class="warning-box">
+                <p style="color: #991B1B; margin: 0;"><strong>⏰ Security Note:</strong> This link will expire in <strong>1 hour</strong> for your protection.</p>
+            </div>
+            
+            <p>If you didn't request this, you can safely ignore this email. Your password will remain unchanged.</p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 Kogna.io. All rights reserved.</p>
+            <p><a href="{EmailSender.FRONTEND_URL}">Visit our website</a></p>
+        </div>
+    </div>
+</body>
+</html>
+        """.strip()
+
+    @staticmethod
     def test_configuration() -> dict:
         """
         Test email configuration and return status.

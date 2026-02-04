@@ -4,6 +4,7 @@ from passlib.context import CryptContext
 from psycopg2.extras import RealDictCursor
 import logging
 from auth.email_verification import EmailVerification
+from auth.password_reset import PasswordReset
 import uuid
 import bcrypt
 import secrets
@@ -19,7 +20,7 @@ from core.security import (
 )
 from core.database import get_db
 from core.permissions import UserContext, get_user_context
-from core.models import RegisterRequest, LoginRequest
+from core.models import RegisterRequest, LoginRequest, ResetPasswordSubmit, ForgotPasswordRequest
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
@@ -737,3 +738,53 @@ async def me(
             "success": True,
             "data": data,
         }
+
+# ------------------------------
+# POST /forgot-password
+# ------------------------------
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest):
+    """
+    Step 1: User requests a password reset link via email.
+    """
+    email = data.email.strip().lower()
+    
+    # Execute business logic for password reset request
+    success, message = PasswordReset.request_reset(email)
+    
+    # Security Best Practice: Always return success to prevent email enumeration
+    return {
+        "success": True,
+        "message": message
+    }
+
+# ------------------------------
+# POST /reset-password
+# ------------------------------
+@router.post("/reset-password")
+async def reset_password(data: ResetPasswordSubmit, db=Depends(get_db)):
+    """
+    Step 2: User submits the new password using the token from their email.
+    """
+    # Enforce password policy (reusing existing validation function)
+    _validate_password_strength(data.new_password)
+    
+    # Hash the new password using Argon2
+    hashed_password = ph.hash(data.new_password)
+    
+    # Execute the final reset logic in the database
+    success, message = PasswordReset.complete_reset(
+        token=data.token, 
+        new_password_hash=hashed_password
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail=message
+        )
+    
+    return {
+        "success": True,
+        "message": message
+    }
