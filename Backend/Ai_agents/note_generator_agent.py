@@ -4,10 +4,11 @@ Generates intelligent summaries from uploaded documents
 """
 
 from crewai import Agent, Task, Crew
-from langchain_litellm import ChatLiteLLM
+from Ai_agents.llm_factory import get_llm_for_agent
 import json
 import os
 from dotenv import load_dotenv
+from typing import Optional
 
 load_dotenv()
 
@@ -17,13 +18,9 @@ class DocumentNoteGenerator:
     This is the core of HCR - creating intelligent summaries instead of just chunks.
     """
     
-    def __init__(self):
+    def __init__(self, user_id: Optional[str] = None):
         # Initialize Gemini model using ChatLiteLLM (same as orchestrator)
-        self.llm = ChatLiteLLM(
-            model="gemini/gemini-2.0-flash",
-            api_key=os.getenv("GOOGLE_API_KEY"),
-            temperature=0.3  # Lower temp for factual extraction
-        )
+        self.llm = get_llm_for_agent(agent_name="some agent", user_id=user_id,temperature_override=0.3)
         
         # Create the note generator agent
         self.note_generator = Agent(

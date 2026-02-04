@@ -5,7 +5,10 @@
 
 import type { BackendUser } from "../app/components/auth/UserContext";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Normalize base URL to avoid "//api/..." 404s when env has a trailing slash
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+).replace(/\/+$/, "");
 
 // AWS: Request timeout configuration
 const REQUEST_TIMEOUT = 120000; // 120 seconds
@@ -428,18 +431,6 @@ resendVerification: async (email: string) => {
     return handleResponse(response);
   },
 
-
-  // Hierarchical team view for TeamOverview
-  teamHierarchy: async () => {
-    const response = await fetchWithTimeout(
-      `${API_BASE_URL}/api/teams/hierarchy`,
-      {
-        method: "GET",
-        headers: getAuthHeaders(),
-      }
-    );
-    return handleResponse(response);
-  },
 
   createTeam: async (data: { organization_id: string; name: string }) => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/teams`, {
@@ -1001,7 +992,7 @@ resendVerification: async (email: string) => {
   ): Promise<
     Array<{ id: string; role: string; content: string; created_at: string }>
   > => {
-    const response = await fetch(`${API_BASE_URL}/chat/history/${sessionId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/chat/history/${sessionId}`, {
       method: "GET",
       headers: getAuthHeaders(),
     });

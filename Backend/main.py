@@ -14,6 +14,8 @@ from routers import (
     kpis
 )
 
+from api.routes import llm_settings
+
 # Load environment variables
 load_dotenv()
 
@@ -52,6 +54,7 @@ app.include_router(ai_pipeline.router)
 app.include_router(chat.router)
 app.include_router(auth.router)
 app.include_router(kpis.router)
+app.include_router(llm_settings.router)
 
 # ==================== ROOT ENDPOINT ====================
 
