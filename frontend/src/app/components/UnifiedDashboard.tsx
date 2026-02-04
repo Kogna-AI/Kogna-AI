@@ -5,8 +5,9 @@ import { Plus, ExternalLink, X, Trash2, BarChart3, LayoutGrid } from "lucide-rea
 import { Button } from "../ui/button";
 import { useUser } from "./auth/UserContext";
 import { DashboardOverview } from "./dashboard/dashboardoverview";
-import PowerBITile from "./BI/PowerBITile"; 
+import PowerBITile from "./BI/PowerBITile";
 import TableauTile from "./BI/TableauTile";
+import GoogleDriveTile from "./BI/GoogleDriveTile";
 
 // --- Types ---
 interface BISystem {
@@ -46,6 +47,7 @@ const DEFAULT_THUMBNAILS: Record<string, string> = {
   looker: "https://placehold.co/600x400/4285F4/white?text=Looker",
   metabase: "https://placehold.co/600x400/509EE3/white?text=Metabase",
   grafana: "https://placehold.co/600x400/F46800/white?text=Grafana",
+  "google-drive": "https://placehold.co/600x400/4285F4/white?text=Google+Drive+Files",
 };
 
 export function UnifiedDashboard() {
@@ -166,9 +168,15 @@ export function UnifiedDashboard() {
             </div>
           ) : selectedDashboard.biTool === "tableau" ? (
             <div className="w-full h-full p-4">
-              <TableauTile 
-                biSystemId={selectedDashboard.id} 
-                userId={user?.id || ""} 
+              <TableauTile
+                biSystemId={selectedDashboard.id}
+                userId={user?.id || ""}
+              />
+            </div>
+          ) : selectedDashboard.biTool === "google-drive" ? (
+            <div className="w-full h-full p-4">
+              <GoogleDriveTile
+                userId={user?.id || ""}
               />
             </div>
           ) : selectedDashboard.embedCode ? (
@@ -509,8 +517,28 @@ function AddBISystemModal({ onClose, onSuccess, userId }: AddBISystemModalProps)
             </div>
           )}
 
+          {/* Google Drive Section */}
+          {selectedTool === 'google-drive' && (
+            <div className="bg-green-50 p-4 rounded-lg border border-green-100 space-y-3">
+              <h3 className="text-green-900 font-medium text-sm">📁 Google Drive Data Source</h3>
+              <p className="text-sm text-gray-700">
+                This tile will display files from your Google Drive that have been ingested for data analysis.
+                Make sure you have connected your Google Drive account in the{' '}
+                <a href="/connectors" className="text-purple-600 underline font-medium">
+                  Connectors
+                </a>{' '}
+                page.
+              </p>
+              <div className="bg-white p-3 rounded border border-green-200">
+                <p className="text-xs text-gray-600">
+                  <strong>Note:</strong> The tile will show the most recently analyzed file and a list of other files from Google Drive.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Generic Embed Code */}
-          {selectedTool && !['powerbi', 'tableau'].includes(selectedTool) && (
+          {selectedTool && !['powerbi', 'tableau', 'google-drive'].includes(selectedTool) && (
              <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Embed Code</label>
               <textarea
@@ -541,7 +569,7 @@ function AddBISystemModal({ onClose, onSuccess, userId }: AddBISystemModalProps)
             </Button>
             <Button
               type="submit"
-              disabled={!selectedTool || loading || (selectedTool === 'powerbi' && !reportId)}
+              disabled={!selectedTool || loading || (selectedTool === 'powerbi' && !reportId) || (selectedTool === 'tableau' && !customUrl)}
               className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
             >
               {loading ? "Saving..." : "Add Connection"}

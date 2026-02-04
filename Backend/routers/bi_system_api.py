@@ -119,17 +119,38 @@ async def delete_bi_system(bi_tool: str, x_user_id: str = Header(None)):
     """Remove a BI system"""
     if not x_user_id:
         raise HTTPException(status_code=400, detail="X-User-ID header required")
-    
+
     try:
         user_data = service.supabase.table('users').select('organization_id').eq('id', x_user_id).single().execute()
         organization_id = user_data.data['organization_id']
-        
+
         service.supabase.table('customer_bi_systems')\
             .delete()\
             .eq('organization_id', organization_id)\
             .eq('bi_tool', bi_tool)\
             .execute()
-            
+
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/google-drive/files")
+async def get_google_drive_files(x_user_id: str = Header(None)):
+    """Get Google Drive files used for data analysis"""
+    if not x_user_id:
+        raise HTTPException(status_code=400, detail="X-User-ID header required")
+
+    try:
+        # Fetch files from ingested_files table where source_type is 'google_drive'
+        response = service.supabase.table('ingested_files')\
+            .select('id, file_name, file_path, file_size, source_id, source_metadata, last_ingested_at, chunk_count')\
+            .eq('user_id', x_user_id)\
+            .eq('source_type', 'google_drive')\
+            .order('last_ingested_at', desc=True)\
+            .limit(10)\
+            .execute()
+
+        return response.data if response.data else []
+    except Exception as e:
+        print(f"Error fetching Google Drive files: {e}")
+        return []

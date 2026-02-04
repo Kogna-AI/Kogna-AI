@@ -27,7 +27,8 @@ class BISystemService:
             'tableau': {'name': 'Tableau', 'icon': '📈', 'default_url': None, 'requires_custom_url': True},
             'looker': {'name': 'Looker', 'icon': '🔍', 'default_url': None, 'requires_custom_url': True},
             'metabase': {'name': 'Metabase', 'icon': '📉', 'default_url': None, 'requires_custom_url': True},
-            'grafana': {'name': 'Grafana', 'icon': '📊', 'default_url': None, 'requires_custom_url': True}
+            'grafana': {'name': 'Grafana', 'icon': '📊', 'default_url': None, 'requires_custom_url': True},
+            'google-drive': {'name': 'Google Drive', 'icon': '📁', 'default_url': None, 'requires_custom_url': False}
         }
 
     # ============================================
