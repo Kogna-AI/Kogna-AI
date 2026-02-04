@@ -31,9 +31,10 @@ from collections import Counter
 
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -42,6 +43,7 @@ except ImportError:
         smart_upload_and_embed,
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -476,13 +478,16 @@ def clean_excel_file_data(raw_data: Dict) -> Dict:
 
 async def run_microsoft_excel_etl(
     user_id: str,
-    access_token: str
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
 ) -> Tuple[bool, int, int]:
     """
-    ULTIMATE Microsoft Excel ETL with INTELLIGENT CHANGE DETECTION.
-    
+    ULTIMATE Microsoft Excel ETL with INTELLIGENT CHANGE DETECTION + RBAC.
+
     Features:
     - OneDrive/SharePoint Excel file extraction
+    - RBAC-scoped storage paths: {org_id}/{team_id}/microsoft-excel/{user_id}/...
     - Structured data parsing with analytics
     - Smart data type detection
     - Summary statistics extraction
@@ -574,10 +579,16 @@ async def run_microsoft_excel_etl(
                     if cleaned_file.get('quality_score', 0) > 0:
                         stats['files_with_quality_score'] += 1
                     
-                    # NEW: Smart upload with change detection
-                    file_path = f"{user_id}/microsoft_excel/{file_name}"
+                    # Smart upload with change detection + RBAC paths
+                    file_path = build_storage_path(
+                        user_id=user_id,
+                        connector_type="microsoft_excel",
+                        filename=file_name,
+                        organization_id=organization_id,
+                        team_id=team_id
+                    )
                     cleaned_json = json.dumps(cleaned_file, indent=2)
-                    
+
                     result = await smart_upload_and_embed(
                         user_id=user_id,
                         bucket_name=bucket_name,
@@ -591,7 +602,9 @@ async def run_microsoft_excel_etl(
                             'total_sheets': cleaned_file.get('total_sheets', 0),
                             'total_rows': cleaned_file.get('total_rows', 0)
                         },
-                        process_content_directly=True  # Process JSON in memory
+                        process_content_directly=True,
+                        organization_id=organization_id,
+                        team_id=team_id
                     )
                     
                     # NEW: Track results
@@ -639,8 +652,14 @@ async def run_microsoft_excel_etl(
                 }
                 
                 combined_json = json.dumps(combined_data, indent=2)
-                file_path = f"{user_id}/microsoft_excel/all_files_summary.json"
-                
+                file_path = build_storage_path(
+                    user_id=user_id,
+                    connector_type="microsoft_excel",
+                    filename="all_files_summary.json",
+                    organization_id=organization_id,
+                    team_id=team_id
+                )
+
                 # Upload summary (no embedding needed for this)
                 await smart_upload_and_embed(
                     user_id=user_id,
@@ -650,16 +669,20 @@ async def run_microsoft_excel_etl(
                     mime_type="application/json",
                     source_type="microsoft-excel",
                     source_id="summary",
-                    process_content_directly=False  # Don't embed summary
+                    process_content_directly=False,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
             
-            # NEW: Complete sync job with counts
+            # Complete sync job with counts + RBAC
             await complete_sync_job(
                 user_id=user_id,
                 service="microsoft-excel",
                 success=True,
                 files_count=files_processed,
-                skipped_count=files_skipped
+                skipped_count=files_skipped,
+                organization_id=organization_id,
+                team_id=team_id
             )
             
             # ================================================================
@@ -683,27 +706,31 @@ async def run_microsoft_excel_etl(
     
     except httpx.HTTPStatusError as e:
         logging.error(f"API Error {e.response.status_code}: {e.response.text}")
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="microsoft-excel",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
     except Exception as e:
         logging.error(f"Microsoft Excel ETL Error: {e}")
         import traceback
         traceback.print_exc()
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="microsoft-excel",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
 
 

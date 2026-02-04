@@ -1,0 +1,28 @@
+[run]
+source = .
+branch = true
+omit =
+    tests/*
+    */__pycache__/*
+    */migrations/*
+    */venv/*
+    */.venv/*
+    */.env/*
+    */scripts/*
+    main.py
+    api.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    except ImportError:
+    if TYPE_CHECKING:
+show_missing = true
+precision = 2
+
+[html]
+directory = htmlcov

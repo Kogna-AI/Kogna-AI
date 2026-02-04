@@ -254,6 +254,44 @@ export const api = {
     return refreshAccessToken();
   },
 
+  /**
+ * Verify email address with token from email link
+ */
+verifyEmail: async (token: string) => {
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/api/auth/verify-email?token=${token}`,
+    {
+      method: "GET",
+    },
+  );
+  return handleResponse<{
+    success: boolean;
+    message: string;
+    user_id: string;
+  }>(response);
+},
+
+/**
+ * Resend verification email to user
+ */
+resendVerification: async (email: string) => {
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/api/auth/resend-verification`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    },
+  );
+  return handleResponse<{
+    success: boolean;
+    message: string;
+    user_id: string;
+    organization_id: string;
+    email_sent: boolean;
+  }>(response);
+},
+
   // ==================== ORGANIZATIONS ====================
 
   getOrganization: async (orgId: number) => {
@@ -393,17 +431,6 @@ export const api = {
     return handleResponse(response);
   },
 
-  // Hierarchical team view for TeamOverview
-  teamHierarchy: async () => {
-    const response = await fetchWithTimeout(
-      `${API_BASE_URL}/api/teams/hierarchy`,
-      {
-        method: "GET",
-        headers: getAuthHeaders(),
-      },
-    );
-    return handleResponse(response);
-  },
 
   createTeam: async (data: { organization_id: string; name: string }) => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/api/teams`, {

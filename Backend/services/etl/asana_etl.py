@@ -29,9 +29,10 @@ from collections import Counter, defaultdict
 
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -39,10 +40,12 @@ except ImportError:
     # Fallback for testing
     RATE_LIMIT_DELAY = 0.1
     MAX_FILE_SIZE = 50_000_000
-    async def smart_upload_and_embed(*args, **kwargs): 
+    async def smart_upload_and_embed(*args, **kwargs):
         return {'status': 'error', 'message': 'Not available'}
     async def update_sync_progress(*args, **kwargs): pass
     async def complete_sync_job(*args, **kwargs): pass
+    def build_storage_path(user_id, connector_type, filename, organization_id=None, team_id=None):
+        return f"{user_id}/{connector_type}/{filename}"
 
 logging.basicConfig(level=logging.INFO)
 
@@ -466,15 +469,18 @@ def clean_asana_data(tasks: List[Dict]) -> Dict:
 
 async def run_asana_etl(
     user_id: str,
-    access_token: str
-) -> Tuple[bool, int, int]:  # CHANGED: Now returns (success, processed, skipped)
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
+) -> Tuple[bool, int, int]:
     """
-    ULTIMATE Asana ETL with INTELLIGENT CHANGE DETECTION.
-    
+    ULTIMATE Asana ETL with INTELLIGENT CHANGE DETECTION + RBAC.
+
     Features:
     - Task and project extraction
     - Workspace organization
     - Analytics (completion, overdue, workload)
+    - RBAC-scoped storage paths: {org_id}/{team_id}/asana/{user_id}/...
     - Smart categorization
     - Search-optimized text generation
     - Data quality scoring
@@ -533,11 +539,17 @@ async def run_asana_etl(
                 logging.info(f"Processing {len(all_tasks)} tasks...")
                 
                 cleaned_data = clean_asana_data(all_tasks)
-                
-                # NEW: Smart upload with change detection
+
+                # Smart upload with change detection + RBAC paths
                 data_json = json.dumps(cleaned_data, indent=2)
-                file_path = f"{user_id}/asana/all_tasks.json"
-                
+                file_path = build_storage_path(
+                    user_id=user_id,
+                    connector_type="asana",
+                    filename="all_tasks.json",
+                    organization_id=organization_id,
+                    team_id=team_id
+                )
+
                 result = await smart_upload_and_embed(
                     user_id=user_id,
                     bucket_name=bucket_name,
@@ -550,7 +562,9 @@ async def run_asana_etl(
                         'total_tasks': len(all_tasks),
                         'workspaces': len(workspaces)
                     },
-                    process_content_directly=True  # Process JSON in memory
+                    process_content_directly=True,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
                 
                 # NEW: Track results
@@ -561,13 +575,15 @@ async def run_asana_etl(
                     files_skipped += 1  # Count errors as skipped for this single-file ETL
                     logging.error(f"    FAILED: {result.get('message', 'Unknown error')}")
                 
-                # NEW: Complete sync job with counts
+                # Complete sync job with counts + RBAC
                 await complete_sync_job(
                     user_id=user_id,
                     service="asana",
                     success=True,
                     files_count=files_processed,
-                    skipped_count=files_skipped
+                    skipped_count=files_skipped,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
                 
                 logging.info(f"{'='*70}")
@@ -588,40 +604,46 @@ async def run_asana_etl(
                 return True, files_processed, files_skipped
             else:
                 logging.info("No tasks found")
-                
+
                 await complete_sync_job(
                     user_id=user_id,
                     service="asana",
                     success=True,
                     files_count=0,
-                    skipped_count=0
+                    skipped_count=0,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
-                
+
                 return True, 0, 0
-    
+
     except httpx.HTTPStatusError as e:
         logging.error(f"API Error {e.response.status_code}: {e.response.text}")
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="asana",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
     except Exception as e:
         logging.error(f"Asana ETL Error: {e}")
         import traceback
         traceback.print_exc()
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="asana",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
 
 

@@ -32,6 +32,133 @@ logging.basicConfig(level=logging.INFO)
 
 
 # =================================================================
+# USER CONTEXT HELPERS (RBAC Support)
+# =================================================================
+
+async def get_user_context(user_id: str) -> Dict:
+    """
+    Get user's organization_id and team_id for RBAC support.
+
+    This function fetches the user's organization and primary team
+    to enable team-scoped storage paths and KPI tracking.
+
+    Args:
+        user_id: User ID (UUID)
+
+    Returns:
+        Dict with:
+            - organization_id: str (required)
+            - team_id: str or None (user's primary team)
+            - team_ids: List[str] (all teams user belongs to)
+
+    Example:
+        context = await get_user_context(user_id)
+        org_id = context['organization_id']
+        team_id = context['team_id']  # May be None if user has no team
+    """
+    try:
+        # Fetch user's organization
+        user_response = supabase.table("users") \
+            .select("organization_id") \
+            .eq("id", user_id) \
+            .maybe_single() \
+            .execute()
+
+        user_data = getattr(user_response, "data", None)
+        if not user_data:
+            logging.warning(f"User {user_id} not found in users table")
+            return {
+                'organization_id': None,
+                'team_id': None,
+                'team_ids': []
+            }
+
+        organization_id = user_data.get('organization_id')
+
+        # Fetch user's team memberships
+        teams_response = supabase.table("team_members") \
+            .select("team_id, is_primary") \
+            .eq("user_id", user_id) \
+            .order("is_primary", desc=True) \
+            .execute()
+
+        teams_data = getattr(teams_response, "data", []) or []
+
+        team_ids = [tm['team_id'] for tm in teams_data]
+        primary_team = next(
+            (tm for tm in teams_data if tm.get('is_primary')),
+            teams_data[0] if teams_data else None
+        )
+        team_id = primary_team['team_id'] if primary_team else None
+
+        logging.info(f"User context: org={organization_id}, team={team_id}, teams={len(team_ids)}")
+
+        return {
+            'organization_id': organization_id,
+            'team_id': team_id,
+            'team_ids': team_ids
+        }
+
+    except Exception as e:
+        logging.error(f"Error fetching user context: {e}")
+        return {
+            'organization_id': None,
+            'team_id': None,
+            'team_ids': []
+        }
+
+
+def build_storage_path(
+    user_id: str,
+    connector_type: str,
+    filename: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
+) -> str:
+    """
+    Build storage path with RBAC hierarchy.
+
+    New path convention:
+        {organization_id}/{team_id}/{connector_type}/{user_id}/{filename}
+
+    For users without teams:
+        {organization_id}/no-team/{connector_type}/{user_id}/{filename}
+
+    Falls back to legacy path if no organization_id:
+        {user_id}/{connector_type}/{filename}
+
+    Args:
+        user_id: User ID
+        connector_type: Service type (jira, google, asana, etc.)
+        filename: File name (e.g., "project_issues.json")
+        organization_id: Organization ID (optional)
+        team_id: Team ID (optional, None means "no-team")
+
+    Returns:
+        Storage path string
+
+    Examples:
+        # With full RBAC context
+        build_storage_path("user123", "jira", "PROJ_issues.json", "org456", "team789")
+        # Returns: "org456/team789/jira/user123/PROJ_issues.json"
+
+        # User without team
+        build_storage_path("user123", "jira", "PROJ_issues.json", "org456", None)
+        # Returns: "org456/no-team/jira/user123/PROJ_issues.json"
+
+        # Legacy fallback (no org_id)
+        build_storage_path("user123", "jira", "PROJ_issues.json")
+        # Returns: "user123/jira/PROJ_issues.json"
+    """
+    if organization_id:
+        team_folder = team_id if team_id else "no-team"
+        return f"{organization_id}/{team_folder}/{connector_type}/{user_id}/{filename}"
+    else:
+        # Legacy path for backward compatibility
+        return f"{user_id}/{connector_type}/{filename}"
+
+
+# =================================================================
 # CONSTANTS
 # =================================================================
 
@@ -142,33 +269,35 @@ async def smart_upload_and_embed(
     source_id: Optional[str] = None,
     source_metadata: Optional[Dict] = None,
     enable_versioning: bool = False,
-    process_content_directly: bool = True  # Kept for API compatibility
+    process_content_directly: bool = True,  # Kept for API compatibility
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
 ) -> Dict:
     """
-    UPLOADS file and QUEUES for batch processing.
-    
+    UPLOADS file and QUEUES for batch processing with RBAC support.
+
     IMPORTANT: This does NOT process files immediately!
-    - Uploads file to storage
+    - Uploads file to storage (with org/team scoped paths)
     - Queues file for batch processing
     - Returns 'queued' status
-    
+
     Actual processing (embedding + note generation) happens later
     when process_embedding_queue_batch() is called.
-    
+
     Workflow:
-    1. Upload to Supabase Storage
+    1. Upload to Supabase Storage (with RBAC path structure)
     2. Queue for batch processing
     3. Return 'queued' status
-    
+
     Later (in etl_pipelines.py):
     4. process_embedding_queue_batch() runs
     5. All files processed with change detection
     6. Notes generated for ALL files together
-    
+
     Args:
         user_id: User ID
         bucket_name: Storage bucket (usually "Kogna")
-        file_path: Path in bucket (e.g., "user123/google_drive/report.pdf")
+        file_path: Path in bucket - can be legacy path or new RBAC path
         content: File content as bytes
         mime_type: MIME type (e.g., "application/pdf")
         source_type: 'google_drive', 'jira', 'asana', 'upload', etc.
@@ -176,25 +305,32 @@ async def smart_upload_and_embed(
         source_metadata: Connector-specific metadata (modified_time, etc.)
         enable_versioning: If True, keeps timestamped versions
         process_content_directly: Kept for API compatibility (not used)
-    
+        organization_id: Organization ID for RBAC (optional, for metadata)
+        team_id: Team ID for RBAC (optional, for metadata)
+
     Returns:
         {
             'status': 'queued',  # Always queued, never 'success' immediately
             'message': 'File uploaded and queued for processing',
             'storage_path': str
         }
-    
-    Example usage:
+
+    Example usage (with RBAC):
+        # Build path using build_storage_path helper
+        file_path = build_storage_path(user_id, "jira", f"{project_key}_issues.json", org_id, team_id)
+
         result = await smart_upload_and_embed(
             user_id=user_id,
             bucket_name="Kogna",
-            file_path=f"{user_id}/jira/{issue_key}.json",
+            file_path=file_path,
             content=json_content.encode('utf-8'),
             mime_type="application/json",
             source_type="jira",
-            source_id=issue_key
+            source_id=project_key,
+            organization_id=org_id,
+            team_id=team_id
         )
-        
+
         if result['status'] == 'queued':
             files_queued += 1  # Count as queued, will process in batch
     """
@@ -251,13 +387,20 @@ async def smart_upload_and_embed(
         # =====================================================================
         # STEP 2: QUEUE FOR BATCH PROCESSING (DON'T PROCESS NOW!)
         # =====================================================================
-        
+
+        # Enrich metadata with RBAC context
+        enriched_metadata = source_metadata.copy() if source_metadata else {}
+        if organization_id:
+            enriched_metadata['organization_id'] = organization_id
+        if team_id:
+            enriched_metadata['team_id'] = team_id
+
         queue_embedding(
             user_id=user_id,
             file_path=file_path,
             source_type=source_type,
             source_id=source_id,
-            source_metadata=source_metadata
+            source_metadata=enriched_metadata
         )
         
         # Return queued status (processing happens later in batch)
@@ -280,22 +423,46 @@ async def smart_upload_and_embed(
 # PROGRESS TRACKING
 # =================================================================
 
-async def create_sync_job(user_id: str, service: str) -> Optional[str]:
-    """Creates a sync job record and returns job_id"""
+async def create_sync_job(
+    user_id: str,
+    service: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
+) -> Optional[str]:
+    """
+    Creates a sync job record with RBAC context and returns job_id.
+
+    Args:
+        user_id: User ID
+        service: Service name (jira, google, etc.)
+        organization_id: Organization ID for RBAC filtering
+        team_id: Team ID for RBAC filtering (optional)
+
+    Returns:
+        Job ID string or None on failure
+    """
     try:
-        response = supabase.table("sync_jobs").insert({
+        job_data = {
             "user_id": user_id,
             "service": service,
             "status": "running",
             "started_at": int(time.time()),
             "progress": "0/0",
             "files_processed": 0,
-            "files_skipped": 0  # Track skipped files
-        }).execute()
-        
+            "files_skipped": 0
+        }
+
+        # Add RBAC context if available
+        if organization_id:
+            job_data["organization_id"] = organization_id
+        if team_id:
+            job_data["team_id"] = team_id
+
+        response = supabase.table("sync_jobs").insert(job_data).execute()
+
         if response.data:
             job_id = response.data[0]['id']
-            logging.info(f"Created sync job {job_id} for {service}")
+            logging.info(f"Created sync job {job_id} for {service} (org={organization_id}, team={team_id})")
             return job_id
         return None
     except Exception as e:
@@ -317,16 +484,18 @@ async def update_sync_progress(user_id: str, service: str, **updates):
 
 
 async def complete_sync_job(
-    user_id: str, 
-    service: str, 
-    success: bool, 
+    user_id: str,
+    service: str,
+    success: bool,
     files_count: int = 0,
-    skipped_count: int = 0,  # NEW: Track skipped files
-    error: str = None
+    skipped_count: int = 0,
+    error: str = None,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
 ):
     """
     Marks sync job as completed or failed.
-    
+
     Args:
         user_id: User ID
         service: Service name
@@ -334,25 +503,35 @@ async def complete_sync_job(
         files_count: Number of files processed (new/modified only)
         skipped_count: Number of files skipped (unchanged)
         error: Error message if failed
+        organization_id: Organization ID (for more precise job lookup)
+        team_id: Team ID (for more precise job lookup)
     """
     try:
         updates = {
             "status": "completed" if success else "failed",
             "finished_at": int(time.time()),
             "files_processed": files_count,
-            "files_skipped": skipped_count,  # NEW
-            "total_files": files_count + skipped_count  # NEW
+            "files_skipped": skipped_count,
+            "total_files": files_count + skipped_count
         }
         if error:
             updates["error_message"] = str(error)[:500]
-        
-        supabase.table("sync_jobs") \
+
+        # Build query with available filters
+        query = supabase.table("sync_jobs") \
             .update(updates) \
             .eq("user_id", user_id) \
             .eq("service", service) \
-            .eq("status", "running") \
-            .execute()
-        
+            .eq("status", "running")
+
+        # Add RBAC filters if available for more precise matching
+        if organization_id:
+            query = query.eq("organization_id", organization_id)
+        if team_id:
+            query = query.eq("team_id", team_id)
+
+        query.execute()
+
         status = "COMPLETED" if success else "FAILED"
         logging.info(f"{status} sync job for {service}")
         logging.info(f"   Processed: {files_count}, Skipped: {skipped_count}, Total: {files_count + skipped_count}")
@@ -568,27 +747,31 @@ __all__ = [
     'MAX_FILE_SIZE',
     'RATE_LIMIT_DELAY',
     'TOKEN_REFRESH_BUFFER',
-    
+
+    # RBAC Context Helpers (NEW)
+    'get_user_context',
+    'build_storage_path',
+
     # Embedding queue
     'embedding_queue',
     'queue_embedding',
     'process_embedding_queue_batch',
-    
+
     # Smart upload (uploads + queues, does NOT process immediately)
     'smart_upload_and_embed',
-    
+
     # Progress tracking
     'create_sync_job',
     'update_sync_progress',
     'complete_sync_job',
-    
+
     # Token management
     'ensure_valid_token',
     'refresh_jira_token',
     'refresh_google_token',
     'refresh_microsoft_token',
     'refresh_asana_token',
-    
+
     # Legacy file upload (backward compatibility)
     'safe_upload_to_bucket',
 ]

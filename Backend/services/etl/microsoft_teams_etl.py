@@ -29,9 +29,10 @@ from collections import Counter
 
 try:
     from services.etl.base_etl import (
-        smart_upload_and_embed,  # NEW: Smart upload with change detection
+        smart_upload_and_embed,  # Smart upload with change detection
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,  # NEW: RBAC storage path builder
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -40,6 +41,7 @@ except ImportError:
         smart_upload_and_embed,
         update_sync_progress,
         complete_sync_job,
+        build_storage_path,
         RATE_LIMIT_DELAY,
         MAX_FILE_SIZE
     )
@@ -417,13 +419,16 @@ def clean_teams_data(team_data: Dict) -> Dict:
 
 async def run_microsoft_teams_etl(
     user_id: str,
-    access_token: str
+    access_token: str,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
 ) -> Tuple[bool, int, int]:
     """
-    ULTIMATE Microsoft Teams ETL with INTELLIGENT CHANGE DETECTION.
-    
+    ULTIMATE Microsoft Teams ETL with INTELLIGENT CHANGE DETECTION + RBAC.
+
     Features:
     - Team and channel extraction
+    - RBAC-scoped storage paths: {org_id}/{team_id}/microsoft-teams/{user_id}/...
     - Message content extraction
     - Shared files metadata
     - Analytics and insights
@@ -477,14 +482,14 @@ async def run_microsoft_teams_etl(
             
             # Process each team
             for idx, team in enumerate(teams):
-                team_id = team.get('id')
+                ms_team_id = team.get('id')  # MS Teams team ID (not RBAC team_id)
                 team_name = team.get('displayName')
-                
+
                 try:
                     logging.info(f"[{idx+1}/{len(teams)}] Processing: {team_name}")
-                    
+
                     # Extract team data
-                    team_data = await extract_team_data(client, team_id, team_name)
+                    team_data = await extract_team_data(client, ms_team_id, team_name)
                     
                     if not team_data:
                         files_failed += 1
@@ -500,10 +505,16 @@ async def run_microsoft_teams_etl(
                     stats['total_messages'] += cleaned_team.get('total_messages', 0)
                     stats['total_files'] += cleaned_team.get('total_files', 0)
                     
-                    # NEW: Smart upload with change detection
-                    file_path = f"{user_id}/microsoft_teams/{team_name}.json"
+                    # Smart upload with change detection + RBAC paths
+                    file_path = build_storage_path(
+                        user_id=user_id,
+                        connector_type="microsoft_teams",
+                        filename=f"{team_name}.json",
+                        organization_id=organization_id,
+                        team_id=team_id
+                    )
                     cleaned_json = json.dumps(cleaned_team, indent=2)
-                    
+
                     result = await smart_upload_and_embed(
                         user_id=user_id,
                         bucket_name=bucket_name,
@@ -511,13 +522,15 @@ async def run_microsoft_teams_etl(
                         content=cleaned_json.encode('utf-8'),
                         mime_type="application/json",
                         source_type="microsoft-teams",
-                        source_id=team_id,
+                        source_id=ms_team_id,  # Renamed to avoid conflict with team_id parameter
                         source_metadata={
                             'team_name': team_name,
                             'total_channels': cleaned_team.get('total_channels', 0),
                             'total_messages': cleaned_team.get('total_messages', 0)
                         },
-                        process_content_directly=True  # Process JSON in memory
+                        process_content_directly=True,
+                        organization_id=organization_id,
+                        team_id=team_id
                     )
                     
                     # NEW: Track results
@@ -564,8 +577,14 @@ async def run_microsoft_teams_etl(
                 }
                 
                 combined_json = json.dumps(combined_data, indent=2)
-                file_path = f"{user_id}/microsoft_teams/all_teams_summary.json"
-                
+                file_path = build_storage_path(
+                    user_id=user_id,
+                    connector_type="microsoft_teams",
+                    filename="all_teams_summary.json",
+                    organization_id=organization_id,
+                    team_id=team_id
+                )
+
                 # Upload summary (no embedding needed for this)
                 await smart_upload_and_embed(
                     user_id=user_id,
@@ -575,16 +594,20 @@ async def run_microsoft_teams_etl(
                     mime_type="application/json",
                     source_type="microsoft-teams",
                     source_id="summary",
-                    process_content_directly=False  # Don't embed summary
+                    process_content_directly=False,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
-            
-            # NEW: Complete sync job with counts
+
+            # Complete sync job with counts + RBAC
             await complete_sync_job(
                 user_id=user_id,
                 service="microsoft-teams",
                 success=True,
                 files_count=files_processed,
-                skipped_count=files_skipped
+                skipped_count=files_skipped,
+                organization_id=organization_id,
+                team_id=team_id
             )
             
             # ================================================================
@@ -608,34 +631,38 @@ async def run_microsoft_teams_etl(
     
     except httpx.HTTPStatusError as e:
         logging.error(f"API Error {e.response.status_code}: {e.response.text}")
-        
+
         if e.response.status_code == 403:
             logging.error("Permission error. Required scopes:")
             logging.error("   - Team.ReadBasic.All")
             logging.error("   - Channel.ReadBasic.All")
             logging.error("   - ChannelMessage.Read.All")
             logging.error("   - Files.Read.All")
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="microsoft-teams",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
     except Exception as e:
         logging.error(f"Microsoft Teams ETL Error: {e}")
         import traceback
         traceback.print_exc()
-        
+
         await complete_sync_job(
             user_id=user_id,
             service="microsoft-teams",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
-        
+
         return False, 0, 0
 
 
