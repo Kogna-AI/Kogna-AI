@@ -502,6 +502,37 @@ class EmailSender:
 </html>
         """.strip()
 
+@staticmethod
+def get_team_invitation_email_html(
+    invitation_url: str,
+    org_name: str,
+    team_name: str,
+    inviter_name: str
+) -> str:
+    """
+    Generate HTML template for team invitation.
+    """
+    return f"""
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px;">
+        <h2 style="color: #764ba2;">Join {org_name} on Kogna</h2>
+        <p>Hi there,</p>
+        <p><strong>{inviter_name}</strong> has invited you to join the <strong>{team_name}</strong> team at <strong>{org_name}</strong>.</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{invitation_url}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Accept Invitation
+            </a>
+        </div>
+        <p style="font-size: 14px; color: #666;">This link will expire in 24 hours.</p>
+        <hr style="border: none; border-top: 1px solid #eee;" />
+        <p style="font-size: 12px; color: #999;">If you weren't expecting this invitation, you can safely ignore this email.</p>
+    </div>
+</body>
+</html>
+    """.strip()
+
     @staticmethod
     def test_configuration() -> dict:
         """
