@@ -175,13 +175,16 @@ class RegisterRequest(BaseModel):
     organization: str
     signup_token: Optional[str] = None 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
 
+class ResetPasswordSubmit(BaseModel):
+    token: str
+    new_password: str
 
-# Authentication
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
-
 
 
 class AuthResponse(BaseModel):

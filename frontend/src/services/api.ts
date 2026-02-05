@@ -181,7 +181,46 @@ async function handleResponse<T>(response: Response): Promise<T> {
  */
 export const api = {
   // ==================== AUTHENTICATION ====================
+  /**
+   * Request a password reset email
+   * Used when a user clicks "Forgot Password" on the login screen
+   */
+  requestPasswordReset: async (email: string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/auth/forgot-password`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      },
+    );
+    return handleResponse<{
+      success: boolean;
+      message: string;
+    }>(response);
+  },
 
+  /**
+   * Reset password using the token received in email
+   * Used on the dedicated password reset page
+   */
+  resetPassword: async (token: string, newPassword: string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/auth/reset-password`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          new_password: newPassword,
+        }),
+      },
+    );
+    return handleResponse<{
+      success: boolean;
+      message: string;
+    }>(response);
+  },
   // ==================== AUTHENTICATION (JWT ONLY) ====================
 
   login: async (email: string, password: string) => {
@@ -252,42 +291,42 @@ export const api = {
   },
 
   /**
- * Verify email address with token from email link
- */
-verifyEmail: async (token: string) => {
-  const response = await fetchWithTimeout(
-    `${API_BASE_URL}/api/auth/verify-email?token=${token}`,
-    {
-      method: "GET",
-    },
-  );
-  return handleResponse<{
-    success: boolean;
-    message: string;
-    user_id: string;
-  }>(response);
-},
+   * Verify email address with token from email link
+   */
+  verifyEmail: async (token: string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/auth/verify-email?token=${token}`,
+      {
+        method: "GET",
+      },
+    );
+    return handleResponse<{
+      success: boolean;
+      message: string;
+      user_id: string;
+    }>(response);
+  },
 
-/**
- * Resend verification email to user
- */
-resendVerification: async (email: string) => {
-  const response = await fetchWithTimeout(
-    `${API_BASE_URL}/api/auth/resend-verification`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    },
-  );
-  return handleResponse<{
-    success: boolean;
-    message: string;
-    user_id: string;
-    organization_id: string;
-    email_sent: boolean;
-  }>(response);
-},
+  /**
+   * Resend verification email to user
+   */
+  resendVerification: async (email: string) => {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/api/auth/resend-verification`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      },
+    );
+    return handleResponse<{
+      success: boolean;
+      message: string;
+      user_id: string;
+      organization_id: string;
+      email_sent: boolean;
+    }>(response);
+  },
 
   // ==================== ORGANIZATIONS ====================
 
@@ -428,7 +467,6 @@ resendVerification: async (email: string) => {
     return handleResponse(response);
   },
 
-
   // Hierarchical team view for TeamOverview
   teamHierarchy: async () => {
     const response = await fetchWithTimeout(
@@ -436,7 +474,7 @@ resendVerification: async (email: string) => {
       {
         method: "GET",
         headers: getAuthHeaders(),
-      }
+      },
     );
     return handleResponse(response);
   },
@@ -468,7 +506,7 @@ resendVerification: async (email: string) => {
   // Invitations
   createTeamInvitation: async (
     teamId: string,
-    data: { email: string; role?: string; team_ids?: string[] }
+    data: { email: string; role?: string; team_ids?: string[] },
   ) => {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/api/teams/${teamId}/invitations`,
