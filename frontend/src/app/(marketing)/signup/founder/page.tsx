@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import CreateAccountPage from "../../components/auth/CreateAccountPage";
+import CreateAccountPage from "../../../components/auth/CreateAccountPage";
 
 export default function FounderSignupPage() {
   const router = useRouter();

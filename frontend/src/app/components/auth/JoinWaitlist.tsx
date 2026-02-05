@@ -26,6 +26,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 // Pull URL from .env.local
 const GOOGLE_SHEET_WEBHOOK_URL = process.env.NEXT_PUBLIC_GOOGLE_SHEET_WEBHOOK_URL;
@@ -177,7 +178,7 @@ export default function JoinWaitlistPage({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col items-center justify-start p-4 pt-20">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-white shadow-lg flex items-center justify-center">
@@ -198,7 +199,6 @@ export default function JoinWaitlistPage({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
-                {/* Reverted to default sizing */}
                 <Input 
                   id="name" 
                   placeholder="Enter your full name" 
@@ -210,7 +210,6 @@ export default function JoinWaitlistPage({
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                {/* Reverted to default sizing */}
                 <Input 
                   id="email" 
                   type="email" 
@@ -223,7 +222,6 @@ export default function JoinWaitlistPage({
 
               <div className="space-y-2">
                 <Label htmlFor="organization">Organization</Label>
-                {/* Reverted to default sizing */}
                 <Input 
                   id="organization" 
                   placeholder="Your company or organization" 
@@ -239,7 +237,6 @@ export default function JoinWaitlistPage({
                     value={formData.companySize} 
                     onValueChange={(value) => handleChange("companySize", value)}
                 >
-                    {/* CHANGED: This now matches the input behavior exactly (16px mobile -> 14px desktop) */}
                     <SelectTrigger id="companySize" className="w-full text-base md:text-sm">
                       <SelectValue placeholder="How many employees?" />
                     </SelectTrigger>
@@ -255,7 +252,6 @@ export default function JoinWaitlistPage({
 
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
-                {/* Reverted to default sizing */}
                 <Input 
                   id="role" 
                   placeholder="e.g. Founder, CTO, Product Manager" 
@@ -267,7 +263,6 @@ export default function JoinWaitlistPage({
 
               <div className="space-y-2">
                 <Label htmlFor="phoneNumber">Phone Number</Label>
-                {/* Reverted to default sizing */}
                 <Input 
                   id="phoneNumber" 
                   type="tel"
@@ -285,11 +280,19 @@ export default function JoinWaitlistPage({
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? `Joining Waitlist${loadingDots}` : "Join Waitlist"}
-              </Button>
+              {/* Reduced spacing from space-y-3 to space-y-1 */}
+              <div className="space-y-1">
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? `Joining Waitlist${loadingDots}` : "Join Waitlist"}
+                </Button>
 
-              <div className="text-center pt-2">
+                <p className="text-[10px] sm:text-xs text-center text-gray-500 leading-relaxed whitespace-nowrap">
+                  By joining, you agree to our Terms and Privacy Policy
+                </p>
+              </div>
+
+              {/* Removed pt-2 and used mt-0 for tighter grouping */}
+              <div className="text-center mt-0">
                 <Button 
                   type="button" 
                   variant="ghost" 

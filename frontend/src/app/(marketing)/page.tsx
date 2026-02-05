@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "./components/auth/UserContext";
-import { LandingPage } from "./components/LandingPage";
+import { useUser } from "../components/auth/UserContext";
+import { LandingPage } from "./LandingPage";
 
 export default function RootPage() {
   const { isAuthenticated, loading } = useUser();
