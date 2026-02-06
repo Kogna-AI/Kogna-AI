@@ -122,40 +122,34 @@ export default function JoinWaitlistPage({
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    
-    if (!GOOGLE_SHEET_WEBHOOK_URL) {
-      setError("Configuration Error: Webhook URL not found.");
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!validateForm()) return;
+  
+  setIsLoading(true);
+  setError("");
 
-    setIsLoading(true);
-    setError("");
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/waitlist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
 
-    try {
-      await fetch(GOOGLE_SHEET_WEBHOOK_URL, {
-        method: "POST",
-        mode: "no-cors", 
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+    const result = await response.json();
 
+    if (response.ok && result.success) {
       setSuccess(true);
-      setTimeout(() => {
-        router.push('/'); 
-      }, 2000);
-
-    } catch (err) {
-      console.error(err);
-      setError("Failed to submit information. Please try again.");
-    } finally {
-      setIsLoading(false);
+      setTimeout(() => router.push('/'), 2000);
+    } else {
+      setError(result.message || "Failed to join waitlist.");
     }
-  };
+  } catch (err) {
+    setError("Connection error. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   if (success) {
     return (
