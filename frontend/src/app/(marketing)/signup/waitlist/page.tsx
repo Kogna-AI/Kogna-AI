@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import JoinWaitlistPage from "../../components/auth/JoinWaitlist";
+import JoinWaitlistPage from "../../../components/auth/JoinWaitlist";
 export default function WaitlistPage() {
   const router = useRouter();
 
