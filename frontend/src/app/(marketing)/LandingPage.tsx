@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '../ui/button';
@@ -55,6 +55,21 @@ interface LandingPageProps {
 
 export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPageProps) {
   
+  useEffect(() => {
+    // Check if URL has a hash (e.g., #pricing)
+    const hash = window.location.hash;
+    if (hash) {
+      // Small delay to ensure the DOM is fully rendered
+      setTimeout(() => {
+        const id = hash.replace('#', '');
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, []);
+
   // Helper for smooth scrolling
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
@@ -66,58 +81,6 @@ export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPa
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
-      
-      {/* 1. NAVIGATION BAR */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-          
-          {/* Left Side: Logo & Product Links */}
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight cursor-pointer">
-              <Image 
-                src="/KognaKLetterLogo.png" 
-                alt="Kogna Logo" 
-                width={32} 
-                height={32} 
-                className="object-contain"
-              />
-              <span>Kogna</span>
-            </Link>
-            
-            <nav className="hidden md:flex items-center gap-6">
-              <a href="#features" onClick={(e) => scrollToSection(e, 'features')} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-                Product
-              </a>
-              <a href="#how-it-works" onClick={(e) => scrollToSection(e, 'how-it-works')} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-                How it Works
-              </a>
-              <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-                Pricing
-              </a>
-            </nav>
-          </div>
-
-          {/* Right Side: Actions (CENTERED OVER LOGO) */}
-          <div className="flex items-center justify-end lg:justify-center gap-4 w-auto lg:w-[400px]">
-            <a 
-              href="https://calendly.com/getkogna/30min" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-2 text-sm font-medium hover:text-primary/80"
-            >
-              Book a demo
-            </a>
-            <Button onClick={onJoinWaitlist} size="sm" className="hidden sm:flex transition-transform hover:scale-105">
-              Join Waitlist
-            </Button>
-            <div className="w-px h-6 bg-border mx-1 hidden sm:block"></div>
-            <Button variant="ghost" size="sm" onClick={onLogin}>
-              Log in
-            </Button>
-          </div>
-        </div>
-      </header>
-
       <main className="flex-1">
         
         {/* 2. HERO SECTION */}
@@ -176,7 +139,7 @@ export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPa
                   New Features
                 </div>
                 <h2 className="text-3xl md:text-4xl font-bold tracking-tighter">
-                  Unlock Your Team's Potential
+                  Unlock Your Organization's Potential
                 </h2>
                 <p className="text-lg text-muted-foreground">
                   Connect your strategy to execution. Kogna provides a unified platform where teams can view, synthesize, and communicate real-time SWOT analysis to inform high impact decisions.
@@ -209,7 +172,7 @@ export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPa
         </section>
 
         {/* 4. FEATURES SECTION (ID: features) */}
-        <section id="features" className="container mx-auto px-4 md:px-6 py-24">
+        <section id="features" className="container mx-auto px-4 md:px-6 py-24 scroll-mt-20">
           <div className="mb-16">
             <h2 className="text-3xl font-bold tracking-tight mb-4">
               Everything you need to scale
@@ -329,7 +292,7 @@ export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPa
         </section>
 
         {/* 7. PRICING SECTION (Shrunk Whitespace) */}
-        <section id="pricing" className="bg-slate-50 border-t border-b border-slate-200 py-16 scroll-mt-10">
+        <section id="pricing" className="bg-slate-50 border-t border-b border-slate-200 py-16 scroll-mt-20">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-10">
               <h2 className="text-3xl font-bold tracking-tight mb-4">Simple, Transparent Pricing</h2>
@@ -432,7 +395,7 @@ export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPa
                 <span>Kogna</span>
               </div>
               <p className="text-sm text-muted-foreground max-w-xs mb-4">
-                Strategic Team Management Powered by AI. Making data-driven decisions accessible to everyone.
+                Strategic business insight powered by AI. Making data-driven decisions accessible to everyone.
               </p>
               
               {/* CONTACT & SOCIALS (Single Line Compact) */}
@@ -480,8 +443,8 @@ export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPa
                       Join the Team
                     </a>
                   </li>
-                  <li><Link href="#" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
-                  <li><Link href="#" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+                  <li><Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+                  <li><Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
                 </ul>
               </div>
 

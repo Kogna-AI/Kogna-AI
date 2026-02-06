@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
 from psycopg2.extras import RealDictCursor
 import logging
 from auth.email_verification import EmailVerification
+from services.waitlist_service import WaitlistService
 import uuid
 import bcrypt
 import secrets
@@ -737,3 +738,22 @@ async def me(
             "success": True,
             "data": data,
         }
+    
+# ------------------------------
+# POST /waitlist
+# ------------------------------
+
+class WaitlistRequest(BaseModel):
+    name: str
+    email: EmailStr
+    organization: str
+    companySize: str
+    role: str
+    phoneNumber: str
+
+# Endpoint at bottom
+@router.post("/waitlist")
+async def waitlist_signup(data: WaitlistRequest):
+    # This calls your separate Resend logic
+    success = WaitlistService.process_signup(data.dict())
+    return {"success": True, "message": "Successfully joined the waitlist"}
