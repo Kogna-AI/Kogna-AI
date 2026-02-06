@@ -14,7 +14,8 @@ from datetime import datetime
 
 from core.permissions import UserContext, get_user_context
 from routers.auth import _validate_password_strength, ph
-
+import logging
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/teams", tags=["Teams"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -803,7 +804,30 @@ def create_team_invitation(
             created_invitations.append(inv)
 
         conn.commit()
+        from utils.email_sender import EmailSender
+        import os
 
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    # Use the token from the first created invitation
+    invitation_url = f"{frontend_url}/accept-invitation?token={created_invitations[0]['token']}"
+
+    # Fetch inviter name for personalization
+    inviter_name = f"{user_ctx.first_name}" if hasattr(user_ctx, 'first_name') else "A team leader"
+
+    try:
+        EmailSender.send_email(
+            to_email=email,
+            subject=f"Invitation to join {team_rows[0]['name']} at {user_ctx.organization_name}", # Ensure org name is in context
+            html_content=EmailSender.get_team_invitation_email_html(
+                invitation_url=invitation_url,
+                org_name="Your Organization", # Replace with actual org name lookup
+                team_name=team_rows[0]["name"],
+                inviter_name=inviter_name
+            )
+        )
+        logger.info(f"Invitation email sent to {email}")
+    except Exception as e:
+        logger.error(f"Failed to send invitation email: {e}")
     # Return the first invitation (they all share the same token)
     return {"success": True, "data": created_invitations[0] if created_invitations else None}
 

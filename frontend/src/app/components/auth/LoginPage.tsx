@@ -13,11 +13,11 @@ import {
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { Alert, AlertDescription } from "../../ui/alert";
-import { Eye, EyeOff, AlertCircle, UserPlus, Loader2 } from "lucide-react"; // ✅ Added Loader2
+import { Eye, EyeOff, AlertCircle, UserPlus, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useUser } from "./UserContext";
-import api from "@/services/api"; // ✅ Added api import
+import api from "@/services/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -32,11 +32,15 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  
-  // ✅ Added email verification states
+
+  // Email verification states
   const [showResend, setShowResend] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
+
+  // Password reset states
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetMessage, setResetMessage] = useState("");
 
   // Handle signup navigation
   const handleSignupClick = () => {
@@ -47,14 +51,15 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
     }
   };
 
-  // --- Handle login submission ---
+  // Handle login submission
   const { login } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    setShowResend(false); // ✅ Reset resend button
+    setShowResend(false);
+    setResetMessage("");
 
     try {
       const success = await login(email, password);
@@ -70,9 +75,12 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
       console.error(err);
       const errorMessage = err?.message || "An unexpected error occurred";
       setError(errorMessage);
-      
-      // ✅ Show resend button if email not verified
-      if (errorMessage.includes("verify your email") || errorMessage.includes("not verified")) {
+
+      // Show resend button if email not verified
+      if (
+        errorMessage.includes("verify your email") ||
+        errorMessage.includes("not verified")
+      ) {
         setShowResend(true);
       }
     } finally {
@@ -80,18 +88,44 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
     }
   };
 
-  // ✅ Added resend verification handler
+  // Handle resend verification handler
   const handleResendVerification = async () => {
     setResendLoading(true);
     setResendMessage("");
 
     try {
       const data = await api.resendVerification(email);
-      setResendMessage(data.message || "✓ Verification email sent! Check your inbox.");
+      setResendMessage(
+        data.message || "Verification email sent. Check your inbox.",
+      );
     } catch (error: any) {
       setResendMessage(error.message || "Failed to resend email");
     } finally {
       setResendLoading(false);
+    }
+  };
+
+  // Handle forgot password handler
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Please enter your email address first to reset your password.");
+      return;
+    }
+
+    setIsResetting(true);
+    setResetMessage("");
+    setError("");
+
+    try {
+      const data = await api.requestPasswordReset(email);
+      setResetMessage(
+        data.message ||
+          "If that email is registered, a reset link has been sent.",
+      );
+    } catch (err: any) {
+      setError(err.message || "Failed to request password reset.");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -109,9 +143,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
               className="object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Welcome to Kogna
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome to Kogna</h1>
           <p className="text-gray-600 mt-1">Strategic Intelligence</p>
         </div>
 
@@ -140,7 +172,17 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
 
               {/* Password input */}
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-sm font-medium text-purple-600 hover:text-purple-700 underline-offset-4 hover:underline"
+                    disabled={isResetting}
+                  >
+                    {isResetting ? "Processing..." : "Forgot password?"}
+                  </button>
+                </div>
                 <div className="relative">
                   <Input
                     id="password"
@@ -174,7 +216,16 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
                 </Alert>
               )}
 
-              {/* ✅ Resend verification button */}
+              {/* Success/Reset message alert */}
+              {resetMessage && (
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertDescription className="text-blue-700 text-sm">
+                    {resetMessage}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Resend verification button */}
               {showResend && (
                 <div className="text-center">
                   <Button
@@ -196,16 +247,22 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
                 </div>
               )}
 
-              {/* ✅ Resend message */}
+              {/* Resend message */}
               {resendMessage && (
-                <Alert className={`${
-                  resendMessage.includes("✓")
-                    ? "bg-green-50 border-green-200"
-                    : "bg-red-50 border-red-200"
-                }`}>
-                  <AlertDescription className={`text-sm ${
-                    resendMessage.includes("✓") ? "text-green-700" : "text-red-700"
-                  }`}>
+                <Alert
+                  className={`${
+                    resendMessage.includes("Verification email sent")
+                      ? "bg-green-50 border-green-200"
+                      : "bg-red-50 border-red-200"
+                  }`}
+                >
+                  <AlertDescription
+                    className={`text-sm ${
+                      resendMessage.includes("Verification email sent")
+                        ? "text-green-700"
+                        : "text-red-700"
+                    }`}
+                  >
                     {resendMessage}
                   </AlertDescription>
                 </Alert>
