@@ -1,4 +1,5 @@
 import { DashboardOverview } from "./dashboard/dashboardoverview";
+import { DriveHub } from "./dashboard/DriveHub";
 import { TeamOverview } from "./dashboard/TeamOverview";
 import { StrategyHub } from "./dashboard/StrategyHub";
 import { DataConnectorHub } from "./dashboard/DataConnectorHub";
@@ -9,6 +10,7 @@ interface MainDashboardProps {
   activeView: string;
   setActiveView: (view: string) => void;
   onStrategySession: () => void;
+  onOpenAssistant?: () => void;
   kogniiControlState?: any;
   onKogniiActionComplete?: () => void;
 }
@@ -17,6 +19,7 @@ export function MainDashboard({
   activeView,
   setActiveView,
   onStrategySession,
+  onOpenAssistant,
   kogniiControlState,
   onKogniiActionComplete,
 }: MainDashboardProps) {
@@ -25,10 +28,7 @@ export function MainDashboard({
     switch (activeView) {
       case "dashboard":
         return (
-          <DashboardOverview
-            onStrategySession={onStrategySession}
-            user={user}
-          />
+          <DashboardOverview user={user} onOpenAssistant={onOpenAssistant} />
         );
       case "team":
         return <TeamOverview />;
@@ -42,14 +42,13 @@ export function MainDashboard({
 
       case "connectors":
         return <DataConnectorHub />;
+      case "drive":
+        return <DriveHub onOpenAssistant={onOpenAssistant} />;
       case "settings":
         return <SettingsView />;
       default:
         return (
-          <DashboardOverview
-            onStrategySession={onStrategySession}
-            user={user}
-          />
+          <DashboardOverview user={user} onOpenAssistant={onOpenAssistant} />
         );
     }
   };
