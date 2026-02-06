@@ -81,7 +81,7 @@ export function Sidebar({
               Kogna
             </h1>
             <p className="text-xs text-sidebar-foreground/60 transition-colors duration-300 group-hover:text-sidebar-foreground/80">
-              Strategic Intelligence
+              Business Radar
             </p>
           </div>
           <Sparkles className="w-4 h-4 ml-auto text-purple-500 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:rotate-12" />

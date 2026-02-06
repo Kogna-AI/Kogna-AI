@@ -34,10 +34,11 @@ export function ChatArea({ messages, isTyping, onSuggestionClick }: ChatAreaProp
     <div className="flex-1 overflow-hidden">
       <ScrollArea className="h-full">
         <div ref={chatAreaRef} className="p-4">
-          {messages.map((message) => (
+          {messages.map((message, index) => (
             <MessageBubble
               key={message.id}
               message={message}
+              isLast={index === messages.length - 1} // Pass isLast prop
               onSuggestionClick={onSuggestionClick}
             />
           ))}
@@ -48,7 +49,7 @@ export function ChatArea({ messages, isTyping, onSuggestionClick }: ChatAreaProp
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div className="max-w-[85%]">
-                <div className="rounded-2xl p-3 bg-muted text-muted-foreground">
+                <div className="rounded-2xl p-3 bg-white/5 border border-white/10 text-white/70">
                   <div className="flex items-center gap-2">
                     <KogniiThinkingIcon className="w-4 h-4 animate-pulse" />
                     <span className="text-sm">Kogna is thinking...</span>

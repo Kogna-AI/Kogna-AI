@@ -12,7 +12,7 @@ import { InputArea } from "../InputArea";
 import { QuickActions } from "../QuickActions";
 import { ConversationMode } from "../ConversationMode";
 import Header from "./Header";
-import { api } from "@/services/api"; // Added the API import
+import { api } from "@/services/api";
 
 export function KogniiAssistant({
   onClose,
@@ -23,7 +23,7 @@ export function KogniiAssistant({
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null); // Added Session ID
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(strategySessionMode);
   const [sessionStep, setSessionStep] = useState(0);
   const [currentContext, setCurrentContext] = useState(activeView);
@@ -36,10 +36,8 @@ export function KogniiAssistant({
   const demoScenarios = getDemoScenarios(activeView);
   const quickActions = getPageQuickActions(activeView);
 
-  // Initialize messages based on context and start Backend Session
   useEffect(() => {
     const initializeChat = async () => {
-      // 1. Start real session
       try {
         const session = await api.startChatSession();
         setSessionId(session.id);
@@ -48,7 +46,6 @@ export function KogniiAssistant({
         console.error("Failed to start session:", error);
       }
 
-      // 2. Set initial welcome message
       if (strategySessionMode) {
         setMessages([
           {
@@ -73,7 +70,6 @@ export function KogniiAssistant({
     initializeChat();
   }, [strategySessionMode, activeView, conversationMode]);
 
-  // Conversation mode auto-play logic
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isAutoPlaying && conversationStep < conversationScenario.length - 1) {
@@ -91,11 +87,8 @@ export function KogniiAssistant({
     return () => clearInterval(interval);
   }, [isAutoPlaying, conversationStep]);
 
-  // --- NEW: Unified helper to send messages to the backend ---
   const processUserMessage = async (text: string) => {
-    // 1. Check if we have a session
     if (!sessionId) {
-      console.error("No session ID. Cannot send message.");
       setMessages((prev) => [
         ...prev,
         {
@@ -108,7 +101,6 @@ export function KogniiAssistant({
       return;
     }
 
-    // 2. Add User Message to UI immediately
     const userMsgId = Date.now().toString();
     const userMessage: Message = {
       id: userMsgId,
@@ -121,7 +113,6 @@ export function KogniiAssistant({
     setIsTyping(true);
 
     try {
-      // 3. Call the Real Backend
       const apiResponse = await api.runAgentInSession(
         sessionId,
         text,
@@ -130,12 +121,10 @@ export function KogniiAssistant({
 
       let aiContent = apiResponse.final_report;
 
-      // Fallback if final_report is empty
       if (!aiContent) {
         aiContent = "I processed your request, but the response was empty.";
       }
 
-      // 4. Add AI Response to UI
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
@@ -172,8 +161,6 @@ export function KogniiAssistant({
   const handleDemoInput = () => {
     if (currentDemoStep < demoScenarios.length) {
       const scenario = demoScenarios[currentDemoStep];
-
-      // Add user message
       const userMessage: Message = {
         id: `demo-user-${Date.now()}`,
         type: "user",
@@ -184,7 +171,6 @@ export function KogniiAssistant({
       setMessages((prev) => [...prev, userMessage]);
       setIsTyping(true);
 
-      // Add AI response after delay
       setTimeout(() => {
         const aiMessage: Message = {
           id: `demo-ai-${Date.now()}`,
@@ -213,7 +199,6 @@ export function KogniiAssistant({
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    // 1. Check for demo navigation first
     if (
       suggestion === "Continue demo conversation" &&
       currentDemoStep < demoScenarios.length
@@ -232,20 +217,15 @@ export function KogniiAssistant({
       setMessages([getContextualInitialMessage(activeView)]);
       return;
     }
-
-    // 2. If it's a normal suggestion, send to REAL AI
     processUserMessage(suggestion);
   };
 
   const handleQuickAction = (action: string) => {
-    // Map the quick actions to prompts the AI understands
     const prompts: Record<string, string> = {
       "create-objective": "Help me create a strategic objective",
       "team-optimize": "Analyze our team optimization opportunities",
       "performance": "Analyze our current performance trends",
-      // Default fallback for others
     };
-
     const prompt = prompts[action] || `Tell me about ${action}`;
     processUserMessage(prompt);
   };
@@ -292,31 +272,41 @@ export function KogniiAssistant({
   }
 
   return (
-    <div className="w-96 h-full bg-background border-l border-border shadow-xl flex flex-col">
-      <Header onClose={onClose} activeView={activeView} />
+    <div className="w-96 h-full bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden flex flex-col shadow-2xl">
+      {/* Animated Background Layers */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-400 to-purple-600 animate-pulse"></div>
+        <div className="absolute top-1/4 left-1/4 w-24 h-24 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-full blur-3xl animate-bounce" style={{ animationDuration: '3s' }}></div>
+        <div className="absolute bottom-1/4 right-1/4 w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-600 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '2s' }}></div>
+        <div className="absolute top-1/2 right-1/3 w-16 h-16 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-full blur-3xl animate-bounce" style={{ animationDuration: '4s' }}></div>
+      </div>
 
-      <QuickActions
-        quickActions={quickActions}
-        onQuickAction={handleQuickAction}
-        onDemoInput={handleDemoInput}
-        onEnterConversationMode={() => setConversationMode(true)}
-        currentDemoStep={currentDemoStep}
-        demoScenariosLength={demoScenarios.length}
-      />
+      <div className="relative z-10 flex flex-col h-full bg-black/10 backdrop-blur-sm">
+        <Header onClose={onClose} activeView={activeView} />
 
-      <ChatArea
-        messages={messages}
-        isTyping={isTyping}
-        onSuggestionClick={handleSuggestionClick}
-      />
+        <QuickActions
+          quickActions={quickActions}
+          onQuickAction={handleQuickAction}
+          onDemoInput={handleDemoInput}
+          onEnterConversationMode={() => setConversationMode(true)}
+          currentDemoStep={currentDemoStep}
+          demoScenariosLength={demoScenarios.length}
+        />
 
-      <InputArea
-        inputValue={inputValue}
-        setInputValue={setInputValue}
-        onSendMessage={handleSendMessage}
-        isTyping={isTyping}
-        onEnterConversationMode={() => setConversationMode(true)}
-      />
+        <ChatArea
+          messages={messages}
+          isTyping={isTyping}
+          onSuggestionClick={handleSuggestionClick}
+        />
+
+        <InputArea
+          inputValue={inputValue}
+          setInputValue={setInputValue}
+          onSendMessage={handleSendMessage}
+          isTyping={isTyping}
+          onEnterConversationMode={() => setConversationMode(true)}
+        />
+      </div>
     </div>
   );
 }
