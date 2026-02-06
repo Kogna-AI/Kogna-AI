@@ -32,6 +32,7 @@ export function KogniiAssistant({
   const [conversationMode, setConversationMode] = useState(false);
   const [conversationStep, setConversationStep] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const demoScenarios = getDemoScenarios(activeView);
   const quickActions = getPageQuickActions(activeView);
@@ -291,9 +292,14 @@ export function KogniiAssistant({
     );
   }
 
-  return (
-    <div className="w-96 h-full bg-background border-l border-border shadow-xl flex flex-col">
-      <Header onClose={onClose} activeView={activeView} />
+  // Shared content for both views
+  const assistantContent = (
+    <>
+      <Header
+        onClose={onClose}
+        isExpanded={isExpanded}
+        onToggleExpand={() => setIsExpanded(!isExpanded)}
+      />
 
       <QuickActions
         quickActions={quickActions}
@@ -317,6 +323,44 @@ export function KogniiAssistant({
         isTyping={isTyping}
         onEnterConversationMode={() => setConversationMode(true)}
       />
+    </>
+  );
+
+  // When expanded, render in a fixed overlay with slide animation
+  if (isExpanded) {
+    return (
+      <>
+        {/* Backdrop */}
+        <div
+          className="fixed top-12 right-0 bottom-0 left-64 bg-black/10 z-40"
+          onClick={() => setIsExpanded(false)}
+          style={{ animation: 'fadeIn 200ms ease-out' }}
+        />
+        {/* Expanded panel */}
+        <div
+          className="fixed top-12 right-0 bottom-0 left-64 z-50 bg-background flex flex-col border-l border-border"
+          style={{ animation: 'slideInFromRight 300ms ease-out' }}
+        >
+          {assistantContent}
+        </div>
+        <style jsx>{`
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes slideInFromRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+          }
+        `}</style>
+      </>
+    );
+  }
+
+  // Normal panel view
+  return (
+    <div className="w-full h-full bg-background flex flex-col">
+      {assistantContent}
     </div>
   );
 }

@@ -1139,7 +1139,7 @@ export function TeamOverview() {
       </div>
 
       {/* Organizational Hierarchy */}
-      <Card className="border-2">
+      <Card className="border">
         <CardHeader className="bg-gradient-to-r from-blue-50/50 to-transparent dark:from-blue-950/20">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
