@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import logging
 
 load_dotenv()
-
+kognaLogo = "https://zhuenkeyboardimage.s3.us-east-2.amazonaws.com/KognaKLetterLogo.png"
 # Try to import SendGrid
 try:
     from sendgrid import SendGridAPIClient
@@ -458,12 +458,17 @@ class EmailSender:
             font-size: 13px;
             color: #6b7280;
         }}
+        .logo-img {{
+            height: 40px;
+            vertical-align: middle;
+            margin-right: 10px;
+        }}
     </style>
 </head>
 <body>
     <div class="email-container">
         <div class="header">
-            <h1>🔐 Kogna.io</h1>
+            <h1><img src="{kognaLogo}" alt="Kogna Logo" style="height: 32px; vertical-align: middle; margin-right: 10px;" />Kogna.io</h1>
         </div>
         
         <div class="content">
@@ -494,7 +499,7 @@ class EmailSender:
         </div>
         
         <div class="footer">
-            <p>© 2024 Kogna.io. All rights reserved.</p>
+            <p>© 2026 Kogna.io. All rights reserved.</p>
             <p><a href="{EmailSender.FRONTEND_URL}">Visit our website</a></p>
         </div>
     </div>
