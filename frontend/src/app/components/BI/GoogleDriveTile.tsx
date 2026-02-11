@@ -91,7 +91,7 @@ const GoogleDriveTile: React.FC<GoogleDriveTileProps> = ({ userId, onDelete }) =
       <div className="p-6 bg-gray-50 rounded-lg h-full flex items-center justify-center">
         <div className="text-center text-gray-500">
           <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="font-medium">No files selected for analysis</p>
+          <p className="font-medium text-base">No files selected for analysis</p>
           <p className="text-sm mt-1">Select files from Google Drive to power AI insights</p>
           <a
             href="/connectors"
@@ -103,9 +103,6 @@ const GoogleDriveTile: React.FC<GoogleDriveTileProps> = ({ userId, onDelete }) =
       </div>
     );
   }
-
-  // Show the most recent file prominently
-  const currentFile = files[0];
 
   return (
     <div className="relative w-full h-full group bg-white rounded-lg overflow-hidden">
@@ -123,66 +120,50 @@ const GoogleDriveTile: React.FC<GoogleDriveTileProps> = ({ userId, onDelete }) =
       <div className="p-6 h-full flex flex-col">
         {/* Header */}
         <div className="mb-4">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-gray-700">
               Selected Files for Analysis
             </h3>
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <Database className="w-3 h-3" />
-              <span>{files.length} file(s) in scope</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <FileText className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-gray-900 truncate" title={currentFile.file_name}>
-                {currentFile.file_name}
-              </h4>
-              <p className="text-xs text-gray-500">
-                {formatFileSize(currentFile.file_size)} • {currentFile.chunk_count} chunks
-              </p>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-full">
+              <Database className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-700">{files.length}</span>
             </div>
           </div>
         </div>
 
-        {/* File Details */}
-        <div className="flex-1 space-y-3 mb-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <span className="text-gray-600">Last analyzed:</span>
-            <span className="font-medium text-gray-900">{formatDate(currentFile.last_ingested_at)}</span>
-          </div>
+        {/* All Files List */}
+        <div className="flex-1 overflow-y-auto space-y-2.5">
+          {files.map((file) => (
+            <div
+              key={file.id}
+              className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg border border-gray-100 transition-colors"
+            >
+              <div className="p-2 bg-blue-50 rounded-lg shrink-0">
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <Database className="w-4 h-4 text-gray-400" />
-            <span className="text-gray-600">Source:</span>
-            <span className="font-medium text-gray-900">Google Drive</span>
-          </div>
-        </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-gray-900 truncate text-sm mb-1" title={file.file_name}>
+                  {file.file_name}
+                </h4>
 
-        {/* Additional Files */}
-        {files.length > 1 && (
-          <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Other Selected Files ({files.length - 1} more)
-            </p>
-            <div className="space-y-1 max-h-32 overflow-y-auto">
-              {files.slice(1, 4).map((file) => (
-                <div key={file.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded text-xs">
-                  <FileText className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                  <span className="flex-1 truncate text-gray-700" title={file.file_name}>
-                    {file.file_name}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
+                  <span className="flex items-center gap-1">
+                    <Database className="w-3.5 h-3.5 text-gray-400" />
+                    {formatFileSize(file.file_size)}
                   </span>
-                  <span className="text-gray-400 text-[10px]">
+                  <span className="text-gray-400">•</span>
+                  <span>{file.chunk_count} chunks</span>
+                  <span className="text-gray-400">•</span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
                     {formatDate(file.last_ingested_at)}
                   </span>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
     </div>
   );
