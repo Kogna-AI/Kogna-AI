@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, Loader2, AlertCircle, FolderOpen } from "lucide-react";
 import { Button } from "../../../ui/button";
 import {
@@ -13,7 +13,7 @@ import {
 } from "../../../ui/dialog";
 import { Input } from "../../../ui/input";
 import { ScrollArea } from "../../../ui/scroll-area";
-import { useConnectorFiles, useSyncConnector } from "@/app/hooks/useDashboard";
+import { useConnectorFiles, useSyncConnector, useSelectedFiles } from "@/app/hooks/useDashboard";
 import { FileListItem } from "./FileListItem";
 import type { Connector } from "./types";
 
@@ -41,8 +41,21 @@ export function FileSelectionDialog({
     refetch,
   } = useConnectorFiles(connector?.id || "", { enabled: isOpen && !!connector });
 
+  // Fetch previously selected files
+  const {
+    data: selectedFilesData,
+    isLoading: isLoadingSelection
+  } = useSelectedFiles(connector?.id, { enabled: isOpen && !!connector });
+
   // Sync mutation
   const { mutate: syncFiles, isPending: isSyncing } = useSyncConnector();
+
+  // Pre-populate with existing selection when dialog opens
+  useEffect(() => {
+    if (isOpen && selectedFilesData && selectedFilesData.file_ids) {
+      setSelectedFileIds(new Set(selectedFilesData.file_ids));
+    }
+  }, [isOpen, selectedFilesData]);
 
   // Filter files based on search query
   const filteredFiles = useMemo(() => {
@@ -135,6 +148,21 @@ export function FileSelectionDialog({
           <DialogDescription>
             Choose specific files to sync, or sync all files from your {connector.name}
           </DialogDescription>
+
+          {/* Current Selection Status */}
+          {selectedFilesData && !isLoadingSelection && (
+            <div className="text-sm text-muted-foreground mt-2 p-2 bg-blue-50 rounded-md">
+              {selectedFilesData.selection_mode === 'all' && (
+                <p>💡 Currently syncing <strong>all files</strong>. Select specific files below to limit the scope.</p>
+              )}
+              {selectedFilesData.selection_mode === 'specific' && (
+                <p>✅ Currently syncing <strong>{selectedFilesData.file_ids?.length} selected file(s)</strong>.</p>
+              )}
+              {selectedFilesData.selection_mode === 'none' && (
+                <p className="text-yellow-700">⚠️ No files selected. Select files to enable analysis.</p>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         {/* Search Input */}
@@ -150,7 +178,7 @@ export function FileSelectionDialog({
 
         {/* File List */}
         <div className="flex-1 min-h-0">
-          {isLoading && (
+          {(isLoading || isLoadingSelection) && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
@@ -168,7 +196,7 @@ export function FileSelectionDialog({
             </div>
           )}
 
-          {!isLoading && !error && filteredFiles.length === 0 && searchQuery && (
+          {!isLoading && !isLoadingSelection && !error && filteredFiles.length === 0 && searchQuery && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Search className="w-12 h-12 text-gray-300 mb-3" />
               <p className="text-sm text-gray-600">
@@ -177,7 +205,7 @@ export function FileSelectionDialog({
             </div>
           )}
 
-          {!isLoading && !error && filteredFiles.length === 0 && !searchQuery && (
+          {!isLoading && !isLoadingSelection && !error && filteredFiles.length === 0 && !searchQuery && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FolderOpen className="w-12 h-12 text-gray-300 mb-3" />
               <p className="text-sm text-gray-600">
@@ -186,7 +214,7 @@ export function FileSelectionDialog({
             </div>
           )}
 
-          {!isLoading && !error && filteredFiles.length > 0 && (
+          {!isLoading && !isLoadingSelection && !error && filteredFiles.length > 0 && (
             <div className="space-y-2">
               {/* Selection Header */}
               <div className="flex items-center justify-between pb-2 border-b">

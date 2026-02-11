@@ -136,17 +136,37 @@ async def delete_bi_system(bi_tool: str, x_user_id: str = Header(None)):
 
 @router.get("/google-drive/files")
 async def get_google_drive_files(x_user_id: str = Header(None)):
-    """Get Google Drive files used for data analysis"""
+    """Get Google Drive files used for data analysis (filtered by user selection)"""
     if not x_user_id:
         raise HTTPException(status_code=400, detail="X-User-ID header required")
 
     try:
-        # Fetch files from ingested_files table where source_type is 'google_drive'
-        response = service.supabase.table('ingested_files')\
+        # Get selected file IDs from user_connectors
+        connector_result = service.supabase.table("user_connectors")\
+            .select("selected_file_ids")\
+            .eq("user_id", x_user_id)\
+            .eq("service", "google")\
+            .single()\
+            .execute()
+
+        selected_ids = connector_result.data.get("selected_file_ids") if connector_result.data else None
+
+        # Build query for ingested files
+        query = service.supabase.table('ingested_files')\
             .select('id, file_name, file_path, file_size, source_id, source_metadata, last_ingested_at, chunk_count')\
             .eq('user_id', x_user_id)\
-            .eq('source_type', 'google_drive')\
-            .order('last_ingested_at', desc=True)\
+            .eq('source_type', 'google_drive')
+
+        # Filter by selected files if user has made a selection
+        if selected_ids is not None:  # User has made a selection
+            if len(selected_ids) == 0:
+                # User deselected all files
+                return []
+            # Filter to only selected files
+            query = query.in_("source_id", selected_ids)
+
+        # Execute query with ordering and limit
+        response = query.order('last_ingested_at', desc=True)\
             .limit(10)\
             .execute()
 

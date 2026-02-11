@@ -138,4 +138,14 @@ export const dashboardApi = {
 
     return response.json();
   },
+
+  /**
+   * Get the file IDs that a user has selected for a given provider
+   */
+  getSelectedFiles: async (provider: string): Promise<{
+    file_ids: string[] | null;
+    selection_mode: 'all' | 'specific' | 'none';
+  }> => {
+    return fetchApi(`/api/connect/selected-files/${provider}`);
+  },
 };

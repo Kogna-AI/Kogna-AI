@@ -1333,7 +1333,7 @@ async def run_google_drive_etl(
             
             # Query all non-trashed files
             query = "mimeType != 'application/vnd.google-apps.folder' and trashed = false"
-            files_url = f"https://www.googleapis.com/drive/v3/files?q={quote(query)}&pageSize=100&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime,createdTime,webViewLink,owners)"
+            files_url = f"https://www.googleapis.com/drive/v3/files?q={quote(query)}&pageSize=100&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime,createdTime,webViewLink,owners,shortcutDetails)"
             
             all_files = []
             page_token = None
@@ -1391,15 +1391,51 @@ async def run_google_drive_etl(
                 mime_type = file.get('mimeType')
                 file_size = int(file.get('size', 0))
                 modified_time = file.get('modifiedTime')
-                
+
+                # ========================================================
+                # RESOLVE SHORTCUTS
+                # ========================================================
+                # If this is a shortcut, resolve to the target file
+                if mime_type == 'application/vnd.google-apps.shortcut':
+                    shortcut_details = file.get('shortcutDetails', {})
+                    target_id = shortcut_details.get('targetId')
+                    target_mime_type = shortcut_details.get('targetMimeType')
+
+                    if target_id:
+                        logging.info(f" ↳ Resolving shortcut '{file_name}' → target ID: {target_id}")
+
+                        # Fetch the target file details
+                        try:
+                            target_url = f"https://www.googleapis.com/drive/v3/files/{target_id}?fields=id,name,mimeType,size,modifiedTime,createdTime"
+                            target_response = await client.get(target_url)
+                            target_response.raise_for_status()
+                            target_file = target_response.json()
+
+                            # Update file info to use the target file
+                            file_id = target_file.get('id')
+                            file_name = target_file.get('name', file_name)  # Keep original name if target doesn't have one
+                            mime_type = target_file.get('mimeType', target_mime_type)
+                            file_size = int(target_file.get('size', 0))
+                            modified_time = target_file.get('modifiedTime', modified_time)
+
+                            logging.info(f" ✓ Resolved to: {file_name} (type: {mime_type}, size: {file_size})")
+                        except Exception as e:
+                            logging.warning(f" ✗ Failed to resolve shortcut: {e}")
+                            files_failed += 1
+                            continue
+                    else:
+                        logging.warning(f" Skipping shortcut with no target: {file_name}")
+                        files_skipped += 1
+                        continue
+
                 # Skip very large files
                 if file_size > MAX_FILE_SIZE:
                     logging.warning(f" Skipping large file: {file_name} ({file_size} bytes)")
                     continue
-                
+
                 try:
                     logging.info(f" [{idx+1}/{len(all_files)}] Processing: {file_name}")
-                    
+
                     # ========================================================
                     # EXTRACT CONTENT (same as before)
                     # ========================================================

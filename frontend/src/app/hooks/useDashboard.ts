@@ -164,3 +164,24 @@ export function useSyncConnector() {
     },
   });
 }
+
+/**
+ * Hook to fetch selected file IDs for a connector
+ * @param provider - The connector provider (e.g., 'google', 'jira')
+ * @param options - Query options including enabled flag
+ */
+export function useSelectedFiles(
+  provider: string | null | undefined,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ['selected-files', provider],
+    queryFn: () => {
+      if (!provider) throw new Error('Provider is required');
+      return dashboardApi.getSelectedFiles(provider);
+    },
+    enabled: options?.enabled ?? false,
+    staleTime: 30000, // Cache for 30 seconds
+    refetchOnWindowFocus: false,
+  });
+}

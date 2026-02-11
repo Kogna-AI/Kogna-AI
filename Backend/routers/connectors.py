@@ -352,6 +352,70 @@ async def list_files(
         raise HTTPException(status_code=500, detail=str(e))
 
 # ------------------------------------------------------------------
+# Get Selected Files
+# ------------------------------------------------------------------
+
+@connect_router.get("/selected-files/{provider}")
+async def get_selected_files(
+    provider: str,
+    ids: dict = Depends(get_backend_user_id)
+) -> dict:
+    """
+    Get the file IDs that a user has selected for a given provider.
+
+    Returns:
+        {
+            "file_ids": ["id1", "id2", ...],  # null if all files selected
+            "selection_mode": "all" | "specific" | "none"
+        }
+    """
+    user_id = ids.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    # Map provider to service name
+    service_map = {
+        "google": "google",
+        "jira": "jira",
+        # Add more as needed
+    }
+    service = service_map.get(provider)
+
+    if not service:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+
+    try:
+        result = supabase.table("user_connectors")\
+            .select("selected_file_ids")\
+            .eq("user_id", user_id)\
+            .eq("service", service)\
+            .single()\
+            .execute()
+
+        selected_ids = result.data.get("selected_file_ids") if result.data else None
+
+        # Determine selection mode
+        if selected_ids is None:
+            mode = "all"  # Sync all files (default behavior)
+        elif len(selected_ids) == 0:
+            mode = "none"  # User deselected all
+        else:
+            mode = "specific"  # User selected specific files
+
+        return {
+            "file_ids": selected_ids,
+            "selection_mode": mode
+        }
+
+    except Exception as e:
+        logging.error(f"Error fetching selected files for {provider}: {e}")
+        # Default to "all" if no selection exists (graceful degradation)
+        return {
+            "file_ids": None,
+            "selection_mode": "all"
+        }
+
+# ------------------------------------------------------------------
 # OAuth Start (Authenticated)
 # ------------------------------------------------------------------
 
