@@ -3,6 +3,7 @@ import { Button } from "../../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Label } from "../../ui/label";
 import { Switch } from "../../ui/switch";
+import { useEffect } from "react";
 
 export function SettingsView() {
   return (

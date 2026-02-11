@@ -10,6 +10,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
 
+from core.models import SyncRequest, ConnectorFile, ConnectorFilesResponse
+
 from services.etl_pipelines import run_master_etl, run_test
 from auth.dependencies import get_backend_user_id
 from supabase_connect import get_supabase_manager
@@ -318,6 +320,158 @@ async def get_connection_status(
         raise HTTPException(status_code=500, detail=f"Failed to fetch connection status: {str(e)}")
 
 # ------------------------------------------------------------------
+# List Available Files for Selection
+# ------------------------------------------------------------------
+
+@connect_router.get("/files/{provider}")
+async def list_files(
+    provider: str,
+    ids: dict = Depends(get_backend_user_id),
+) -> ConnectorFilesResponse:
+    """
+    List available files from a connector for user selection.
+    Returns list of files with id, name, size, and last modified date.
+    """
+    user_id = ids.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        oauth_provider, etl_service = normalize_provider(provider)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Import here to avoid circular dependency
+    from services.etl.base_etl import ensure_valid_token
+
+    # Get valid token
+    access_token = await ensure_valid_token(user_id, etl_service)
+    if not access_token:
+        raise HTTPException(status_code=401, detail="No valid token found")
+
+    try:
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json"
+        }
+
+        async with httpx.AsyncClient(headers=headers, timeout=30.0) as client:
+            if etl_service == "google":
+                # Query all non-trashed files from Google Drive
+                query = quote("mimeType != 'application/vnd.google-apps.folder' and trashed = false")
+                files_url = f"https://www.googleapis.com/drive/v3/files?q={query}&pageSize=100&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime,webViewLink)"
+
+                all_files = []
+                page_token = None
+
+                # Paginate through all files
+                while True:
+                    url = files_url
+                    if page_token:
+                        url += f"&pageToken={page_token}"
+
+                    response = await client.get(url)
+                    response.raise_for_status()
+                    data = response.json()
+
+                    files = data.get('files', [])
+                    all_files.extend(files)
+
+                    page_token = data.get('nextPageToken')
+                    if not page_token:
+                        break
+
+                # Format response for frontend
+                formatted_files = [
+                    ConnectorFile(
+                        id=file.get('id'),
+                        name=file.get('name'),
+                        size=int(file.get('size', 0)),
+                        last_modified=file.get('modifiedTime'),
+                        web_url=file.get('webViewLink'),
+                        mime_type=file.get('mimeType')
+                    )
+                    for file in all_files
+                ]
+
+                return ConnectorFilesResponse(files=formatted_files, total=len(formatted_files))
+
+            # Add similar logic for other providers
+            else:
+                raise HTTPException(status_code=400, detail=f"File listing not supported for {etl_service}")
+
+    except httpx.HTTPStatusError as e:
+        logging.error(f"HTTP error listing files for {etl_service}: {e.response.status_code} - {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=f"Failed to list files: {e.response.text}")
+    except Exception as e:
+        logging.error(f"Error listing files for {etl_service}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ------------------------------------------------------------------
+# Get Selected Files
+# ------------------------------------------------------------------
+
+@connect_router.get("/selected-files/{provider}")
+async def get_selected_files(
+    provider: str,
+    ids: dict = Depends(get_backend_user_id)
+) -> dict:
+    """
+    Get the file IDs that a user has selected for a given provider.
+
+    Returns:
+        {
+            "file_ids": ["id1", "id2", ...],  # null if all files selected
+            "selection_mode": "all" | "specific" | "none"
+        }
+    """
+    user_id = ids.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    # Map provider to service name
+    service_map = {
+        "google": "google",
+        "jira": "jira",
+        # Add more as needed
+    }
+    service = service_map.get(provider)
+
+    if not service:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+
+    try:
+        result = supabase.table("user_connectors")\
+            .select("selected_file_ids")\
+            .eq("user_id", user_id)\
+            .eq("service", service)\
+            .single()\
+            .execute()
+
+        selected_ids = result.data.get("selected_file_ids") if result.data else None
+
+        # Determine selection mode
+        if selected_ids is None:
+            mode = "all"  # Sync all files (default behavior)
+        elif len(selected_ids) == 0:
+            mode = "none"  # User deselected all
+        else:
+            mode = "specific"  # User selected specific files
+
+        return {
+            "file_ids": selected_ids,
+            "selection_mode": mode
+        }
+
+    except Exception as e:
+        logging.error(f"Error fetching selected files for {provider}: {e}")
+        # Default to "all" if no selection exists (graceful degradation)
+        return {
+            "file_ids": None,
+            "selection_mode": "all"
+        }
+
+# ------------------------------------------------------------------
 # OAuth Start (Authenticated)
 # ------------------------------------------------------------------
 
@@ -384,7 +538,15 @@ async def connect_to_service(
         if not MICROSOFT_CLIENT_ID or not MICROSOFT_CLIENT_SECRET:
             raise HTTPException(status_code=500, detail="Microsoft OAuth not configured")
         
-        scope = quote("User.Read Files.Read Files.ReadWrite Sites.Read.All offline_access")
+        scope = quote(
+            "User.Read "                                                   
+            "Files.Read "                                                  
+            "Files.ReadWrite "                                             
+            "Sites.Read.All "                                              
+            "https://analysis.windows.net/powerbi/api/Report.Read.All "    
+            "https://analysis.windows.net/powerbi/api/Dataset.Read.All "   
+            "offline_access"
+        )
         redirect_uri = f"{APP_BASE_URL}/api/connect/callback/microsoft"
 
         return JSONResponse({
@@ -565,8 +727,9 @@ async def auth_callback(
                     "expires_at": int(time.time()) + token.get("expires_in", 3600),
                 }, on_conflict="user_id, service").execute()
 
-                logging.info(f"Saved Google connector for user {user_id} (org: {organization_id}, team: {team_id})")
-                background_tasks.add_task(run_master_etl, user_id, "google")
+                # Note: For Google Drive, we don't auto-sync on connection.
+                # User must select files first via the file selection dialog.
+                logging.info("Google Drive connected. User should select files before syncing.")
 
             except Exception as e:
                 logging.error(f"Google connection failed: {e}")
@@ -714,6 +877,7 @@ async def sync_service(
     provider: str,
     background_tasks: BackgroundTasks,
     ids: dict = Depends(get_backend_user_id),
+    sync_request: SyncRequest = SyncRequest(),  # Optional request body with file_ids
 ):
     user_id = ids.get("user_id")
     if not user_id:
@@ -724,5 +888,24 @@ async def sync_service(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    background_tasks.add_task(run_master_etl, user_id, etl_service)
-    return {"status": "sync_started"}
+    # Pass file_ids to ETL if provided
+    file_ids = sync_request.file_ids if sync_request else None
+
+    # Save file selection to database (NULL means sync all files)
+    try:
+        supabase.table("user_connectors").update({
+            "selected_file_ids": file_ids,
+            "updated_at": datetime.utcnow().isoformat()
+        }).eq("user_id", user_id).eq("service", etl_service).execute()
+        logging.info(f"Saved file selection for {etl_service}: {len(file_ids) if file_ids else 'all files'}")
+    except Exception as e:
+        logging.error(f"Failed to save file selection: {e}")
+        # Continue with sync even if saving selection fails
+
+    background_tasks.add_task(run_master_etl, user_id, etl_service, file_ids)
+
+    return {
+        "status": "sync_started",
+        "file_selection": "specific" if file_ids else "all",
+        "file_count": len(file_ids) if file_ids else None
+    }

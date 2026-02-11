@@ -112,4 +112,40 @@ export const dashboardApi = {
   getJiraProjects: async (): Promise<any> => {
     return fetchApi<any>("/api/jira/projects");
   },
+
+  // Connector file selection API functions
+  getConnectorFiles: async (provider: string): Promise<any> => {
+    return fetchApi<any>(`/api/connect/files/${provider}`);
+  },
+
+  syncConnector: async (provider: string, fileIds?: string[]): Promise<any> => {
+    const token = getAccessToken();
+
+    const response = await fetch(`${API_BASE_URL}/api/connect/sync/${provider}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
+      },
+      credentials: 'include',
+      body: JSON.stringify({ file_ids: fileIds })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Sync failed: ${errorText || response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get the file IDs that a user has selected for a given provider
+   */
+  getSelectedFiles: async (provider: string): Promise<{
+    file_ids: string[] | null;
+    selection_mode: 'all' | 'specific' | 'none';
+  }> => {
+    return fetchApi(`/api/connect/selected-files/${provider}`);
+  },
 };

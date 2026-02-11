@@ -10,9 +10,10 @@ import { useRouter } from "next/navigation";
 
 interface DashboardLayoutProps {
   activeView: string;
+  children?: React.ReactNode; // ADD THIS
 }
 
-export function DashboardLayout({ activeView }: DashboardLayoutProps) {
+export function DashboardLayout({ activeView, children }: DashboardLayoutProps) {
   const { isAuthenticated, loading } = useUser();
   const router = useRouter();
 
@@ -125,13 +126,18 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
       />
 
       <div className="flex-1 flex ml-64">
-        <MainDashboard
-          activeView={activeView}
-          setActiveView={(view) => router.push(`/${view}`)}
-          onStrategySession={handleStrategySession}
-          kogniiControlState={kogniiControlState}
-          onKogniiActionComplete={kogniiActions.clearKogniiControl}
-        />
+        {/* Render children if provided, otherwise use MainDashboard */}
+        {children ? (
+          children
+        ) : (
+          <MainDashboard
+            activeView={activeView}
+            setActiveView={(view) => router.push(`/${view}`)}
+            onStrategySession={handleStrategySession}
+            kogniiControlState={kogniiControlState}
+            onKogniiActionComplete={kogniiActions.clearKogniiControl}
+          />
+        )}
 
         {isKogniiOpen && (
           <div

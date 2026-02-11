@@ -154,7 +154,10 @@ Prioritize information related to their concerns.
                 print(f"--- [Layer 2] Searching without user context")
             
             print(f"--- [Layer 2] Searching intelligent notes...")
-            query_embedding = self.embeddings_model.embed_query(enhanced_query)
+            query_embedding = self.embeddings_model.embed_query(
+                enhanced_query,
+                output_dimensionality=768  # Truncate to 768 dims to match database
+            )
 
             # Search document notes (fast!)
             notes_response = self.supabase_client.rpc(
@@ -422,7 +425,7 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str, organization
     # 2. Initialize the Embedding Model for the RAG Tool
     try:
         embeddings_model = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
+            model="models/gemini-embedding-001",  # Latest model with MRL support
             google_api_key=gemini_api_key
         )
     except Exception as e:

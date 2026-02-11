@@ -4,6 +4,7 @@ import {
   BarChart3,
   CheckCircle2,
   Crown,
+  FolderOpen,
   Plug,
   Shield,
   Sparkles,
@@ -31,6 +32,7 @@ import {
 import { connectors } from "./connector-hub/constants";
 import type { Connector } from "./connector-hub/types";
 import { getStatusIcon, getStatusText } from "./connector-hub/utils";
+import { FileSelectionDialog } from "./connector-hub/FileSelectionDialog";
 
 // Map connector IDs to service names in the database
 const connectorToServiceMap: Record<string, string> = {
@@ -59,6 +61,7 @@ export function DataConnectorHub() {
   const [connectionStatuses, setConnectionStatuses] = useState<
     Record<string, ConnectionInfo>
   >({});
+  const [fileSelectionConnector, setFileSelectionConnector] = useState<Connector | null>(null);
 
   const kognaCoreConnector = connectors.find(
     (c: { id: string }) => c.id === "kognacore",
@@ -452,38 +455,62 @@ export function DataConnectorHub() {
 
                         <div className="mt-auto pt-2">
                           {isConnected ? (
-                          <Button
-                            className="w-full bg-green-50 text-green-700 border-green-200 hover:bg-green-600 hover:text-white hover:border-green-600 transition-all duration-200 group/btn shadow-sm hover:shadow-md"
-                            variant="outline"
-                            onClick={() =>
-                              handleConnect(connector as Connector)
-                            }
-                            disabled={connectingIds.has(connectorId)}
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-2 group-hover/btn:hidden" />
-                            <Plug className="w-4 h-4 mr-2 hidden group-hover/btn:block group-hover/btn:animate-pulse" />
-                            <span className="font-medium group-hover/btn:hidden">
-                              Connected
-                            </span>
-                            <span className="font-medium hidden group-hover/btn:inline">
-                              Reconnect
-                            </span>
-                          </Button>
-                        ) : (
-                          <Button
-                            className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
-                            variant="default"
-                            onClick={() =>
-                              handleConnect(connector as Connector)
-                            }
-                            disabled={connectingIds.has(connectorId)}
-                          >
-                            <Plug className="w-4 h-4 mr-2" />
-                            {connectingIds.has(connectorId)
-                              ? "Connecting..."
-                              : "Connect"}
-                          </Button>
-                        )}
+                            // Google Drive gets special file selection button
+                            connectorId === "google" ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  className="flex-1 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-200"
+                                  variant="outline"
+                                  onClick={() => setFileSelectionConnector(connector as Connector)}
+                                >
+                                  <FolderOpen className="w-4 h-4 mr-2" />
+                                  Select Files
+                                </Button>
+                                <Button
+                                  className="flex-1 bg-green-50 text-green-700 border-green-200 hover:bg-green-600 hover:text-white hover:border-green-600 transition-all duration-200"
+                                  variant="outline"
+                                  onClick={() => handleConnect(connector as Connector)}
+                                  disabled={connectingIds.has(connectorId)}
+                                >
+                                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                                  Reconnect
+                                </Button>
+                              </div>
+                            ) : (
+                              // Other connectors get standard reconnect button
+                              <Button
+                                className="w-full bg-green-50 text-green-700 border-green-200 hover:bg-green-600 hover:text-white hover:border-green-600 transition-all duration-200 group/btn shadow-sm hover:shadow-md"
+                                variant="outline"
+                                onClick={() =>
+                                  handleConnect(connector as Connector)
+                                }
+                                disabled={connectingIds.has(connectorId)}
+                              >
+                                <CheckCircle2 className="w-4 h-4 mr-2 group-hover/btn:hidden" />
+                                <Plug className="w-4 h-4 mr-2 hidden group-hover/btn:block group-hover/btn:animate-pulse" />
+                                <span className="font-medium group-hover/btn:hidden">
+                                  Connected
+                                </span>
+                                <span className="font-medium hidden group-hover/btn:inline">
+                                  Reconnect
+                                </span>
+                              </Button>
+                            )
+                          ) : (
+                            <Button
+                              className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                              variant="default"
+                              onClick={() =>
+                                handleConnect(connector as Connector)
+                              }
+                              disabled={connectingIds.has(connectorId)}
+                            >
+                              <Plug className="w-4 h-4 mr-2" />
+                              {connectingIds.has(connectorId)
+                                ? "Connecting..."
+                                : "Connect"}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -492,6 +519,17 @@ export function DataConnectorHub() {
               })(),
           )}
       </div>
+
+      {/* File Selection Dialog */}
+      <FileSelectionDialog
+        connector={fileSelectionConnector}
+        isOpen={!!fileSelectionConnector}
+        onClose={() => setFileSelectionConnector(null)}
+        onSyncComplete={() => {
+          // Optionally refresh connection status or show success message
+          setFileSelectionConnector(null);
+        }}
+      />
     </div>
   );
 }

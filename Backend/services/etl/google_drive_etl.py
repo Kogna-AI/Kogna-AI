@@ -1270,7 +1270,8 @@ async def run_google_drive_etl(
     user_id: str,
     access_token: str,
     organization_id: Optional[str] = None,
-    team_id: Optional[str] = None
+    team_id: Optional[str] = None,
+    file_ids: Optional[List[str]] = None
 ) -> Tuple[bool, int, int]:
     """
     ULTIMATE Google Drive ETL with INTELLIGENT CHANGE DETECTION + RBAC.
@@ -1286,11 +1287,15 @@ async def run_google_drive_etl(
      Language detection
      Quality scoring
      INTELLIGENT CHANGE DETECTION (95% faster re-syncs!)
-    
+     FILE SELECTION support (process specific files only)
+
     Args:
         user_id: User ID
         access_token: Valid Google access token
-        
+        organization_id: Organization ID for RBAC
+        team_id: Team ID for RBAC
+        file_ids: Optional list of specific file IDs to process (None = process all)
+
     Returns:
         (success: bool, files_processed: int, files_skipped: int)
     """
@@ -1328,7 +1333,7 @@ async def run_google_drive_etl(
             
             # Query all non-trashed files
             query = "mimeType != 'application/vnd.google-apps.folder' and trashed = false"
-            files_url = f"https://www.googleapis.com/drive/v3/files?q={quote(query)}&pageSize=100&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime,createdTime,webViewLink,owners)"
+            files_url = f"https://www.googleapis.com/drive/v3/files?q={quote(query)}&pageSize=100&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime,createdTime,webViewLink,owners,shortcutDetails)"
             
             all_files = []
             page_token = None
@@ -1352,7 +1357,13 @@ async def run_google_drive_etl(
                 
                 await asyncio.sleep(RATE_LIMIT_DELAY)
             
-            logging.info(f" Found {len(all_files)} files")
+            # Filter by file_ids if provided
+            if file_ids:
+                all_files = [f for f in all_files if f.get('id') in file_ids]
+                logging.info(f" Filtered to {len(all_files)} selected files (from {len(file_ids)} requested)")
+            else:
+                logging.info(f" Found {len(all_files)} files")
+
             await update_sync_progress(user_id, "google", progress=f"0/{len(all_files)} files")
             
             bucket_name = "Kogna"
@@ -1380,20 +1391,61 @@ async def run_google_drive_etl(
                 mime_type = file.get('mimeType')
                 file_size = int(file.get('size', 0))
                 modified_time = file.get('modifiedTime')
-                
+
+                # ========================================================
+                # RESOLVE SHORTCUTS
+                # ========================================================
+                # If this is a shortcut, resolve to the target file
+                # Keep original file_id for tracking, use target for content extraction
+                original_file_id = file_id  # Save the original shortcut ID
+                content_file_id = file_id   # ID to use for downloading content
+
+                if mime_type == 'application/vnd.google-apps.shortcut':
+                    shortcut_details = file.get('shortcutDetails', {})
+                    target_id = shortcut_details.get('targetId')
+                    target_mime_type = shortcut_details.get('targetMimeType')
+
+                    if target_id:
+                        logging.info(f" ↳ Resolving shortcut '{file_name}' → target ID: {target_id}")
+
+                        # Fetch the target file details
+                        try:
+                            target_url = f"https://www.googleapis.com/drive/v3/files/{target_id}?fields=id,name,mimeType,size,modifiedTime,createdTime"
+                            target_response = await client.get(target_url)
+                            target_response.raise_for_status()
+                            target_file = target_response.json()
+
+                            # Use target file for content extraction
+                            content_file_id = target_file.get('id')
+                            file_name = target_file.get('name', file_name)  # Keep original name if target doesn't have one
+                            mime_type = target_file.get('mimeType', target_mime_type)
+                            file_size = int(target_file.get('size', 0))
+                            modified_time = target_file.get('modifiedTime', modified_time)
+
+                            logging.info(f" ✓ Resolved to: {file_name} (type: {mime_type}, size: {file_size})")
+                            logging.info(f" ✓ Tracking: Using shortcut ID {original_file_id} for selection tracking")
+                        except Exception as e:
+                            logging.warning(f" ✗ Failed to resolve shortcut: {e}")
+                            files_failed += 1
+                            continue
+                    else:
+                        logging.warning(f" Skipping shortcut with no target: {file_name}")
+                        files_skipped += 1
+                        continue
+
                 # Skip very large files
                 if file_size > MAX_FILE_SIZE:
                     logging.warning(f" Skipping large file: {file_name} ({file_size} bytes)")
                     continue
-                
+
                 try:
                     logging.info(f" [{idx+1}/{len(all_files)}] Processing: {file_name}")
-                    
+
                     # ========================================================
-                    # EXTRACT CONTENT (same as before)
+                    # EXTRACT CONTENT (use content_file_id for shortcuts)
                     # ========================================================
                     content_data = await extract_google_file_content_ultimate(
-                        client, file_id, file_name, mime_type, file_size, access_token
+                        client, content_file_id, file_name, mime_type, file_size, access_token
                     )
                     
                     if not content_data:
@@ -1403,8 +1455,9 @@ async def run_google_drive_etl(
                     # ========================================================
                     # CLEAN AND ENRICH (same as before)
                     # ========================================================
+                    # Use original_file_id (shortcut ID) for tracking, so it matches selected_file_ids
                     full_data = {
-                        'file_id': file_id,
+                        'file_id': original_file_id,  # Use original ID for selection tracking
                         'file_name': file_name,
                         'mime_type': mime_type,
                         'size': file_size,

@@ -58,7 +58,7 @@ supabase = get_supabase_manager().client
 # MASTER ETL ORCHESTRATOR
 # =================================================================
 
-async def run_master_etl(user_id: str, service: str) -> bool:
+async def run_master_etl(user_id: str, service: str, file_ids: Optional[list] = None) -> bool:
     """
     Main ETL orchestrator with full error handling and progress tracking.
 
@@ -82,6 +82,7 @@ async def run_master_etl(user_id: str, service: str) -> bool:
         user_id: User ID
         service: Service name (google, jira, microsoft-excel, microsoft-teams,
                                microsoft-project, asana)
+        file_ids: Optional list of specific file IDs to process (None = process all)
 
     Returns:
         bool: Success status
@@ -98,6 +99,25 @@ async def run_master_etl(user_id: str, service: str) -> bool:
     team_id = user_context.get('team_id')
 
     logging.info(f"RBAC Context: org={organization_id}, team={team_id}")
+
+    # If file_ids not provided, check if user has saved file selection in database
+    if file_ids is None:
+        try:
+            connector = supabase.table("user_connectors")\
+                .select("selected_file_ids")\
+                .eq("user_id", user_id)\
+                .eq("service", service)\
+                .single()\
+                .execute()
+
+            if connector.data and connector.data.get("selected_file_ids"):
+                file_ids = connector.data["selected_file_ids"]
+                logging.info(f"Using saved file selection: {len(file_ids)} files")
+            else:
+                logging.info("No saved file selection - will process all files")
+        except Exception as e:
+            logging.warning(f"Failed to fetch saved file selection: {e}")
+            # Continue with file_ids=None (process all files)
 
     # Create sync job with RBAC context
     job_id = await create_sync_job(user_id, service, organization_id, team_id)
@@ -124,7 +144,7 @@ async def run_master_etl(user_id: str, service: str) -> bool:
         elif service == "google":
             logging.info("Using Google Drive ETL with data cleaning + RBAC")
             success, files_processed, files_skipped = await run_google_drive_etl(
-                user_id, access_token, organization_id, team_id
+                user_id, access_token, organization_id, team_id, file_ids
             )
 
         elif service == "microsoft-excel":

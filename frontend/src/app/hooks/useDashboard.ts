@@ -1,4 +1,4 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { dashboardApi } from '../services/dashboardApi';
 import type {
   DashboardResponse,
@@ -135,5 +135,53 @@ export function useJiraProjects(options?: { enabled?: boolean }) {
     queryFn: () => dashboardApi.getJiraProjects(),
     staleTime: 60000,
     ...options,
+  });
+}
+
+// Connector file selection hooks
+export function useConnectorFiles(
+  provider: string,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ['connector-files', provider],
+    queryFn: () => dashboardApi.getConnectorFiles(provider),
+    staleTime: 60000, // Cache for 1 minute
+    enabled: options?.enabled ?? false, // Only fetch when explicitly enabled
+    ...options,
+  });
+}
+
+export function useSyncConnector() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ provider, fileIds }: { provider: string; fileIds?: string[] }) =>
+      dashboardApi.syncConnector(provider, fileIds),
+    onSuccess: () => {
+      // Invalidate connection status to refresh UI
+      queryClient.invalidateQueries({ queryKey: ['connection-status'] });
+    },
+  });
+}
+
+/**
+ * Hook to fetch selected file IDs for a connector
+ * @param provider - The connector provider (e.g., 'google', 'jira')
+ * @param options - Query options including enabled flag
+ */
+export function useSelectedFiles(
+  provider: string | null | undefined,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ['selected-files', provider],
+    queryFn: () => {
+      if (!provider) throw new Error('Provider is required');
+      return dashboardApi.getSelectedFiles(provider);
+    },
+    enabled: options?.enabled ?? false,
+    staleTime: 30000, // Cache for 30 seconds
+    refetchOnWindowFocus: false,
   });
 }

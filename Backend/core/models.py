@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, date
 
 # ====== Success Response ======
@@ -189,6 +189,23 @@ class AuthResponse(BaseModel):
     access_token: str
     refresh_token: str
     user: UserInfo
+
+
+# ====== Connectors ======
+class SyncRequest(BaseModel):
+    file_ids: Optional[List[str]] = None  # Optional list of file IDs to sync
+
+class ConnectorFile(BaseModel):
+    id: str
+    name: str
+    size: int
+    last_modified: Optional[str] = None
+    web_url: Optional[str] = None
+    mime_type: Optional[str] = None
+
+class ConnectorFilesResponse(BaseModel):
+    files: List[ConnectorFile]
+    total: int
 
 
 

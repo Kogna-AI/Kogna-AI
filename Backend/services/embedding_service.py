@@ -40,7 +40,7 @@ try:
         raise ValueError("GEMINI_API_KEY not found in environment variables.")
 
     embeddings_model = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001", 
+        model="models/gemini-embedding-001",  # Latest model with MRL support
         google_api_key=gemini_api_key
     )
     print("✓ Embedding model initialized successfully.")
@@ -493,7 +493,10 @@ async def embed_and_store_file(
             print(f"   Batch {batch_num}/{total_batches}...", end=" ")
             
             try:
-                batch_embeddings = embeddings_model.embed_documents(batch_chunks)
+                batch_embeddings = embeddings_model.embed_documents(
+                    batch_chunks,
+                    output_dimensionality=768  # Truncate to 768 dims to match database
+                )
                 chunk_embeddings.extend(batch_embeddings)
                 print("✓")
                 time.sleep(1)
@@ -585,7 +588,10 @@ Topics: {', '.join(topics_list)}
                     """.strip()
                     
                     try:
-                        note_embedding = embeddings_model.embed_query(note_text_for_embedding)
+                        note_embedding = embeddings_model.embed_query(
+                            note_text_for_embedding,
+                            output_dimensionality=768  # Truncate to 768 dims to match database
+                        )
                         print("", end=" ")
                     except Exception as embed_error:
                         logging.warning(f"Failed to embed note: {embed_error}")
@@ -823,7 +829,10 @@ async def embed_and_store_kpi_summary(
 
         # Generate embedding for the summary
         print(f"  Generating embedding...")
-        embedding = embeddings_model.embed_query(summary_text)
+        embedding = embeddings_model.embed_query(
+            summary_text,
+            output_dimensionality=768  # Truncate to 768 dims to match database
+        )
         print(f" Embedding generated ({len(embedding)} dimensions)")
 
         # AUTOMATIC VERSION CONTROL: Delete old embedding first

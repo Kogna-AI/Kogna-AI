@@ -54,7 +54,7 @@ export function Sidebar({
   const navigationItems: NavItem[] = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "team", label: "Team Overview", icon: Users },
-    { id: "strategy", label: "Strategy Hub", icon: Target },
+    // { id: "strategy", label: "Strategy Hub", icon: Target },
     { id: "connectors", label: "Data Connectors", icon: Database },
     // { id: "insights", label: "Insights", icon: Brain },
   ];
@@ -63,7 +63,7 @@ export function Sidebar({
     <div className="fixed left-0 top-0 w-64 h-screen bg-gradient-to-br from-slate-50/95 via-white/95 to-gray-50/95 backdrop-blur-xl border-r border-white/20 shadow-2xl flex flex-col z-40 overflow-hidden">
       {/* Subtle Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-transparent pointer-events-none"></div>
-      
+
       {/* Header */}
       <div className="relative p-6 border-b border-white/20">
         <div className="flex items-center gap-3 group cursor-pointer">
@@ -99,7 +99,7 @@ export function Sidebar({
           >
             {/* Shimmer Effect */}
             <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-            
+
             <div className="p-1 rounded bg-gradient-to-br from-purple-500/20 to-blue-500/20 group-hover:from-purple-500/30 group-hover:to-blue-500/30 transition-all duration-300">
               <KogniiThinkingIcon className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform duration-300" />
             </div>
@@ -117,7 +117,7 @@ export function Sidebar({
           >
             {/* Shimmer Effect */}
             <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-            
+
             <div className="p-1 rounded bg-gradient-to-br from-orange-500/20 to-red-500/20 group-hover:from-orange-500/30 group-hover:to-red-500/30 transition-all duration-300">
               <Bell className="w-4 h-4 text-orange-600 group-hover:rotate-12 group-hover:scale-110 transition-transform duration-300" />
             </div>
@@ -137,54 +137,62 @@ export function Sidebar({
               pathname === `/${item.id}` ||
               (pathname === "/" && item.id === "dashboard");
             return (
-              <Link 
-                key={item.id} 
-                href={`/${item.id}`}
-                className="block"
-              >
+              <Link key={item.id} href={`/${item.id}`} className="block">
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
                   className={`
                     w-full justify-start gap-3 text-sidebar-foreground 
                     transition-all duration-300 group relative overflow-hidden
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-purple-500/10 to-blue-500/10 shadow-md border-l-2 border-purple-500 hover:shadow-lg' 
-                      : 'hover:bg-gradient-to-r hover:from-purple-500/5 hover:to-blue-500/5 hover:translate-x-1 hover:shadow-sm'
+                    ${
+                      isActive
+                        ? "bg-gradient-to-r from-purple-500/10 to-blue-500/10 shadow-md border-l-2 border-purple-500 hover:shadow-lg"
+                        : "hover:bg-gradient-to-r hover:from-purple-500/5 hover:to-blue-500/5 hover:translate-x-1 hover:shadow-sm"
                     }
                   `}
                 >
                   {/* Hover Shimmer */}
                   <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                  
-                  <div className={`
+
+                  <div
+                    className={`
                     p-1.5 rounded-lg transition-all duration-300
-                    ${isActive 
-                      ? 'bg-gradient-to-br from-purple-500/20 to-blue-500/20 shadow-sm' 
-                      : 'bg-transparent group-hover:bg-gradient-to-br group-hover:from-purple-500/10 group-hover:to-blue-500/10'
+                    ${
+                      isActive
+                        ? "bg-gradient-to-br from-purple-500/20 to-blue-500/20 shadow-sm"
+                        : "bg-transparent group-hover:bg-gradient-to-br group-hover:from-purple-500/10 group-hover:to-blue-500/10"
                     }
-                  `}>
-                    <Icon className={`
+                  `}
+                  >
+                    <Icon
+                      className={`
                       w-4 h-4 transition-all duration-300
-                      ${isActive 
-                        ? 'text-purple-600' 
-                        : 'text-sidebar-foreground/70 group-hover:text-purple-600 group-hover:scale-110'
+                      ${
+                        isActive
+                          ? "text-purple-600"
+                          : "text-sidebar-foreground/70 group-hover:text-purple-600 group-hover:scale-110"
                       }
-                    `} />
+                    `}
+                    />
                   </div>
-                  
-                  <span className={`
+
+                  <span
+                    className={`
                     font-medium transition-all duration-300 relative z-10
-                    ${isActive ? 'text-purple-700' : 'group-hover:text-purple-600'}
-                  `}>
+                    ${isActive ? "text-purple-700" : "group-hover:text-purple-600"}
+                  `}
+                  >
                     {item.label}
                   </span>
-                  
+
                   {item.badge && (
-                    <Badge variant="secondary" className="ml-auto text-xs relative z-10 transition-all duration-300">
+                    <Badge
+                      variant="secondary"
+                      className="ml-auto text-xs relative z-10 transition-all duration-300"
+                    >
                       {item.badge}
                     </Badge>
                   )}
-                  
+
                   {/* Arrow indicator for active */}
                   {isActive && (
                     <div className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-500 relative z-10"></div>
@@ -206,29 +214,36 @@ export function Sidebar({
             className={`
               w-full justify-start gap-3 text-sidebar-foreground 
               transition-all duration-300 group relative overflow-hidden
-              ${pathname === "/settings"
-                ? 'bg-gradient-to-r from-purple-500/10 to-blue-500/10 shadow-md'
-                : 'hover:bg-gradient-to-r hover:from-slate-500/5 hover:to-gray-500/5 hover:translate-x-1'
+              ${
+                pathname === "/settings"
+                  ? "bg-gradient-to-r from-purple-500/10 to-blue-500/10 shadow-md"
+                  : "hover:bg-gradient-to-r hover:from-slate-500/5 hover:to-gray-500/5 hover:translate-x-1"
               }
             `}
           >
             {/* Hover Shimmer */}
             <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-            
-            <div className={`
+
+            <div
+              className={`
               p-1.5 rounded-lg transition-all duration-300
-              ${pathname === "/settings"
-                ? 'bg-gradient-to-br from-purple-500/20 to-blue-500/20'
-                : 'group-hover:bg-slate-500/10'
+              ${
+                pathname === "/settings"
+                  ? "bg-gradient-to-br from-purple-500/20 to-blue-500/20"
+                  : "group-hover:bg-slate-500/10"
               }
-            `}>
-              <Settings className={`
+            `}
+            >
+              <Settings
+                className={`
                 w-4 h-4 transition-all duration-300
-                ${pathname === "/settings"
-                  ? 'text-purple-600 rotate-90'
-                  : 'text-sidebar-foreground/70 group-hover:text-slate-600 group-hover:rotate-90 group-hover:scale-110'
+                ${
+                  pathname === "/settings"
+                    ? "text-purple-600 rotate-90"
+                    : "text-sidebar-foreground/70 group-hover:text-slate-600 group-hover:rotate-90 group-hover:scale-110"
                 }
-              `} />
+              `}
+              />
             </div>
             <span className="font-medium relative z-10">Settings</span>
           </Button>
@@ -241,7 +256,7 @@ export function Sidebar({
         >
           {/* Hover Shimmer */}
           <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-          
+
           <div className="p-1.5 rounded-lg group-hover:bg-red-500/10 transition-all duration-300">
             <LogOut className="w-4 h-4 text-sidebar-foreground/70 group-hover:text-red-600 group-hover:-translate-x-0.5 transition-all duration-300" />
           </div>
@@ -251,7 +266,7 @@ export function Sidebar({
               : "Sign Out"}
           </span>
         </Button>
-        
+
         {/* Decorative Bottom Border */}
         <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"></div>
       </div>
