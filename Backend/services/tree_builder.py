@@ -342,11 +342,14 @@ Topics: {', '.join(super_note_topics)}
                 from langchain_google_genai import GoogleGenerativeAIEmbeddings
                 
                 embeddings_model = GoogleGenerativeAIEmbeddings(
-                    model="gemini-embedding-001",
+                    model="models/gemini-embedding-001",  # Latest model with MRL support
                     google_api_key=os.getenv("GOOGLE_API_KEY")
                 )
 
-                embedding = embeddings_model.embed_query(note_text_for_embedding)
+                embedding = embeddings_model.embed_query(
+                    note_text_for_embedding,
+                    output_dimensionality=768  # Truncate to 768 dims to match database
+                )
 
                 # Store in database
                 node_id = await self._store_super_note(
@@ -499,11 +502,14 @@ Topics: {', '.join(super_note_topics)}
                 from langchain_google_genai import GoogleGenerativeAIEmbeddings
                 
                 embeddings_model = GoogleGenerativeAIEmbeddings(
-                    model="gemini-embedding-001",
+                    model="models/gemini-embedding-001",  # Latest model with MRL support
                     google_api_key=os.getenv("GOOGLE_API_KEY")
                 )
 
-                embedding = embeddings_model.embed_query(note_text_for_embedding)
+                embedding = embeddings_model.embed_query(
+                    note_text_for_embedding,
+                    output_dimensionality=768  # Truncate to 768 dims to match database
+                )
 
                 # Store
                 node_id = await self._store_super_note(

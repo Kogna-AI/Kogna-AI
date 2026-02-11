@@ -8,7 +8,11 @@ import {
   Music,
 } from "lucide-react";
 import { Checkbox } from "../../../ui/checkbox";
-import { formatFileSize, formatRelativeDate, getFileType } from "@/app/utils/fileHelpers";
+import {
+  formatFileSize,
+  formatRelativeDate,
+  getFileType,
+} from "@/utils/fileHelpers";
 import type { ConnectorFile } from "./types";
 
 interface FileListItemProps {
@@ -28,7 +32,11 @@ const FILE_TYPE_ICONS: Record<string, React.ComponentType<any>> = {
   file: File,
 };
 
-export function FileListItem({ file, isSelected, onToggle }: FileListItemProps) {
+export function FileListItem({
+  file,
+  isSelected,
+  onToggle,
+}: FileListItemProps) {
   const fileType = getFileType(file.mime_type);
   const IconComponent = FILE_TYPE_ICONS[fileType] || File;
 

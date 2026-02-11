@@ -22,7 +22,7 @@ supabase = get_supabase_manager().client
 
 # Initialize embeddings
 embeddings_model = GoogleGenerativeAIEmbeddings(
-    model="gemini-embedding-001",
+    model="models/gemini-embedding-001",  # Latest model with MRL support
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )
 
@@ -61,7 +61,10 @@ class HierarchicalRetriever:
         """
         
         # Generate query embedding
-        query_embedding = embeddings_model.embed_query(query)
+        query_embedding = embeddings_model.embed_query(
+            query,
+            output_dimensionality=768  # Truncate to 768 dims to match database
+        )
         
         if strategy == "hybrid":
             return await self._hybrid_retrieval(query, query_embedding, max_results)
