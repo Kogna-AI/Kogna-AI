@@ -40,7 +40,7 @@ try:
         raise ValueError("GEMINI_API_KEY not found in environment variables.")
 
     embeddings_model = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001", 
+        model="gemini-embedding-001",
         google_api_key=gemini_api_key
     )
     print("✓ Embedding model initialized successfully.")

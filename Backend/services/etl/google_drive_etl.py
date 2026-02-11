@@ -1270,7 +1270,8 @@ async def run_google_drive_etl(
     user_id: str,
     access_token: str,
     organization_id: Optional[str] = None,
-    team_id: Optional[str] = None
+    team_id: Optional[str] = None,
+    file_ids: Optional[List[str]] = None
 ) -> Tuple[bool, int, int]:
     """
     ULTIMATE Google Drive ETL with INTELLIGENT CHANGE DETECTION + RBAC.
@@ -1286,11 +1287,15 @@ async def run_google_drive_etl(
      Language detection
      Quality scoring
      INTELLIGENT CHANGE DETECTION (95% faster re-syncs!)
-    
+     FILE SELECTION support (process specific files only)
+
     Args:
         user_id: User ID
         access_token: Valid Google access token
-        
+        organization_id: Organization ID for RBAC
+        team_id: Team ID for RBAC
+        file_ids: Optional list of specific file IDs to process (None = process all)
+
     Returns:
         (success: bool, files_processed: int, files_skipped: int)
     """
@@ -1352,7 +1357,13 @@ async def run_google_drive_etl(
                 
                 await asyncio.sleep(RATE_LIMIT_DELAY)
             
-            logging.info(f" Found {len(all_files)} files")
+            # Filter by file_ids if provided
+            if file_ids:
+                all_files = [f for f in all_files if f.get('id') in file_ids]
+                logging.info(f" Filtered to {len(all_files)} selected files (from {len(file_ids)} requested)")
+            else:
+                logging.info(f" Found {len(all_files)} files")
+
             await update_sync_progress(user_id, "google", progress=f"0/{len(all_files)} files")
             
             bucket_name = "Kogna"

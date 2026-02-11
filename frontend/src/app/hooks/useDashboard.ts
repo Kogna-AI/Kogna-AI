@@ -1,4 +1,4 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { dashboardApi } from '../services/dashboardApi';
 import type {
   DashboardResponse,
@@ -135,5 +135,32 @@ export function useJiraProjects(options?: { enabled?: boolean }) {
     queryFn: () => dashboardApi.getJiraProjects(),
     staleTime: 60000,
     ...options,
+  });
+}
+
+// Connector file selection hooks
+export function useConnectorFiles(
+  provider: string,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ['connector-files', provider],
+    queryFn: () => dashboardApi.getConnectorFiles(provider),
+    staleTime: 60000, // Cache for 1 minute
+    enabled: options?.enabled ?? false, // Only fetch when explicitly enabled
+    ...options,
+  });
+}
+
+export function useSyncConnector() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ provider, fileIds }: { provider: string; fileIds?: string[] }) =>
+      dashboardApi.syncConnector(provider, fileIds),
+    onSuccess: () => {
+      // Invalidate connection status to refresh UI
+      queryClient.invalidateQueries({ queryKey: ['connection-status'] });
+    },
   });
 }

@@ -422,7 +422,7 @@ def create_internal_analyst_crew(gemini_api_key: str, user_id: str, organization
     # 2. Initialize the Embedding Model for the RAG Tool
     try:
         embeddings_model = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
+            model="gemini-embedding-001",
             google_api_key=gemini_api_key
         )
     except Exception as e:

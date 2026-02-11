@@ -26,3 +26,23 @@ export interface SyncMode {
   features: string[];
   isPremium?: boolean;
 }
+
+export interface ConnectorFile {
+  id: string;
+  name: string;
+  size: number;
+  last_modified?: string;
+  web_url?: string;
+  mime_type?: string;
+}
+
+export interface ConnectorFilesResponse {
+  files: ConnectorFile[];
+  total: number;
+}
+
+export interface SyncResponse {
+  status: string;
+  file_selection: "specific" | "all";
+  file_count?: number;
+}
