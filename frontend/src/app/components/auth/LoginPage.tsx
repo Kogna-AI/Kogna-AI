@@ -13,10 +13,11 @@ import {
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { Alert, AlertDescription } from "../../ui/alert";
-import { Eye, EyeOff, AlertCircle, UserPlus } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, UserPlus, Loader2 } from "lucide-react"; // ✅ Added Loader2
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useUser } from "./UserContext";
+import api from "@/services/api"; // ✅ Added api import
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
@@ -31,6 +32,11 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  // ✅ Added email verification states
+  const [showResend, setShowResend] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   // Handle signup navigation
   const handleSignupClick = () => {
@@ -48,6 +54,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setShowResend(false); // ✅ Reset resend button
 
     try {
       const success = await login(email, password);
@@ -59,11 +66,32 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
 
       // IMPORTANT: use replace, not push
       router.replace("/dashboard");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("An unexpected error occurred");
+      const errorMessage = err?.message || "An unexpected error occurred";
+      setError(errorMessage);
+      
+      // ✅ Show resend button if email not verified
+      if (errorMessage.includes("verify your email") || errorMessage.includes("not verified")) {
+        setShowResend(true);
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // ✅ Added resend verification handler
+  const handleResendVerification = async () => {
+    setResendLoading(true);
+    setResendMessage("");
+
+    try {
+      const data = await api.resendVerification(email);
+      setResendMessage(data.message || "✓ Verification email sent! Check your inbox.");
+    } catch (error: any) {
+      setResendMessage(error.message || "Failed to resend email");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -146,6 +174,43 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
                 </Alert>
               )}
 
+              {/* ✅ Resend verification button */}
+              {showResend && (
+                <div className="text-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleResendVerification}
+                    disabled={resendLoading}
+                    className="text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    {resendLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      "Resend verification email"
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* ✅ Resend message */}
+              {resendMessage && (
+                <Alert className={`${
+                  resendMessage.includes("✓")
+                    ? "bg-green-50 border-green-200"
+                    : "bg-red-50 border-red-200"
+                }`}>
+                  <AlertDescription className={`text-sm ${
+                    resendMessage.includes("✓") ? "text-green-700" : "text-red-700"
+                  }`}>
+                    {resendMessage}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Submit button */}
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign In"}
@@ -154,7 +219,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
           </CardContent>
         </Card>
 
-        {/* Sign up section */}
+        {/* Waitlist section */}
         <div className="text-center space-y-3">
           <p className="text-sm text-gray-600">Don't have an account yet?</p>
           <Button
@@ -164,7 +229,7 @@ export function LoginScreen({ onCreateAccount }: LoginScreenProps) {
             onClick={handleSignupClick}
           >
             <UserPlus className="h-4 w-4 mr-2" />
-            Sign up for free
+            Join the Waitlist
           </Button>
         </div>
       </div>

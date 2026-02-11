@@ -265,3 +265,145 @@ class TestUserContextPermissionPatterns:
 
         assert ctx.team_ids == []
         assert len(ctx.team_ids) == 0
+
+
+class TestFilterObjectivesByRole:
+    """Tests for filter_objectives_by_role helper function."""
+
+    def test_manager_sees_all_objectives(self, mock_manager_context):
+        """Managers should see all objectives regardless of team."""
+        from core.permissions import filter_objectives_by_role
+
+        objectives = [
+            {"id": "obj-1", "team_responsible": "team-1"},
+            {"id": "obj-2", "team_responsible": "team-99"},  # Not in manager's teams
+            {"id": "obj-3", "team_responsible": "team-2"},
+        ]
+
+        result = filter_objectives_by_role(objectives, mock_manager_context)
+
+        assert len(result) == 3
+        assert all(obj in result for obj in objectives)
+
+    def test_executive_sees_all_objectives(self, mock_executive_context):
+        """Executives should see all objectives."""
+        from core.permissions import filter_objectives_by_role
+
+        objectives = [
+            {"id": "obj-1", "team_responsible": "team-999"},
+            {"id": "obj-2", "team_responsible": "team-888"},
+        ]
+
+        result = filter_objectives_by_role(objectives, mock_executive_context)
+
+        assert len(result) == 2
+
+    def test_analyst_sees_only_team_objectives(self, mock_user_context):
+        """Analysts should only see objectives for their teams."""
+        from core.permissions import filter_objectives_by_role
+
+        objectives = [
+            {"id": "obj-1", "team_responsible": "team-1"},  # In user's teams
+            {"id": "obj-2", "team_responsible": "team-99"},  # Not in user's teams
+            {"id": "obj-3", "team_responsible": "team-2"},  # In user's teams
+        ]
+
+        result = filter_objectives_by_role(objectives, mock_user_context)
+
+        assert len(result) == 2
+        assert objectives[0] in result
+        assert objectives[2] in result
+        assert objectives[1] not in result
+
+    def test_empty_objectives_list(self, mock_user_context):
+        """Empty objectives list should return empty list."""
+        from core.permissions import filter_objectives_by_role
+
+        result = filter_objectives_by_role([], mock_user_context)
+
+        assert result == []
+
+
+class TestFilterMetricsByRole:
+    """Tests for filter_metrics_by_role helper function."""
+
+    def test_manager_sees_all_metrics(self, mock_manager_context):
+        """Managers should see all metrics."""
+        from core.permissions import filter_metrics_by_role
+
+        metrics = [
+            {"id": "metric-1", "value": 100},
+            {"id": "metric-2", "value": 200},
+        ]
+
+        result = filter_metrics_by_role(metrics, mock_manager_context)
+
+        assert len(result) == 2
+
+    def test_analyst_sees_all_metrics(self, mock_user_context):
+        """Analysts should see all metrics (no team filtering for metrics)."""
+        from core.permissions import filter_metrics_by_role
+
+        metrics = [
+            {"id": "metric-1", "value": 100},
+            {"id": "metric-2", "value": 200},
+        ]
+
+        result = filter_metrics_by_role(metrics, mock_user_context)
+
+        assert len(result) == 2
+
+
+class TestGetUserDataScope:
+    """Tests for get_user_data_scope helper function."""
+
+    def test_executive_gets_organization_scope(self, mock_executive_context):
+        """Executives should have organization scope."""
+        from core.permissions import get_user_data_scope
+
+        result = get_user_data_scope(mock_executive_context)
+
+        assert result["scope"] == "organization"
+        assert result["organization_id"] == "org-123"
+        assert result["user_id"] == "exec-123"
+        assert result["role_level"] == 4
+
+    def test_manager_gets_organization_scope(self, mock_manager_context):
+        """Managers should have organization scope."""
+        from core.permissions import get_user_data_scope
+
+        result = get_user_data_scope(mock_manager_context)
+
+        assert result["scope"] == "organization"
+        assert result["organization_id"] == "org-123"
+
+    def test_analyst_with_teams_gets_team_scope(self, mock_user_context):
+        """Analysts with teams should have team scope."""
+        from core.permissions import get_user_data_scope
+
+        result = get_user_data_scope(mock_user_context)
+
+        assert result["scope"] == "team"
+        assert result["team_ids"] == ["team-1", "team-2"]
+
+    def test_user_without_teams_gets_own_scope(self):
+        """Users without teams should have own scope."""
+        from core.permissions import get_user_data_scope
+
+        ctx = UserContext(
+            id="user-123",
+            supabase_id="supabase-123",
+            email="test@example.com",
+            organization_id="org-123",
+            first_name="Test",
+            second_name="User",
+            role_name="viewer",
+            role_level=1,
+            permissions=[],
+            team_ids=[],  # No teams
+        )
+
+        result = get_user_data_scope(ctx)
+
+        assert result["scope"] == "own"
+        assert result["user_id"] == "user-123"

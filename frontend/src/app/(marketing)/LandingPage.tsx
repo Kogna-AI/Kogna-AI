@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '../ui/button';
@@ -48,12 +48,28 @@ const CustomConnectIcon = ({ className }: { className?: string }) => (
 // --- MAIN COMPONENT ---
 
 interface LandingPageProps {
+  onJoinWaitlist: () => void;
   onGetStarted: () => void;
   onLogin: () => void;
 }
 
-export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
+export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPageProps) {
   
+  useEffect(() => {
+    // Check if URL has a hash (e.g., #pricing)
+    const hash = window.location.hash;
+    if (hash) {
+      // Small delay to ensure the DOM is fully rendered
+      setTimeout(() => {
+        const id = hash.replace('#', '');
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, []);
+
   // Helper for smooth scrolling
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
@@ -65,58 +81,6 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
-      
-      {/* 1. NAVIGATION BAR */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-          
-          {/* Left Side: Logo & Product Links */}
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight cursor-pointer">
-              <Image 
-                src="/KognaKLetterLogo.png" 
-                alt="Kogna Logo" 
-                width={32} 
-                height={32} 
-                className="object-contain"
-              />
-              <span>Kogna</span>
-            </Link>
-            
-            <nav className="hidden md:flex items-center gap-6">
-              <a href="#pricing" onClick={(e) => scrollToSection(e, 'pricing')} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-                Pricing
-              </a>
-              <a href="#features" onClick={(e) => scrollToSection(e, 'features')} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-                Product
-              </a>
-              <a href="#how-it-works" onClick={(e) => scrollToSection(e, 'how-it-works')} className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
-                How it Works
-              </a>
-            </nav>
-          </div>
-
-          {/* Right Side: Actions (CENTERED OVER LOGO) */}
-          <div className="flex items-center justify-end lg:justify-center gap-4 w-auto lg:w-[400px]">
-            <a 
-              href="https://calendly.com/getkogna/30min" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-2 text-sm font-medium hover:text-primary/80"
-            >
-              Book a demo
-            </a>
-            <Button onClick={onGetStarted} size="sm" className="hidden sm:flex transition-transform hover:scale-105">
-              Join Waitlist
-            </Button>
-            <div className="w-px h-6 bg-border mx-1 hidden sm:block"></div>
-            <Button variant="ghost" size="sm" onClick={onLogin}>
-              Log in
-            </Button>
-          </div>
-        </div>
-      </header>
-
       <main className="flex-1">
         
         {/* 2. HERO SECTION */}
@@ -131,11 +95,11 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
               </h1>
               
               <p className="text-xl text-muted-foreground max-w-[600px] animate-in slide-in-from-bottom-6 fade-in duration-700 delay-100">
-                Executives are drowning in data but starving for clarity. Kogna streamlines your workflow with intelligent automation and real time strategic insight.
+                Executives are drowning in data but starving for clarity. Kogna streamlines your workflow with unified visibility and real time strategic insight.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-4 animate-in slide-in-from-bottom-7 fade-in duration-700 delay-200">
-                <Button size="lg" onClick={onGetStarted} className="px-8 text-base transition-all hover:scale-105 hover:shadow-lg">
+                <Button size="lg" onClick={onJoinWaitlist} className="px-8 text-base transition-all hover:scale-105 hover:shadow-lg">
                   Join Waitlist
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
@@ -175,10 +139,10 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                   New Features
                 </div>
                 <h2 className="text-3xl md:text-4xl font-bold tracking-tighter">
-                  Unlock Your Team's Potential
+                  Unlock Your Organization's Potential
                 </h2>
                 <p className="text-lg text-muted-foreground">
-                  Connect your strategy to execution. Kogna provides a unified platform where teams can collaborate, automate mundane tasks, and visualize success in real-time.
+                  Connect your strategy to execution. Kogna provides a unified platform where teams can view, synthesize, and communicate real-time SWOT analysis to inform high impact decisions.
                 </p>
                 <ul className="space-y-3 pt-4">
                   {['Human-in-the-Loop design', 'Seamless integrations', 'AI-driven analytics'].map((item) => (
@@ -208,7 +172,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         </section>
 
         {/* 4. FEATURES SECTION (ID: features) */}
-        <section id="features" className="container mx-auto px-4 md:px-6 py-24">
+        <section id="features" className="container mx-auto px-4 md:px-6 py-24 scroll-mt-20">
           <div className="mb-16">
             <h2 className="text-3xl font-bold tracking-tight mb-4">
               Everything you need to scale
@@ -227,7 +191,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
               </div>
               <h3 className="text-xl font-bold mb-3">AI Assistant</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Meet <strong>Kogna</strong>, your personalized advisor. Get high-confidence predictions and strategic recommendations. Kogna analyzes your data to spot risks like team burnout before they happen.
+                Meet <strong>Kogna</strong>, your smart radar for business. Scanning for Strengthes, Weaknesses, Opportunities, and Threats 24/7, Kogna analyzes your data and competitive environment to provide the ultimate visibility of your of your organization's position.
               </p>
             </div>
 
@@ -249,7 +213,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
               </div>
               <h3 className="text-xl font-bold mb-3">Fast Connect</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Stop drowning in scattered data. Instantly connect your existing tools like Jira, Asana, and Excel to centralize your workflow and start making <strong>Powered Decisions</strong>.
+                Stop drowning in scattered data. Instantly connect your existing tools like Jira, Asana, and Excel to centralize your workflow and start making <strong>Powered Decisions</strong> with maximum clarity.
               </p>
             </div>
 
@@ -314,13 +278,13 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
               </div>
               <h3 className="text-xl font-bold mb-2">3. Execute</h3>
               <p className="text-muted-foreground text-sm">
-                Make confident, data-driven decisions with a strategic overview.
+                Make confident, data-driven decisions with intelligent strategic overview.
               </p>
             </div>
           </div>
 
           <div className="flex justify-center">
-            <Button size="lg" onClick={onGetStarted} className="px-8 text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
+            <Button size="lg" onClick={onJoinWaitlist} className="px-8 text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all">
               Join the Waitlist for Kogna
               <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
@@ -328,7 +292,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         </section>
 
         {/* 7. PRICING SECTION (Shrunk Whitespace) */}
-        <section id="pricing" className="bg-slate-50 border-t border-b border-slate-200 py-16 scroll-mt-10">
+        <section id="pricing" className="bg-slate-50 border-t border-b border-slate-200 py-16 scroll-mt-20">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center mb-10">
               <h2 className="text-3xl font-bold tracking-tight mb-4">Simple, Transparent Pricing</h2>
@@ -357,7 +321,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                     </li>
                   ))}
                 </ul>
-                <Button onClick={onGetStarted} variant="outline" className="w-full hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-colors">Join Waitlist</Button>
+                <Button onClick={onJoinWaitlist} variant="outline" className="w-full hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-colors">Join Waitlist</Button>
               </div>
 
               {/* TIER 2: Pro ($40) - RECOMMENDED */}
@@ -379,7 +343,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                     </li>
                   ))}
                 </ul>
-                <Button onClick={onGetStarted} variant="outline" className="w-full hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-colors">Join Waitlist</Button>
+                <Button onClick={onJoinWaitlist} variant="outline" className="w-full hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-colors">Join Waitlist</Button>
               </div>
 
               {/* TIER 3: Enterprise */}
@@ -431,7 +395,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 <span>Kogna</span>
               </div>
               <p className="text-sm text-muted-foreground max-w-xs mb-4">
-                Strategic Team Management Powered by AI. Making data-driven decisions accessible to everyone.
+                Strategic business insight powered by AI. Making data-driven decisions accessible to everyone.
               </p>
               
               {/* CONTACT & SOCIALS (Single Line Compact) */}
@@ -479,8 +443,8 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                       Join the Team
                     </a>
                   </li>
-                  <li><Link href="#" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
-                  <li><Link href="#" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+                  <li><Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+                  <li><Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
                 </ul>
               </div>
 

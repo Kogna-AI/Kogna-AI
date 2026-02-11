@@ -1491,11 +1491,17 @@ async def run_google_drive_etl(
                         stats['total_enriched'] += 1
                     
                     # ========================================================
-                    #  NEW: SMART UPLOAD WITH CHANGE DETECTION
+                    #  SMART UPLOAD WITH CHANGE DETECTION + RBAC PATHS
                     # ========================================================
-                    file_path = f"{user_id}/google_drive/{file_name}"
+                    file_path = build_storage_path(
+                        user_id=user_id,
+                        connector_type="google_drive",
+                        filename=file_name,
+                        organization_id=organization_id,
+                        team_id=team_id
+                    )
                     cleaned_json = json.dumps(cleaned_file, indent=2)
-                    
+
                     result = await smart_upload_and_embed(
                         user_id=user_id,
                         bucket_name=bucket_name,
@@ -1509,7 +1515,9 @@ async def run_google_drive_etl(
                             'file_name': file_name,
                             'mime_type': mime_type
                         },
-                        process_content_directly=True  # ← Process JSON in memory
+                        process_content_directly=True,
+                        organization_id=organization_id,
+                        team_id=team_id
                     )
                     
                     # ========================================================
@@ -1571,8 +1579,14 @@ async def run_google_drive_etl(
                 }
                 
                 combined_json = json.dumps(combined_data, indent=2)
-                combined_file_path = f"{user_id}/google_drive/all_files_summary.json"
-                
+                combined_file_path = build_storage_path(
+                    user_id=user_id,
+                    connector_type="google_drive",
+                    filename="all_files_summary.json",
+                    organization_id=organization_id,
+                    team_id=team_id
+                )
+
                 # Upload summary (no embedding needed for this)
                 await smart_upload_and_embed(
                     user_id=user_id,
@@ -1582,18 +1596,22 @@ async def run_google_drive_etl(
                     mime_type="application/json",
                     source_type="google_drive",
                     source_id="summary",
-                    process_content_directly=False  # Don't embed summary
+                    process_content_directly=False,
+                    organization_id=organization_id,
+                    team_id=team_id
                 )
             
             # ================================================================
-            #  NEW: COMPLETE SYNC JOB WITH COUNTS
+            #  COMPLETE SYNC JOB WITH COUNTS + RBAC
             # ================================================================
             await complete_sync_job(
                 user_id=user_id,
                 service="google",
                 success=True,
                 files_count=files_processed,
-                skipped_count=files_skipped
+                skipped_count=files_skipped,
+                organization_id=organization_id,
+                team_id=team_id
             )
             
             # ================================================================
@@ -1633,7 +1651,9 @@ async def run_google_drive_etl(
             user_id=user_id,
             service="google",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
         return False, 0, 0
     except Exception as e:
@@ -1644,7 +1664,9 @@ async def run_google_drive_etl(
             user_id=user_id,
             service="google",
             success=False,
-            error=str(e)
+            error=str(e),
+            organization_id=organization_id,
+            team_id=team_id
         )
         return False, 0, 0
 

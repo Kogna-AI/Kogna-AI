@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "./components/auth/UserContext";
-import { LandingPage } from "./components/LandingPage";
+import { useUser } from "../components/auth/UserContext";
+import { LandingPage } from "./LandingPage";
 
 export default function RootPage() {
   const { isAuthenticated, loading } = useUser();
@@ -20,6 +20,7 @@ export default function RootPage() {
   }, [loading, isAuthenticated, router]);
 
   // Handlers for the Landing Page buttons
+  const handleJoinWaitlist = () => router.push("/signup/waitlist");
   const handleGetStarted = () => router.push("/signup");
   const handleLogin = () => router.push("/login");
 
@@ -31,6 +32,7 @@ export default function RootPage() {
   // If not logged in, show Landing Page.
   return (
     <LandingPage 
+      onJoinWaitlist={handleJoinWaitlist}
       onGetStarted={handleGetStarted} 
       onLogin={handleLogin} 
     />

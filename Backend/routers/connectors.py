@@ -20,6 +20,47 @@ from supabase_connect import get_supabase_manager
 supabase = get_supabase_manager().client
 
 # ------------------------------------------------------------------
+# Helper: Get User Context (Organization + Team)
+# ------------------------------------------------------------------
+
+async def get_user_org_team_context(user_id: str) -> Dict[str, Optional[str]]:
+    """
+    Fetch user's organization_id and primary team_id for RBAC support.
+
+    Returns:
+        Dict with organization_id and team_id (may be None if user has no team)
+    """
+    try:
+        # Fetch user's organization
+        user_response = supabase.table("users") \
+            .select("organization_id") \
+            .eq("id", user_id) \
+            .maybe_single() \
+            .execute()
+
+        user_data = getattr(user_response, "data", None)
+        organization_id = user_data.get("organization_id") if user_data else None
+
+        # Fetch user's primary team
+        team_response = supabase.table("team_members") \
+            .select("team_id") \
+            .eq("user_id", user_id) \
+            .eq("is_primary", True) \
+            .maybe_single() \
+            .execute()
+
+        team_data = getattr(team_response, "data", None)
+        team_id = team_data.get("team_id") if team_data else None
+
+        return {
+            "organization_id": organization_id,
+            "team_id": team_id
+        }
+    except Exception as e:
+        logging.error(f"Failed to fetch user context for {user_id}: {e}")
+        return {"organization_id": None, "team_id": None}
+
+# ------------------------------------------------------------------
 # Environment
 # ------------------------------------------------------------------
 
@@ -35,8 +76,8 @@ MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
 ASANA_CLIENT_ID = os.getenv("ASANA_CLIENT_ID")
 ASANA_CLIENT_SECRET = os.getenv("ASANA_CLIENT_SECRET")
 
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
+APP_BASE_URL = os.getenv("APP_BASE_URL")
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL","https://kogna.io")
 
 # ------------------------------------------------------------------
 # Helper: Normalize Provider Names
@@ -80,9 +121,22 @@ def normalize_provider(provider: str) -> tuple[str, str]:
 # Helper: Save or Update Connector
 # ------------------------------------------------------------------
 
-def save_or_update_connector(user_id: str, service: str, token: dict):
+def save_or_update_connector(
+    user_id: str,
+    service: str,
+    token: dict,
+    organization_id: Optional[str] = None,
+    team_id: Optional[str] = None
+):
     """
-    Save or update connector tokens in database
+    Save or update connector tokens in database with RBAC support.
+
+    Args:
+        user_id: User ID
+        service: Service name (jira, google, microsoft, asana)
+        token: OAuth token dict with access_token, refresh_token, expires_in
+        organization_id: Organization ID for RBAC
+        team_id: Team ID for RBAC (optional)
     """
     # Check if connector already exists
     existing = supabase.table("user_connectors")\
@@ -93,6 +147,8 @@ def save_or_update_connector(user_id: str, service: str, token: dict):
 
     connector_data = {
         "user_id": user_id,
+        "organization_id": organization_id,
+        "team_id": team_id,
         "service": service,
         "access_token": token["access_token"],
         "refresh_token": token.get("refresh_token"),
@@ -106,13 +162,13 @@ def save_or_update_connector(user_id: str, service: str, token: dict):
             .eq("user_id", user_id)\
             .eq("service", service)\
             .execute()
-        logging.info(f"Updated {service} connector for user {user_id}")
+        logging.info(f"Updated {service} connector for user {user_id} (org: {organization_id}, team: {team_id})")
     else:
         # Insert new connector
         supabase.table("user_connectors")\
             .insert(connector_data)\
             .execute()
-        logging.info(f"Created new {service} connector for user {user_id}")
+        logging.info(f"Created new {service} connector for user {user_id} (org: {organization_id}, team: {team_id})")
 
 # ------------------------------------------------------------------
 # Models
@@ -591,15 +647,23 @@ async def auth_callback(
                         f"{FRONTEND_BASE_URL}/connectors?error=jira&message=missing_token"
                     )
 
+                # Fetch user's organization and team context for RBAC
+                user_context = await get_user_org_team_context(user_id)
+                organization_id = user_context.get("organization_id")
+                team_id = user_context.get("team_id")
+
                 # Upsert to prevent duplicate key errors on re-connection
                 supabase.table("user_connectors").upsert({
                     "user_id": user_id,
+                    "organization_id": organization_id,
+                    "team_id": team_id,
                     "service": "jira",
                     "access_token": token["access_token"],
                     "refresh_token": token.get("refresh_token"),
                     "expires_at": int(time.time()) + token.get("expires_in", 3600),
                 }, on_conflict="user_id, service").execute()
 
+                logging.info(f"Saved Jira connector for user {user_id} (org: {organization_id}, team: {team_id})")
                 background_tasks.add_task(run_master_etl, user_id, "jira")
 
             except Exception as e:
@@ -648,8 +712,15 @@ async def auth_callback(
                         f"{FRONTEND_BASE_URL}/connectors?error=google&message=missing_token"
                     )
 
+                # Fetch user's organization and team context for RBAC
+                user_context = await get_user_org_team_context(user_id)
+                organization_id = user_context.get("organization_id")
+                team_id = user_context.get("team_id")
+
                 supabase.table("user_connectors").upsert({
                     "user_id": user_id,
+                    "organization_id": organization_id,
+                    "team_id": team_id,
                     "service": "google",
                     "access_token": token["access_token"],
                     "refresh_token": token.get("refresh_token"),
@@ -706,14 +777,22 @@ async def auth_callback(
                         f"{FRONTEND_BASE_URL}/connectors?error=microsoft&message=missing_token"
                     )
 
+                # Fetch user's organization and team context for RBAC
+                user_context = await get_user_org_team_context(user_id)
+                organization_id = user_context.get("organization_id")
+                team_id = user_context.get("team_id")
+
                 supabase.table("user_connectors").upsert({
                     "user_id": user_id,
+                    "organization_id": organization_id,
+                    "team_id": team_id,
                     "service": "microsoft",
                     "access_token": token["access_token"],
                     "refresh_token": token.get("refresh_token"),
                     "expires_at": int(time.time()) + token.get("expires_in", 3600),
                 }, on_conflict="user_id, service").execute()
 
+                logging.info(f"Saved Microsoft connector for user {user_id} (org: {organization_id}, team: {team_id})")
                 background_tasks.add_task(run_master_etl, user_id, "microsoft")
 
             except Exception as e:
@@ -762,14 +841,22 @@ async def auth_callback(
                         f"{FRONTEND_BASE_URL}/connectors?error=asana&message=missing_token"
                     )
 
+                # Fetch user's organization and team context for RBAC
+                user_context = await get_user_org_team_context(user_id)
+                organization_id = user_context.get("organization_id")
+                team_id = user_context.get("team_id")
+
                 supabase.table("user_connectors").upsert({
                     "user_id": user_id,
+                    "organization_id": organization_id,
+                    "team_id": team_id,
                     "service": "asana",
                     "access_token": token["access_token"],
                     "refresh_token": token.get("refresh_token"),
                     "expires_at": int(time.time()) + token.get("expires_in", 3600),
                 }, on_conflict="user_id, service").execute()
 
+                logging.info(f"Saved Asana connector for user {user_id} (org: {organization_id}, team: {team_id})")
                 background_tasks.add_task(run_master_etl, user_id, "asana")
 
             except Exception as e:
