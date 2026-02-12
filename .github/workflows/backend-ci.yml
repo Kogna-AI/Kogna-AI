@@ -78,6 +78,9 @@ jobs:
           REFRESH_TOKEN_EXPIRE_DAYS: ${{ secrets.REFRESH_TOKEN_EXPIRE_DAYS }}
           # Config
           ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          GOOGLE_SHEET_WEBHOOK_URL: ${{ secrets.GOOGLE_SHEET_WEBHOOK_URL }}
           ENVIRONMENT: test
           DEBUG: true
 
