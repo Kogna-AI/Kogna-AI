@@ -5,6 +5,7 @@ import { Sidebar } from "../sidebar";
 import { MainDashboard } from "../MainDashboard";
 import { KogniiAssistant } from "../kognii/KogniiAssistant";
 import { NotificationCenter } from "../NotificationCenter";
+import { DashboardTopNav } from "./DashboardTopNav";
 import { useUser } from "../auth/UserContext";
 import { useRouter } from "next/navigation";
 
@@ -117,6 +118,7 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
 
   return (
     <div className="size-full flex bg-background">
+      {/* Left sidebar (priority) — full height from top */}
       <Sidebar
         activeView={activeView}
         setActiveView={(view) => router.push(`/${view}`)}
@@ -124,21 +126,45 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
         onNotificationsToggle={() => setNotificationsOpen(!notificationsOpen)}
       />
 
-      <div className="flex-1 flex ml-64">
-        <MainDashboard
-          activeView={activeView}
-          setActiveView={(view) => router.push(`/${view}`)}
-          onStrategySession={handleStrategySession}
-          kogniiControlState={kogniiControlState}
-          onKogniiActionComplete={kogniiActions.clearKogniiControl}
+      {/* Main content area: top bar only above content, not above sidebar */}
+      <div className="flex-1 flex flex-col ml-64 min-h-0">
+        <DashboardTopNav
+          onKogniiToggle={() => setIsKogniiOpen(!isKogniiOpen)}
+          onNotificationsToggle={() => setNotificationsOpen(!notificationsOpen)}
         />
+        <div className="flex-1 flex min-h-0 relative overflow-hidden">
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+            <MainDashboard
+              activeView={activeView}
+              setActiveView={(view) => router.push(`/${view}`)}
+              onStrategySession={handleStrategySession}
+              onOpenAssistant={() => setIsKogniiOpen(true)}
+              kogniiControlState={kogniiControlState}
+              onKogniiActionComplete={kogniiActions.clearKogniiControl}
+            />
+          </div>
 
-        {isKogniiOpen && (
-          <div
-            className="fixed inset-0 pointer-events-none"
-            style={{ zIndex: "var(--z-kognii-assistant)" }}
-          >
-            <div className="absolute right-0 top-0 h-full pointer-events-auto">
+          {/* Notifications — same right-panel position as Kogna Assistant */}
+          {notificationsOpen && (
+            <div
+              className="
+                w-[400px] border-l border-border bg-background transition-all duration-300 flex flex-col min-h-0 shrink-0
+                fixed top-12 right-0 bottom-0 z-30
+                min-[1400px]:relative min-[1400px]:top-auto min-[1400px]:right-auto min-[1400px]:bottom-auto min-[1400px]:z-auto
+              "
+            >
+              <NotificationCenter onClose={() => setNotificationsOpen(false)} />
+            </div>
+          )}
+
+          {isKogniiOpen && (
+            <div
+              className="
+                w-[400px] border-l border-border bg-background transition-all duration-300 flex flex-col min-h-0 shrink-0
+                fixed top-12 right-0 bottom-0 z-30
+                min-[1400px]:relative min-[1400px]:top-auto min-[1400px]:right-auto min-[1400px]:bottom-auto min-[1400px]:z-auto
+              "
+            >
               <KogniiAssistant
                 onClose={handleCloseKognii}
                 strategySessionMode={strategySessionMode}
@@ -146,13 +172,9 @@ export function DashboardLayout({ activeView }: DashboardLayoutProps) {
                 kogniiActions={kogniiActions}
               />
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-
-      {notificationsOpen && (
-        <NotificationCenter onClose={() => setNotificationsOpen(false)} />
-      )}
     </div>
   );
 }
