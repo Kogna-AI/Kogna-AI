@@ -136,10 +136,10 @@ export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPa
               {/* Left: Info (Takes up 5/12 columns - approx 40%) */}
               <div className="lg:col-span-5 space-y-6">
                 <div className="inline-block rounded-lg bg-blue-100 px-3 py-1 text-sm text-blue-700">
-                  New Features
+                  Features
                 </div>
                 <h2 className="text-3xl md:text-4xl font-bold tracking-tighter">
-                  Unlock Your Organization's Potential
+                  From 1000 tabs to 1 clear view
                 </h2>
                 <p className="text-lg text-muted-foreground">
                   Connect your strategy to execution. Kogna provides a unified platform where teams can view, synthesize, and communicate real-time SWOT analysis to inform high impact decisions.
@@ -175,7 +175,7 @@ export function LandingPage({ onJoinWaitlist, onGetStarted, onLogin }: LandingPa
         <section id="features" className="container mx-auto px-4 md:px-6 py-24 scroll-mt-20">
           <div className="mb-16">
             <h2 className="text-3xl font-bold tracking-tight mb-4">
-              Everything you need to scale
+              Everything you need to know
             </h2>
             <p className="text-muted-foreground text-lg max-w-3xl leading-relaxed">
               From intelligent insights to instant connectivity, Kogna is the operating system for modern decision-making.
