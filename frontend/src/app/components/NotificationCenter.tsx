@@ -62,20 +62,20 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
   ).length;
 
   return (
-    <Card className="fixed top-4 right-4 w-96 h-[600px] shadow-lg z-50 flex flex-col overflow-auto">
+    <Card className="h-full flex flex-col overflow-hidden border-0 shadow-none rounded-none">
       <NotificationHeader
         unreadCount={unreadCount}
         onMarkAll={markAllAsRead}
         onClose={onClose}
       />
 
-      <CardContent className="flex-1 flex flex-col p-0">
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
         <Tabs
           value={selectedTab}
           onValueChange={setSelectedTab}
-          className="flex-1 flex flex-col"
+          className="flex-1 flex flex-col min-h-0"
         >
-          <div className="px-6 pb-4">
+          <div className="px-6 pb-4 shrink-0">
             <TabsList className="grid w-full grid-cols-4 text-xs">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="unread" className="relative">
@@ -94,7 +94,7 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
             </TabsList>
           </div>
 
-          <TabsContent value={selectedTab} className="flex-1 mt-0">
+          <TabsContent value={selectedTab} className="flex-1 mt-0 min-h-0 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
             {/*
               NotificationList expects three handlers now:
               - onItemClick: called when user opens/marks as read

@@ -1,9 +1,14 @@
 import { KogniiThinkingIcon } from "../../../../public/KogniiThinkingIcon"
 import { Button } from "@/app/ui/button"
-import { X } from "lucide-react"
-import { KogniiAssistantProps } from "./types/KogniiTypes"
+import { X, Maximize2, Minimize2 } from "lucide-react"
 
-export default function Header ({onClose, activeView}:KogniiAssistantProps){
+interface HeaderProps {
+  onClose: () => void;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
+}
+
+export default function Header({ onClose, isExpanded, onToggleExpand }: HeaderProps) {
   return (
     <div className="p-4 border-b border-border">
       <div className="flex items-center justify-between">
@@ -16,9 +21,25 @@ export default function Header ({onClose, activeView}:KogniiAssistantProps){
             <p className="text-xs text-muted-foreground">Strategic AI companion</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <X className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {onToggleExpand && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleExpand}
+              title={isExpanded ? "Exit full screen" : "Full screen"}
+            >
+              {isExpanded ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

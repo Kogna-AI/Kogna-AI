@@ -4,7 +4,7 @@ Connects user_id with roles/permissions to secure AI agents and data access.
 """
 
 import os
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any  # Optional used for supabase client
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 from auth.dependencies import get_current_user
@@ -15,10 +15,14 @@ from core.database import get_db_context
 
 load_dotenv()
 
-# Initialize Supabase client
+# Initialize Supabase client only when URL and key are set (accept either env var name)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+_placeholder_key = "your-supabase-service-role-key"
+if SUPABASE_URL and SUPABASE_KEY and SUPABASE_KEY.strip() != _placeholder_key:
+    supabase: Optional[Client] = create_client(SUPABASE_URL, SUPABASE_KEY)
+else:
+    supabase: Optional[Client] = None  # Server can start without Supabase; auth/roles may fail at runtime
 
 
 # ============================================
