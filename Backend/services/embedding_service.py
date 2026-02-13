@@ -24,6 +24,9 @@ from Ai_agents.note_generator_agent import DocumentNoteGenerator
 # === NEW IMPORT: File Change Detector ===
 from services.file_change_detector import FileChangeDetector
 
+# === Pre-Cluster Classification (TCRR) ===
+from services.chunk_tagger import tag_chunks_batch
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
@@ -512,19 +515,38 @@ async def embed_and_store_file(
             }
 
         # =====================================================================
-        # STEP 6: STORE CHUNKS WITH FILE_HASH
+        # STEP 5b: PRE-CLUSTER CLASSIFICATION (TAGGING) - TCRR
+        # =====================================================================
+
+        print(f" Tagging {len(chunks)} chunks (domain classification)...")
+        _tag_start = time.perf_counter()
+        try:
+            tag_results = await tag_chunks_batch(chunks, max_concurrent=15)
+            _tag_elapsed = time.perf_counter() - _tag_start
+            print(f"✓ Tagged in {_tag_elapsed:.2f}s")
+        except Exception as tag_e:
+            logging.warning(f"Chunk tagging failed, using default: {tag_e}")
+            tag_results = [{"tag": "General", "confidence": 0.0} for _ in chunks]
+
+        # =====================================================================
+        # STEP 6: STORE CHUNKS WITH FILE_HASH + METADATA (TAG)
         # =====================================================================
         
         documents_to_insert = []
-        for chunk, embedding in zip(chunks, chunk_embeddings):
+        for i, (chunk, embedding) in enumerate(zip(chunks, chunk_embeddings)):
             chunk_hash = detector.compute_chunk_hash(chunk)
+            tag_info = tag_results[i] if i < len(tag_results) else {"tag": "General", "confidence": 0.0}
             documents_to_insert.append({
                 "user_id": user_id,
                 "file_path": file_path_in_bucket,
                 "content": chunk,
                 "embedding": embedding,
                 "file_hash": file_hash,      #  NEW: Link to file version
-                "chunk_hash": chunk_hash      #  NEW: Chunk-level deduplication
+                "chunk_hash": chunk_hash,    #  NEW: Chunk-level deduplication
+                "metadata": {                 #  TCRR: Pre-cluster classification tag
+                    "tag": tag_info.get("tag", "General"),
+                    "confidence": tag_info.get("confidence", 0.0),
+                },
             })
 
         print(f" Inserting {len(documents_to_insert)} chunks...")
