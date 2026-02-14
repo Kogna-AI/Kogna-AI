@@ -13,6 +13,30 @@ const API_BASE_URL = (
 // AWS: Request timeout configuration
 const REQUEST_TIMEOUT = 120000; // 120 seconds
 
+// ==================== TYPE DEFINITIONS ====================
+
+/** Session data interface with metadata for multi-session history */
+export interface SessionData {
+  id: string;
+  user_id: string;
+  title?: string;
+  auto_title?: string; // Auto-generated from first message
+  preview_text?: string; // First user message preview
+  message_count: number; // Total messages in session
+  created_at: string;
+  last_message_at?: string; // Last activity timestamp
+}
+
+/** Message data interface for chat history */
+export interface MessageData {
+  id: string;
+  session_id: string;
+  user_id: string;
+  role: string; // 'user' | 'assistant'
+  content: string;
+  created_at: string;
+}
+
 /**
  * Fetch with timeout for AWS reliability
  * Prevents hanging requests in AWS infrastructure
@@ -968,34 +992,47 @@ resendVerification: async (email: string) => {
   },
 
   /**
-   * Gets a list of all past chat sessions for the authenticated user.
-   * @returns {Promise<Array<{id: string, user_id: string, title: string, created_at: string}>>} A list of session objects.
+   * Gets a list of all past chat sessions for the authenticated user with pagination.
+   * @param limit - Number of sessions to return (default 20, max 50)
+   * @param offset - Number of sessions to skip (for pagination)
+   * @param orderBy - Sort by 'created_at' or 'last_message_at' (default: last_message_at)
+   * @returns {Promise<SessionData[]>} A list of session objects with metadata
    */
-  getUserSessions: async (): Promise<
-    Array<{ id: string; user_id: string; title: string; created_at: string }>
-  > => {
-    const response = await fetch(`${API_BASE_URL}/api/chat/sessions`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    });
+  getUserSessions: async (
+    limit: number = 20,
+    offset: number = 0,
+    orderBy: 'created_at' | 'last_message_at' = 'last_message_at'
+  ): Promise<SessionData[]> => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/chat/sessions?limit=${limit}&offset=${offset}&order_by=${orderBy}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 
   /**
-   * Gets all messages for a specific chat session.
+   * Gets all messages for a specific chat session with pagination.
    * Call this when a user clicks on an old conversation to load its history.
-   * @param sessionId - The UUID of the chat session.
-   * @returns {Promise<Array<{id: string, role: string, content: string, created_at: string}>>} A list of message objects.
+   * @param sessionId - The UUID of the chat session
+   * @param limit - Max messages to return (default 100, max 500)
+   * @param offset - Number of messages to skip (for loading older messages)
+   * @returns {Promise<MessageData[]>} A list of message objects
    */
   getSessionHistory: async (
     sessionId: string,
-  ): Promise<
-    Array<{ id: string; role: string; content: string; created_at: string }>
-  > => {
-    const response = await fetch(`${API_BASE_URL}/api/chat/history/${sessionId}`, {
-      method: "GET",
-      headers: getAuthHeaders(),
-    });
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<MessageData[]> => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/chat/history/${sessionId}?limit=${limit}&offset=${offset}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    );
     return handleResponse(response);
   },
 

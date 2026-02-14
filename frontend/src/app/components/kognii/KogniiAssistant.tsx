@@ -12,7 +12,9 @@ import { InputArea } from "../InputArea";
 import { QuickActions } from "../QuickActions";
 import { ConversationMode } from "../ConversationMode";
 import Header from "./Header";
-import { api } from "@/services/api"; // Added the API import
+import { api, type MessageData } from "@/services/api"; // Added the API import
+import { useSessionHistory } from "@/hooks/useSessionHistory"; // Session history hook
+import { SessionSidebar } from "../chat/SessionSidebar"; // Session sidebar component
 
 export function KogniiAssistant({
   onClose,
@@ -32,6 +34,18 @@ export function KogniiAssistant({
   const [conversationMode, setConversationMode] = useState(false);
   const [conversationStep, setConversationStep] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+
+  // Session history state
+  const [showSidebar, setShowSidebar] = useState(false);
+  const {
+    sessions,
+    currentSessionId: historySessionId,
+    messages: historyMessages,
+    loading: loadingHistory,
+    switchSession,
+    loadMoreSessions,
+    hasMoreSessions,
+  } = useSessionHistory();
 
   const demoScenarios = getDemoScenarios(activeView);
   const quickActions = getPageQuickActions(activeView);
@@ -276,6 +290,22 @@ export function KogniiAssistant({
     setMessages([getContextualInitialMessage(activeView)]);
   };
 
+  // Handle session switching from history
+  const handleSessionSwitch = async (newSessionId: string) => {
+    await switchSession(newSessionId);
+
+    // Convert MessageData to Message format for UI
+    const converted: Message[] = historyMessages.map(msg => ({
+      id: msg.id,
+      type: msg.role as 'user' | 'assistant',
+      content: msg.content,
+      timestamp: new Date(msg.created_at),
+    }));
+
+    setMessages(converted);
+    setSessionId(newSessionId);
+  };
+
   if (conversationMode) {
     return (
       <ConversationMode
@@ -292,31 +322,87 @@ export function KogniiAssistant({
   }
 
   return (
-    <div className="w-96 h-full bg-background border-l border-border shadow-xl flex flex-col">
-      <Header onClose={onClose} activeView={activeView} />
+    <div className="flex h-full">
+      {/* Session History Sidebar (collapsible) */}
+      {showSidebar && (
+        <SessionSidebar
+          sessions={sessions}
+          currentSessionId={historySessionId || sessionId}
+          onSelectSession={handleSessionSwitch}
+          onLoadMore={loadMoreSessions}
+          hasMore={hasMoreSessions}
+          loading={loadingHistory}
+        />
+      )}
 
-      <QuickActions
-        quickActions={quickActions}
-        onQuickAction={handleQuickAction}
-        onDemoInput={handleDemoInput}
-        onEnterConversationMode={() => setConversationMode(true)}
-        currentDemoStep={currentDemoStep}
-        demoScenariosLength={demoScenarios.length}
-      />
+      {/* Main Chat Panel */}
+      <div className="w-96 h-full bg-background border-l border-border shadow-xl flex flex-col">
+        {/* Header with sidebar toggle */}
+        <div className="flex items-center justify-between p-4 border-b bg-card">
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
+            title="Toggle conversation history"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 12h18M3 6h18M3 18h18" />
+            </svg>
+          </button>
+          <h2 className="text-lg font-semibold">Kogna Assistant</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
 
-      <ChatArea
-        messages={messages}
-        isTyping={isTyping}
-        onSuggestionClick={handleSuggestionClick}
-      />
+        <QuickActions
+          quickActions={quickActions}
+          onQuickAction={handleQuickAction}
+          onDemoInput={handleDemoInput}
+          onEnterConversationMode={() => setConversationMode(true)}
+          currentDemoStep={currentDemoStep}
+          demoScenariosLength={demoScenarios.length}
+        />
 
-      <InputArea
-        inputValue={inputValue}
-        setInputValue={setInputValue}
-        onSendMessage={handleSendMessage}
-        isTyping={isTyping}
-        onEnterConversationMode={() => setConversationMode(true)}
-      />
+        <ChatArea
+          messages={messages}
+          isTyping={isTyping}
+          onSuggestionClick={handleSuggestionClick}
+        />
+
+        <InputArea
+          inputValue={inputValue}
+          setInputValue={setInputValue}
+          onSendMessage={handleSendMessage}
+          isTyping={isTyping}
+          onEnterConversationMode={() => setConversationMode(true)}
+        />
+      </div>
     </div>
   );
 }

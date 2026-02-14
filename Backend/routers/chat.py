@@ -14,7 +14,7 @@ Note: Retrieval now happens INSIDE the agent (graph.py) using HierarchicalRetrie
 import json
 import time
 import logging
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
@@ -60,10 +60,14 @@ class MessageOut(BaseModel):
 
 class SessionOut(BaseModel):
     """Output model for a single chat session."""
-    id: str 
-    user_id: str 
-    title: str
+    id: str
+    user_id: str
+    title: Optional[str] = None
+    auto_title: Optional[str] = None  # Auto-generated from first message
+    preview_text: Optional[str] = None  # First user message preview
+    message_count: int = 0  # Total messages in session
     created_at: str
+    last_message_at: Optional[str] = None  # Last activity timestamp
 
 
 class ChatRunOut(BaseModel):
@@ -190,19 +194,35 @@ def create_new_session(ids: dict = Depends(get_backend_user_id)):
 
 
 @router.get("/sessions", response_model=List[SessionOut])
-def list_user_sessions(ids: dict = Depends(get_backend_user_id)):
-    """Retrieves all chat sessions belonging to the authenticated user."""
+def list_user_sessions(
+    ids: dict = Depends(get_backend_user_id),
+    limit: int = Query(20, ge=1, le=50, description="Number of sessions to return (max 50)"),
+    offset: int = Query(0, ge=0, description="Number of sessions to skip"),
+    order_by: str = Query("last_message_at", pattern="^(created_at|last_message_at)$", description="Sort by 'created_at' or 'last_message_at'")
+):
+    """
+    Retrieves chat sessions with pagination and sorting.
+
+    - **limit**: Number of sessions to return (default 20, max 50)
+    - **offset**: Number of sessions to skip (for pagination)
+    - **order_by**: Sort by 'created_at' or 'last_message_at' (default: last_message_at)
+    """
     user_id = ids['user_id']
-    
+
     try:
+        # Optimized query with only needed fields
         response = supabase.table("sessions") \
-            .select("id, user_id, title, created_at") \
+            .select("id, user_id, title, auto_title, preview_text, message_count, created_at, last_message_at") \
             .eq("user_id", user_id) \
-            .order("created_at", desc=True) \
+            .order(order_by, desc=True) \
+            .range(offset, offset + limit - 1) \
             .execute()
-            
+
+        if not response.data:
+            return []
+
         return response.data
-    
+
     except Exception as e:
         logger.error(f"Error listing sessions: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list chat sessions: {str(e)}")
@@ -211,32 +231,40 @@ def list_user_sessions(ids: dict = Depends(get_backend_user_id)):
 @router.get("/history/{session_id}", response_model=List[MessageOut])
 def get_session_history(
     session_id: str,
-    ids: dict = Depends(get_backend_user_id)
+    ids: dict = Depends(get_backend_user_id),
+    limit: int = Query(100, ge=1, le=500, description="Max messages to return (default 100, max 500)"),
+    offset: int = Query(0, ge=0, description="Number of messages to skip (for loading older messages)")
 ):
-    """Retrieves the message history for a specific session."""
+    """
+    Retrieves message history for a specific session with pagination.
+
+    - **limit**: Max messages to return (default 100, max 500)
+    - **offset**: Number of messages to skip (for pagination)
+    """
     user_id = ids['user_id']
-    
+
     try:
-        # Verify the session belongs to the user
+        # Verify session belongs to user (optimized - only check existence)
         session_check = supabase.table("sessions") \
             .select("id") \
             .eq("id", session_id) \
             .eq("user_id", user_id) \
-            .single() \
+            .maybe_single() \
             .execute()
-            
+
         if not session_check.data:
             raise HTTPException(status_code=404, detail="Session not found or access denied.")
 
-        # Fetch the messages
+        # Fetch messages with pagination
         response = supabase.table("messages") \
             .select("id, session_id, user_id, role, content, created_at") \
             .eq("session_id", session_id) \
             .order("created_at", desc=False) \
+            .range(offset, offset + limit - 1) \
             .execute()
-            
-        return response.data
-    
+
+        return response.data if response.data else []
+
     except HTTPException:
         raise
     except Exception as e:

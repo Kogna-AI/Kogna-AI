@@ -49,6 +49,60 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from Ai_agents.note_generator_agent import DocumentNoteGenerator
 from Ai_agents.super_note_generator_agent import SuperNoteGenerator
 
+
+# ============================================================================
+# Matryoshka Embedding Helper
+# ============================================================================
+
+def get_matryoshka_embeddings(output_dim=1536):
+    """
+    Get Gemini embedding model with Matryoshka dimension control.
+
+    Args:
+        output_dim: Output embedding size (768, 1536, or 3072). Default: 1536
+
+    Returns:
+        Embedding model compatible with LangChain interface
+    """
+    try:
+        from google import genai
+        from google.genai import types
+
+        class MatryoshkaEmbeddings:
+            def __init__(self, output_dim=1536):
+                self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+                self.output_dim = output_dim
+
+            def embed_query(self, text: str) -> list:
+                result = self.client.models.embed_content(
+                    model="gemini-embedding-001",
+                    contents=text,
+                    config=types.EmbedContentConfig(output_dimensionality=self.output_dim)
+                )
+                return list(result.embeddings[0].values)
+
+            def embed_documents(self, texts: list) -> list:
+                results = []
+                for text in texts:
+                    result = self.client.models.embed_content(
+                        model="gemini-embedding-001",
+                        contents=text,
+                        config=types.EmbedContentConfig(output_dimensionality=self.output_dim)
+                    )
+                    results.append(list(result.embeddings[0].values))
+                return results
+
+        return MatryoshkaEmbeddings(output_dim=output_dim)
+
+    except ImportError:
+        # Fallback to LangChain (will return 3072 dims by default)
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
+        logging.warning("⚠️  google-genai not available, using LangChain (may return 3072 dims)")
+        return GoogleGenerativeAIEmbeddings(
+            model="models/gemini-embedding-001",
+            google_api_key=os.getenv("GOOGLE_API_KEY")
+        )
+
 logging.basicConfig(level=logging.INFO)
 
 # Initialize clients
@@ -339,12 +393,7 @@ Insights:
 Topics: {', '.join(super_note_topics)}
                 """.strip()
                 
-                from langchain_google_genai import GoogleGenerativeAIEmbeddings
-                
-                embeddings_model = GoogleGenerativeAIEmbeddings(
-                    model="models/embedding-001",
-                    google_api_key=os.getenv("GOOGLE_API_KEY")
-                )
+                embeddings_model = get_matryoshka_embeddings(output_dim=1536)
                 
                 embedding = embeddings_model.embed_query(note_text_for_embedding)
                 
@@ -496,12 +545,7 @@ Insights:
 Topics: {', '.join(super_note_topics)}
                 """.strip()
                 
-                from langchain_google_genai import GoogleGenerativeAIEmbeddings
-                
-                embeddings_model = GoogleGenerativeAIEmbeddings(
-                    model="models/embedding-001",
-                    google_api_key=os.getenv("GOOGLE_API_KEY")
-                )
+                embeddings_model = get_matryoshka_embeddings(output_dim=1536)
                 
                 embedding = embeddings_model.embed_query(note_text_for_embedding)
                 
@@ -601,13 +645,8 @@ Key Insights:
 Topics: {', '.join(super_note_topics)}
         """.strip()
         
-        from langchain_google_genai import GoogleGenerativeAIEmbeddings
-        
-        embeddings_model = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
-            google_api_key=os.getenv("GOOGLE_API_KEY")
-        )
-        
+        embeddings_model = get_matryoshka_embeddings(output_dim=1536)
+
         embedding = embeddings_model.embed_query(note_text_for_embedding)
         
         # Store root node

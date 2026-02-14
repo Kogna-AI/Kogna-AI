@@ -39,11 +39,46 @@ try:
     if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY not found in environment variables.")
 
-    embeddings_model = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001", 
-        google_api_key=gemini_api_key
-    )
-    print("✓ Embedding model initialized successfully.")
+    # Use Google GenAI SDK for Matryoshka dimension control
+    try:
+        from google import genai
+        from google.genai import types
+
+        # Create a wrapper that matches LangChain interface
+        class MatryoshkaEmbeddings:
+            def __init__(self, output_dim=1536):
+                self.client = genai.Client(api_key=gemini_api_key)
+                self.output_dim = output_dim
+
+            def embed_query(self, text: str) -> list:
+                result = self.client.models.embed_content(
+                    model="gemini-embedding-001",
+                    contents=text,
+                    config=types.EmbedContentConfig(output_dimensionality=self.output_dim)
+                )
+                return list(result.embeddings[0].values)
+
+            def embed_documents(self, texts: list) -> list:
+                results = []
+                for text in texts:
+                    result = self.client.models.embed_content(
+                        model="gemini-embedding-001",
+                        contents=text,
+                        config=types.EmbedContentConfig(output_dimensionality=self.output_dim)
+                    )
+                    results.append(list(result.embeddings[0].values))
+                return results
+
+        embeddings_model = MatryoshkaEmbeddings(output_dim=1536)
+        print("✓ Embedding model initialized with 1536 dimensions (Matryoshka)")
+
+    except ImportError:
+        # Fallback to LangChain (will return 3072 dims by default)
+        embeddings_model = GoogleGenerativeAIEmbeddings(
+            model="models/gemini-embedding-001",
+            google_api_key=gemini_api_key
+        )
+        print("⚠️  Using LangChain wrapper (may return 3072 dims)")
 
 except Exception as e:
     print(f"CRITICAL ERROR: Could not initialize embedding model: {e}")

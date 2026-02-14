@@ -14,17 +14,51 @@ Strategies:
 import logging
 from typing import List, Dict, Optional
 from supabase_connect import get_supabase_manager
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import os
 
 logging.basicConfig(level=logging.INFO)
 supabase = get_supabase_manager().client
 
-# Initialize embeddings
-embeddings_model = GoogleGenerativeAIEmbeddings(
-    model="models/gemini-embedding-001",
-    google_api_key=os.getenv("GOOGLE_API_KEY")
-)
+# Initialize embeddings with Matryoshka dimension control
+try:
+    from google import genai
+    from google.genai import types
+
+    class MatryoshkaEmbeddings:
+        def __init__(self, output_dim=1536):
+            self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+            self.output_dim = output_dim
+
+        def embed_query(self, text: str) -> list:
+            result = self.client.models.embed_content(
+                model="gemini-embedding-001",
+                contents=text,
+                config=types.EmbedContentConfig(output_dimensionality=self.output_dim)
+            )
+            return list(result.embeddings[0].values)
+
+        def embed_documents(self, texts: list) -> list:
+            results = []
+            for text in texts:
+                result = self.client.models.embed_content(
+                    model="gemini-embedding-001",
+                    contents=text,
+                    config=types.EmbedContentConfig(output_dimensionality=self.output_dim)
+                )
+                results.append(list(result.embeddings[0].values))
+            return results
+
+    embeddings_model = MatryoshkaEmbeddings(output_dim=1536)
+    logging.info("✓ Using Matryoshka embeddings with 1536 dimensions")
+
+except ImportError:
+    # Fallback to LangChain
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+    embeddings_model = GoogleGenerativeAIEmbeddings(
+        model="models/gemini-embedding-001",
+        google_api_key=os.getenv("GOOGLE_API_KEY")
+    )
+    logging.warning("⚠️  Using LangChain wrapper (may return 3072 dims)")
 
 
 class HierarchicalRetriever:

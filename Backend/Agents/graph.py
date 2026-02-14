@@ -6,12 +6,14 @@ This file is PURE ORCHESTRATION - it defines the flow, not the logic.
 Flow:
 1. GATE 1: Intent classification (greeting/chitchat vs data question)
 2. Retrieve context (via HierarchicalRetriever)
-3. GATE 2: Data sufficiency check
-4. Classify query complexity (supervisor)
-5. Route to specialist
-6. Audit response
-7. Handle reroutes if needed
-8. Format final response
+3. 🆕 Enrich with dual memory (conversational + business knowledge)
+4. GATE 2: Data sufficiency check
+5. Classify query complexity (supervisor)
+6. Route to specialist (enriched with memory context)
+7. Audit response
+8. Handle reroutes if needed
+9. Format final response
+10. 🆕 Extract and store facts to memory (auto-learning)
 """
 
 import logging
@@ -28,6 +30,9 @@ from .token_budget import TokenBudget, TokenUsage
 
 # Import the hierarchical retriever
 from services.hierarchical_retriever import HierarchicalRetriever
+
+# Import memory nodes
+from .nodes.memory_nodes import enrich_with_memory, extract_and_store_facts
 
 logger = logging.getLogger(__name__)
 
@@ -674,27 +679,36 @@ def _finalize_state(state: AgentState) -> None:
 
 def build_agent_graph() -> StateGraph:
     """
-    Build the agent orchestration graph.
-    
+    Build the agent orchestration graph with dual memory integration.
+
     ┌─────────────────────────────────────────────────────────────┐
     │  GATE 1: classify_intent                                    │
-    │    ├── greeting/chitchat → respond_direct → END             │
+    │    ├── greeting/chitchat → respond_direct → extract_facts → END│
     │    └── data_question → retrieve_context                     │
     │                              ↓                              │
     │                    (HierarchicalRetriever)                  │
     │                              ↓                              │
+    │                    🆕 enrich_with_memory                    │
+    │                   (conversational + business memory)        │
+    │                              ↓                              │
     │                    GATE 2: check_data_sufficiency           │
-    │                      ├── insufficient → respond_no_data → END│
+    │                      ├── insufficient → respond_no_data → extract_facts → END│
     │                      └── sufficient → classify_query        │
     │                                            ↓                │
     │                                        specialist           │
+    │                                   (enriched with memory)    │
     │                                            ↓                │
     │                                      audit_response         │
     │                                            ↓                │
     │                                     check_confidence        │
-    │                                       ├── accept → END      │
+    │                                       ├── accept → format_response│
     │                                       ├── reroute → loop    │
     │                                       └── fallback → loop   │
+    │                                            ↓                │
+    │                                  🆕 extract_and_store_facts │
+    │                              (auto-extract & store to DB)   │
+    │                                            ↓                │
+    │                                           END               │
     └─────────────────────────────────────────────────────────────┘
     """
     graph = StateGraph(AgentState)
@@ -703,6 +717,11 @@ def build_agent_graph() -> StateGraph:
     graph.add_node("classify_intent", classify_intent)
     graph.add_node("respond_direct", respond_direct)
     graph.add_node("retrieve_context", retrieve_context)
+
+    # Memory nodes
+    graph.add_node("enrich_with_memory", enrich_with_memory)
+    graph.add_node("extract_facts", extract_and_store_facts)
+
     graph.add_node("check_data_sufficiency", check_data_sufficiency)
     graph.add_node("respond_no_data", respond_no_data)
     graph.add_node("classify_query", classify_query)
@@ -722,16 +741,19 @@ def build_agent_graph() -> StateGraph:
         route_after_intent,
         {"respond_direct": "respond_direct", "retrieve_context": "retrieve_context"}
     )
-    graph.add_edge("respond_direct", END)
-    
-    # Retrieval → GATE 2
-    graph.add_edge("retrieve_context", "check_data_sufficiency")
+    # Direct responses also get stored in memory
+    graph.add_edge("respond_direct", "extract_facts")
+
+    # Retrieval → Memory Enrichment → GATE 2
+    graph.add_edge("retrieve_context", "enrich_with_memory")
+    graph.add_edge("enrich_with_memory", "check_data_sufficiency")
     graph.add_conditional_edges(
         "check_data_sufficiency",
         route_after_sufficiency,
         {"respond_no_data": "respond_no_data", "classify_query": "classify_query"}
     )
-    graph.add_edge("respond_no_data", END)
+    # No-data responses also get stored
+    graph.add_edge("respond_no_data", "extract_facts")
     
     # Classification → Specialist
     graph.add_edge("classify_query", "specialist")
@@ -753,9 +775,10 @@ def build_agent_graph() -> StateGraph:
     graph.add_edge("prepare_reroute", "specialist")
     graph.add_edge("fallback_to_general", "specialist")
     
-    # Exits
-    graph.add_edge("format_response", END)
-    
+    # Exits - all responses go through fact extraction before ending
+    graph.add_edge("format_response", "extract_facts")
+    graph.add_edge("extract_facts", END)
+
     return graph.compile()
 
 
